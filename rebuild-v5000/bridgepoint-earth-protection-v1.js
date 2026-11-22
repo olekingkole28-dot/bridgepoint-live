@@ -4,7 +4,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 (() => {
   'use strict';
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   if (window.__BP_EARTH_PROTECTION_V1__?.version === VERSION) return;
 
   const BUTTON_ID = 'bpEarthProtectionLaunchV1';
@@ -16,7 +16,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const state = {
     open: false,
     paused: false,
-    mode: 'magnetosphere',
+    mode: 'both',
+    renderer:null, earthTexture:null, plasmaShells:[], pointers:new Map(),
+    orbitYaw:0, orbitPitch:.1, orbitDistance:7, historyEntry:false,
     raf: 0,
     lastFrame: 0,
     time: 0,
@@ -66,10 +68,13 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       #${ROOT_ID} *{box-sizing:border-box}
       .bpShieldHudCardV1{position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:12px;width:min(570px,calc(100vw - 24px));padding:12px;border:1px solid #69e4f277;border-radius:17px;background:linear-gradient(135deg,#061a29ee,#0a2836dc);box-shadow:0 12px 32px #0009,0 0 24px #32dcef22;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);pointer-events:auto}
       .bpShieldTopLineV1{display:flex;align-items:flex-start;gap:12px}.bpShieldBrandV1{min-width:0;flex:1}.bpShieldKickerV1{margin:0 0 2px;color:#82f2ff;font-size:11px;font-weight:950;letter-spacing:.15em}.bpShieldTitleV1{margin:0;color:#effcff;font-size:clamp(16px,4vw,20px);font-weight:950;line-height:1.1;letter-spacing:.01em}.bpShieldDescriptionV1{margin:4px 0 0;color:#a6c4d0;font-size:12px;line-height:1.35}
-      .bpShieldActionsV1{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:10px}.bpShieldActionsV1 button{min-height:37px;padding:0 11px;border:1px solid #4a8393;border-radius:11px;background:#081c2b;color:#c8e8ef;font:900 11px/1 system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.04em;cursor:pointer;touch-action:manipulation}.bpShieldActionsV1 button[data-selected="true"]{border-color:#80f3f4;background:linear-gradient(130deg,#155064,#0e3244);color:#f3ffff;box-shadow:inset 0 0 14px #67ecf22c,0 0 12px #2bdcec24}.bpShieldActionsV1 button[data-shield-action="exit"]{margin-left:auto;border-color:#795c65;color:#ffdddf}
+      .bpShieldActionsV1{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:10px}.bpShieldActionsV1 button{min-height:37px;padding:0 11px;border:1px solid #4a8393;border-radius:11px;background:#081c2b;color:#c8e8ef;font:900 11px/1 system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.04em;cursor:pointer;touch-action:manipulation}.bpShieldActionsV1 button[data-selected="true"]{border-color:#80f3f4;background:linear-gradient(130deg,#155064,#0e3244);color:#f3ffff;box-shadow:inset 0 0 14px #67ecf22c,0 0 12px #2bdcec24}.bpShieldActionsV1 button:last-child{margin-left:auto;border-color:#795c65;color:#ffdddf}
       .bpShieldReadoutV1{margin:9px 0 0;padding-top:8px;border-top:1px solid #b6f4ff20;color:#bed7df;font-size:11px;line-height:1.4}.bpShieldReadoutV1 strong{color:#83efff;font-weight:900}.bpShieldStatusV1{display:block;margin-top:5px;color:#9fbcc8}.bpShieldStatusV1[data-tone="error"]{color:#ffc3c8}.bpShieldStatusV1[data-tone="ok"]{color:#a5f1d0}
       .bpShieldFootV1{position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 15px);width:min(700px,calc(100vw - 24px));margin:auto;padding:8px 11px;border:1px solid #4b8a9a77;border-radius:12px;background:#061724d9;color:#a8c5d0;font-size:10px;line-height:1.4;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:auto}
       @media(max-width:520px){.bpShieldHudCardV1{top:calc(env(safe-area-inset-top) + 8px);left:8px;width:calc(100vw - 16px);padding:10px;border-radius:14px}.bpShieldActionsV1{gap:6px}.bpShieldActionsV1 button{min-height:35px;padding:0 9px;font-size:10px}.bpShieldReadoutV1{font-size:10px}.bpShieldFootV1{left:8px;right:8px;width:calc(100vw - 16px);bottom:calc(env(safe-area-inset-bottom) + 8px);font-size:9px}}
+      .bpShieldViewportV1{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,#082239,#01050c 75%);pointer-events:auto;touch-action:none}
+      .bpShieldViewportV1 canvas{display:block;width:100%;height:100%;touch-action:none}
+      .bpShieldHudCardV1,.bpShieldFootV1{z-index:2;pointer-events:none}
       @media(prefers-reduced-motion:reduce){.bpShieldHudCardV1,.bpShieldFootV1{scroll-behavior:auto}}
     `;
     document.head.appendChild(style);
@@ -95,33 +100,18 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     button.hidden = false;
   }
 
-  function ensureHud() {
-    if ($('#' + ROOT_ID)) return;
-    const root = document.createElement('section');
-    root.id = ROOT_ID;
-    root.hidden = true;
-    root.setAttribute('aria-label', 'Earth protection layer controls');
-    root.innerHTML = `
-      <div class="bpShieldHudCardV1">
-        <div class="bpShieldTopLineV1">
-          <div class="bpShieldBrandV1">
-            <p class="bpShieldKickerV1">BRIDGEPOINT · EARTH PROTECTION</p>
-            <h2 class="bpShieldTitleV1">Moving shield layers</h2>
-            <p class="bpShieldDescriptionV1">Earth-centered 3D view · zoom or pass through the transparent shell</p>
-          </div>
-        </div>
-        <div class="bpShieldActionsV1">
-          <button type="button" data-shield-mode="magnetosphere" data-selected="true">MAGNETOSPHERE</button>
-          <button type="button" data-shield-mode="ozone" data-selected="false">OZONE LAYER</button>
-          <button type="button" data-shield-action="pause">PAUSE</button>
-          <button type="button" data-shield-action="exit">EXIT</button>
-        </div>
-        <div class="bpShieldReadoutV1" data-shield-readout></div>
-        <span class="bpShieldStatusV1" data-shield-status role="status" aria-live="polite">Opening the shared 3D Earth scene…</span>
-      </div>
-      <div class="bpShieldFootV1" data-shield-note></div>`;
-    root.addEventListener('click', onHudClick);
-    root.addEventListener('keydown', event => { if (event.key === 'Escape') closeShield(); });
+  function ensureHud(){
+    if($('#'+ROOT_ID))return;
+    const root=document.createElement('section');
+    root.id=ROOT_ID;root.hidden=true;
+    root.setAttribute('aria-label','Earth-only shield view');
+    root.innerHTML='<div class="bpShieldViewportV1" data-shield-viewport></div>'+
+      '<div class="bpShieldHudCardV1"><p class="bpShieldKickerV1">BRIDGEPOINT · EARTH SHIELD</p>'+
+      '<h2 class="bpShieldTitleV1">Magnetic turbulence + ozone</h2>'+
+      '<p class="bpShieldDescriptionV1">Both layers are on · drag to rotate · pinch to zoom · Back to return</p>'+
+      '<div class="bpShieldReadoutV1" data-shield-readout></div>'+
+      '<span class="bpShieldStatusV1" data-shield-status role="status" aria-live="polite">Loading Earth Shield…</span></div>'+
+      '<div class="bpShieldFootV1" data-shield-note></div>';
     document.body.appendChild(root);
   }
 
@@ -175,44 +165,77 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     return null;
   }
 
-  async function openSharedScene() {
-    const app = await waitFor(() => {
-      const candidate = window.__BP_APP_SPACE_EXPLORER_V1__;
-      return candidate && typeof candidate.open === 'function' ? candidate : null;
+  function earthMapUrl(){
+    const url=new URL(OZONE_WMS);
+    url.search=new URLSearchParams({service:'WMS',request:'GetMap',version:'1.1.1',
+      layers:'BlueMarble_ShadedRelief_Bathymetry',styles:'',format:'image/jpeg',
+      width:'2048',height:'1024',srs:'EPSG:4326',bbox:'-180,-90,180,90'}).toString();
+    return url.toString();
+  }
+
+  async function loadEarthMap(){
+    const mesh=state.earthMesh;if(!mesh)return;
+    const loader=new THREE.TextureLoader();loader.setCrossOrigin('anonymous');
+    for(const url of [earthMapUrl(),'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg']){
+      try{
+        const texture=await new Promise((ok,no)=>loader.load(url,ok,undefined,no));
+        if(!state.open||state.earthMesh!==mesh){texture.dispose();return}
+        texture.colorSpace=THREE.SRGBColorSpace;
+        mesh.material.map=texture;mesh.material.color.setHex(0xffffff);
+        mesh.material.needsUpdate=true;state.earthTexture=texture;return;
+      }catch(_){}
+    }
+  }
+
+  function resizeEarthOnly(){
+    if(!state.open||!state.renderer||!state.camera)return;
+    const el=$('#'+ROOT_ID+' [data-shield-viewport]');if(!el)return;
+    const w=Math.max(1,el.clientWidth),h=Math.max(1,el.clientHeight);
+    state.camera.aspect=w/h;state.camera.updateProjectionMatrix();state.renderer.setSize(w,h,false);
+  }
+
+  function connectShieldGestures(canvas){
+    const p=state.pointers;
+    const pinch=()=>{const a=[...p.values()];return a.length<2?0:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+    let lastPinch=0;
+    canvas.addEventListener('pointerdown',e=>{e.preventDefault();p.set(e.pointerId,{x:e.clientX,y:e.clientY});canvas.setPointerCapture?.(e.pointerId);lastPinch=pinch()});
+    canvas.addEventListener('pointermove',e=>{
+      if(!p.has(e.pointerId))return;e.preventDefault();
+      const prev=p.get(e.pointerId);p.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(p.size===1){state.orbitYaw-=(e.clientX-prev.x)*.006;state.orbitPitch=clamp(state.orbitPitch+(e.clientY-prev.y)*.005,-1.38,1.38)}
+      else {const next=pinch();if(next&&lastPinch)state.orbitDistance=clamp(state.orbitDistance*lastPinch/next,2.6,19);lastPinch=next}
     });
-    if (!app) throw new Error('The shared BridgePoint space viewer is not available.');
-    state.openedExplorer = !app.state?.open;
-    await app.open();
-    const api = await waitFor(() => {
-      const candidate = window.__BP_WELCOME_SPACE_V6257__;
-      return candidate && typeof candidate.getScene === 'function' && typeof candidate.getCamera === 'function' ? candidate : null;
-    });
-    if (!api) throw new Error('The shared 3D globe did not finish loading.');
-    await api.loadSolarCosmos?.();
-    api.resume?.();
-    api.setNearEarthOrbitMode?.(true);
-    const solar = await waitFor(() => {
-      const candidate = window.__BP_SOLAR_COSMOS_V6280__;
-      const frame = candidate?.getFrame?.();
-      return candidate && frame?.heliocentric ? candidate : null;
-    });
-    if (!solar) throw new Error('The Earth orbital scene did not finish loading.');
-    const earthMesh = solar.getBody?.('earth')?.mesh;
-    if (!earthMesh) throw new Error('The Earth model is not available in the shared scene.');
-    state.spaceApi = api;
-    state.solarApi = solar;
-    state.scene = api.getScene();
-    state.camera = api.getCamera();
-    state.earthMesh = earthMesh;
+    const end=e=>{p.delete(e.pointerId);lastPinch=pinch()};
+    for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,end);
+    canvas.addEventListener('wheel',e=>{e.preventDefault();state.orbitDistance=clamp(state.orbitDistance*Math.exp(e.deltaY*.001),2.6,19)},{passive:false});
+    canvas.addEventListener('contextmenu',e=>e.preventDefault());
+  }
+
+  async function openEarthOnlyScene(){
+    const viewport=$('#'+ROOT_ID+' [data-shield-viewport]');
+    if(!viewport)throw Error('Earth Shield viewer not available');
+    const mobile=window.matchMedia('(max-width:650px)').matches;
+    const renderer=new THREE.WebGLRenderer({alpha:false,antialias:!mobile,powerPreference:'default'});
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1,mobile?1.25:1.65));
+    renderer.setClearColor(0x010812,1);
+    viewport.replaceChildren(renderer.domElement);
+    state.renderer=renderer;
+    state.scene=new THREE.Scene();
+    state.camera=new THREE.PerspectiveCamera(43,1,.03,180);
+    state.scene.add(new THREE.AmbientLight(0x82bfff,1.45));
+    const sunlight=new THREE.DirectionalLight(0xffffff,2.0);
+    sunlight.position.set(-3,4,6);state.scene.add(sunlight);
+    state.earthMesh=new THREE.Mesh(new THREE.SphereGeometry(1,96,64),
+      new THREE.MeshPhongMaterial({color:0x1873a2,shininess:6,specular:0x14253b}));
+    state.earthMesh.name='Earth-only globe';state.earthMesh.rotation.y=-.38;
+    state.scene.add(state.earthMesh);
     createLayerObjects();
-    const center = solar.getEarthPosition?.() || earthMesh.getWorldPosition(new THREE.Vector3());
-    const sunward = center.clone().negate();
-    if (sunward.lengthSq() < 1e-12) sunward.set(1, 0, 0);
-    api.focusSpacePoint?.(center, 1.2, sunward.normalize());
-    solar.update?.();
+    state.magnetosphere.visible=true;state.ozoneGroup.visible=true;
+    resizeEarthOnly();connectShieldGestures(renderer.domElement);
+    void loadEarthMap();void loadOzoneTexture();void refreshSolarWind();
     updateReadout();
-    void loadOzoneTexture();
-    void refreshSolarWind();
   }
 
   function createLayerObjects() {
@@ -235,52 +258,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     positions.needsUpdate = true;
     shellGeometry.computeVertexNormals();
     const shellMaterial = new THREE.ShaderMaterial({
-      transparent: true,
-      depthTest: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      toneMapped: false,
-      uniforms: {
-        uTime: { value: 0 },
-        uStress: { value: 0.2 },
-        uOpacity: { value: 0.30 },
-      },
-      vertexShader: `
-        varying vec3 vLocal;
-        varying vec3 vNormalView;
-        varying vec3 vViewPosition;
-        void main(){
-          vLocal=position;
-          vec4 mvPosition=modelViewMatrix*vec4(position,1.0);
-          vViewPosition=-mvPosition.xyz;
-          vNormalView=normalize(normalMatrix*normal);
-          gl_Position=projectionMatrix*mvPosition;
-        }
-      `,
-      fragmentShader: `
-        uniform float uTime;
-        uniform float uStress;
-        uniform float uOpacity;
-        varying vec3 vLocal;
-        varying vec3 vNormalView;
-        varying vec3 vViewPosition;
-        void main(){
-          vec3 viewDir=normalize(vViewPosition);
-          float rim=pow(1.0-abs(dot(normalize(vNormalView),normalize(viewDir))),2.3);
-          float nose=smoothstep(1.0,9.5,vLocal.x);
-          float band=.5+.5*sin(vLocal.y*.72+vLocal.z*.42+uTime*.55);
-          vec3 green=vec3(.08,.91,.63);
-          vec3 cyan=vec3(.12,.78,1.0);
-          vec3 amber=vec3(1.0,.69,.16);
-          vec3 red=vec3(1.0,.20,.18);
-          vec3 hue=mix(green,cyan,.58);
-          hue=mix(hue,amber,nose*(.22+.44*uStress));
-          hue=mix(hue,red,nose*max(0.0,uStress-.55)*.48);
-          hue=mix(hue,vec3(.16,.93,.80),band*.08);
-          float alpha=uOpacity*(.22+rim*.88)*(0.78+band*.22);
-          gl_FragColor=vec4(hue,alpha);
-        }
-      `,
+      transparent:true,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,
+      side:THREE.DoubleSide,toneMapped:false,
+      uniforms:{uTime:{value:0},uStress:{value:.22},uOpacity:{value:.58},uPhase:{value:0}},
+      vertexShader:"varying vec3 vLocal,vN,vEye;uniform float uTime,uStress,uPhase;\nvoid main(){\n vec3 p=position;\n float a=sin(p.y*1.35+uTime*2.4+uPhase)*cos(p.z*.89-uTime*1.8);\n float b=sin(p.z*2.3-p.x*.22+uTime*1.55+uPhase);\n p+=normal*(.55+uStress*.38)*(a*.65+b*.35);\n vLocal=p;vec4 mv=modelViewMatrix*vec4(p,1.);vEye=-mv.xyz;vN=normalize(normalMatrix*normal);\n gl_Position=projectionMatrix*mv;\n}",fragmentShader:"precision highp float;\nuniform float uTime,uStress,uOpacity,uPhase;varying vec3 vLocal,vN,vEye;\nfloat hs(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}\nfloat nz(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n return mix(mix(mix(hs(i),hs(i+vec3(1,0,0)),f.x),mix(hs(i+vec3(0,1,0)),hs(i+vec3(1,1,0)),f.x),f.y),\n mix(mix(hs(i+vec3(0,0,1)),hs(i+vec3(1,0,1)),f.x),mix(hs(i+vec3(0,1,1)),hs(i+vec3(1,1,1)),f.x),f.y),f.z);}\nvoid main(){\n float t=uTime;vec3 flow=vec3(vLocal.x*.39+t*.41,vLocal.y*.69-t*.65,vLocal.z*.72+t*.53);\n float n=nz(flow)+.5*nz(flow*2.6+uPhase);\n float ribbon=pow(max(0.,.5+.5*sin(vLocal.y*2.5+vLocal.z*1.6-vLocal.x*.4+n*7.-t*3.9+uPhase)),9.);\n float filament=pow(max(0.,.5+.5*sin(vLocal.z*3.3-vLocal.y+n*9.+t*4.2)),14.);\n float rim=pow(1.-abs(dot(normalize(vN),normalize(vEye))),1.6);\n float billow=smoothstep(.3,.9,n),flare=max(ribbon,filament);\n vec3 color=mix(vec3(.06,.29,1.),vec3(.06,.94,1.),clamp(billow+flare*.5,0.,1.));\n color=mix(color,vec3(.46,.16,1.),(1.-n)*.27+uStress*.2);\n color=mix(color,vec3(.1,1.,.7),flare*.62);\n float alpha=clamp(uOpacity*(.07+rim*.5+flare*.75+billow*.23),0.,.72);\n gl_FragColor=vec4(color*(.75+flare*.55),alpha);\n}"
     });
     const shell = new THREE.Mesh(shellGeometry, shellMaterial);
     shell.name = 'Live-pressure-driven magnetopause shell';
@@ -302,28 +283,38 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
             r * Math.sin(theta) * Math.sin(phi)
           ));
         }
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(points),
-          new THREE.LineBasicMaterial({ color: side ? 0x63dbff : 0x7cf0ba, transparent: true, opacity: 0.30, depthTest: true, depthWrite: false, toneMapped: false })
+        const line=new THREE.Mesh(
+          new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),96,.032,4,false),
+          new THREE.MeshBasicMaterial({color:side?0x53c8ff:0x54ffd2,transparent:true,
+             opacity:.68,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,toneMapped:false})
         );
-        line.renderOrder = 13;
+        line.name='Magnetic flux tube';line.userData.phase=phi;line.renderOrder=14;
         fieldGroup.add(line);
       }
     }
     root.add(fieldGroup);
     state.magnetosphere = new THREE.Group();
     state.magnetosphere.name = 'Magnetosphere mode';
-    state.magnetosphere.add(shell, fieldGroup);
-    state.magnetosphere.scale.setScalar(0.012);
+    state.magnetosphere.add(shell,fieldGroup);
+    state.plasmaShells=[shell];
+    for(let i=1;i<=2;i++){
+      const curtain=new THREE.Mesh(shellGeometry.clone(),shellMaterial.clone());
+      curtain.name='Secondary waving magnetic plasma curtain';
+      curtain.material.uniforms.uPhase.value=i*2.35;
+      curtain.material.uniforms.uOpacity.value=.47-i*.05;
+      curtain.scale.setScalar(1+i*.095);curtain.renderOrder=12+i;
+      state.magnetosphere.add(curtain);state.plasmaShells.push(curtain);
+    }
+    state.magnetosphere.scale.setScalar(.23);
     root.add(state.magnetosphere);
 
     const ozoneGroup = new THREE.Group();
     ozoneGroup.name = 'Daily total-column ozone layer';
-    const ozoneGeometry = new THREE.SphereGeometry(1.04, 96, 64);
+    const ozoneGeometry = new THREE.SphereGeometry(1.105, 96, 64);
     const ozoneMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.56,
+      opacity: 0.78,
       side: THREE.DoubleSide,
       depthTest: true,
       depthWrite: false,
@@ -331,10 +322,21 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     });
     const ozone = new THREE.Mesh(ozoneGeometry, ozoneMaterial);
     ozone.name = 'NASA OMI daily ozone raster on a thin visible shell';
-    ozone.renderOrder = 14;
+    ozone.renderOrder=17;ozone.visible=false;
     ozoneGroup.add(ozone);
+    const ozoneGlow=new THREE.Mesh(
+      new THREE.SphereGeometry(1.115,96,64),
+      new THREE.ShaderMaterial({
+        transparent:true,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,
+        side:THREE.DoubleSide,toneMapped:false,uniforms:{uTime:{value:0}},
+        vertexShader:"varying vec3 vN,vEye,vP;void main(){vP=position;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vEye=-mv.xyz;gl_Position=projectionMatrix*mv;}",
+        fragmentShader:"uniform float uTime;varying vec3 vN,vEye,vP;void main(){float rim=pow(1.-abs(dot(normalize(vN),normalize(vEye))),1.65);float band=.5+.5*sin(vP.y*17.+vP.z*8.+uTime*.88);float swirl=.5+.5*sin(vP.x*9.-vP.y*7.-uTime*.34);vec3 col=mix(vec3(.08,.55,1.),vec3(.42,.22,1.),band);col=mix(col,vec3(.12,1.,.73),swirl*.23);gl_FragColor=vec4(col,.08+rim*.37+band*.09);}",
+      })
+    );
+    ozoneGlow.name='Continuously visible ozone flow';ozoneGlow.renderOrder=16;
+    ozoneGroup.add(ozoneGlow);
     const ozoneRim = new THREE.Mesh(
-      new THREE.SphereGeometry(1.048, 80, 56),
+      new THREE.SphereGeometry(1.135, 80, 56),
       new THREE.ShaderMaterial({
         transparent: true, depthTest: true, depthWrite: false, side: THREE.BackSide, toneMapped: false,
         uniforms: { uTime: { value: 0 } },
@@ -345,10 +347,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     ozoneRim.renderOrder = 15;
     ozoneGroup.add(ozoneRim);
     root.add(ozoneGroup);
-    ozoneGroup.scale.setScalar(0.012);
+    ozoneGroup.scale.setScalar(1);
     state.ozoneGroup = ozoneGroup;
     state.scene.add(root);
-    state.ozoneGroup.visible = false;
+    state.ozoneGroup.visible = true;
     buildSolarWindParticles();
   }
 
@@ -421,7 +423,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         texture.needsUpdate = true;
         state.ozoneTexture = texture;
         const mesh = state.ozoneGroup.children.find(child => child.isMesh && child.name.startsWith('NASA OMI'));
-        if (mesh?.material) mesh.material.map = texture;
+        if(mesh?.material){mesh.material.map=texture;mesh.material.needsUpdate=true;mesh.visible=true;}
         state.ozoneStatus = 'NASA OMI daily ozone raster · ' + date + ' UTC';
         updateReadout();
         return;
@@ -490,186 +492,122 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     updateReadout();
   }
 
-  function updateReadout() {
-    const readout = $('#' + ROOT_ID + ' [data-shield-readout]');
-    const note = $('#' + ROOT_ID + ' [data-shield-note]');
-    if (!readout || !note) return;
-    if (state.mode === 'magnetosphere') {
-      const f = state.feed;
-      readout.innerHTML = '<strong>' + (f.live ? 'LIVE NOAA SOLAR WIND' : 'SOLAR-WIND MODEL') + '</strong> · ' + f.density.toFixed(1) + ' cm⁻³ · ' + Math.round(f.speed) + ' km/s · ' + f.pressure.toFixed(2) + ' nPa · nose ~' + state.smoothR0.toFixed(1) + ' R⊕';
-      note.textContent = 'Magnetopause shape is a NOAA pressure-driven model; field lines and outer distance are enlarged for visibility. Animated particles show solar-wind flow bending around the shell.';
-    } else {
-      readout.innerHTML = '<strong>GLOBAL OZONE</strong> · ' + state.ozoneStatus;
-      note.textContent = 'NASA OMI total-column ozone is a daily Dobson-unit measurement. The translucent shell altitude and rim shimmer are visual aids; they are not a live atmospheric forecast.';
-    }
+  function updateReadout(){
+    const r=$('#'+ROOT_ID+' [data-shield-readout]'),n=$('#'+ROOT_ID+' [data-shield-note]');
+    if(!r||!n)return;
+    const f=state.feed;
+    r.innerHTML='<strong>'+(f.live?'LIVE NOAA SOLAR WIND':'SOLAR WIND MODEL')+'</strong> · '+
+      f.density.toFixed(1)+' cm⁻³ · '+Math.round(f.speed)+' km/s · '+
+      f.pressure.toFixed(2)+' nPa · nose ~'+state.smoothR0.toFixed(1)+' R⊕'+
+      '<span style="display:block;margin-top:5px"><strong>OZONE ACTIVE</strong> · '+state.ozoneStatus+'</span>';
+    n.textContent='Both Earth shields are automatically on. NOAA powers the modeled magnetic response; NASA daily ozone imagery overlays the shimmering ozone shell when available. Turbulence and altitude are exaggerated for visibility.';
   }
 
-  function setMode(mode) {
-    state.mode = mode === 'ozone' ? 'ozone' : 'magnetosphere';
-    if (state.magnetosphere) state.magnetosphere.visible = state.mode === 'magnetosphere';
-    if (state.ozoneGroup) state.ozoneGroup.visible = state.mode === 'ozone';
-    for (const button of document.querySelectorAll('#' + ROOT_ID + ' [data-shield-mode]')) {
-      button.dataset.selected = String(button.dataset.shieldMode === state.mode);
-      button.setAttribute('aria-pressed', String(button.dataset.shieldMode === state.mode));
-    }
+  function setMode(){
+    state.mode='both';
+    if(state.magnetosphere)state.magnetosphere.visible=true;
+    if(state.ozoneGroup)state.ozoneGroup.visible=true;
     updateReadout();
-    if (state.mode === 'ozone' && !state.ozoneTexture) void loadOzoneTexture();
   }
 
-  function onHudClick(event) {
-    const modeButton = event.target.closest('[data-shield-mode]');
-    if (modeButton) { setMode(modeButton.dataset.shieldMode); return; }
-    const action = event.target.closest('[data-shield-action]')?.dataset.shieldAction;
-    if (action === 'pause') {
-      state.paused = !state.paused;
-      const button = $('[data-shield-action="pause"]', $('#' + ROOT_ID));
-      if (button) button.textContent = state.paused ? 'PLAY' : 'PAUSE';
-      if (button) button.setAttribute('aria-pressed', String(state.paused));
-      return;
-    }
-    if (action === 'exit') closeShield();
-  }
+  function onHudClick(){ /* No inner controls or layer toggles. */ }
 
-  function animate(now) {
-    state.raf = 0;
-    if (!state.open) return;
-    const delta = state.lastFrame ? clamp((now - state.lastFrame) / 1000, 0, 0.08) : 0.016;
-    state.lastFrame = now;
-    if (!document.hidden && state.root && state.camera && state.solarApi) {
-      state.solarApi.update?.();
-      const earthPosition = state.solarApi.getEarthPosition?.();
-      const frame = state.solarApi.getFrame?.();
-      if (earthPosition && frame) {
-        state.root.position.copy(earthPosition);
-        const sun = frame.sun?.isVector3 ? frame.sun : new THREE.Vector3(0, 0, 0);
-        const sunward = sun.clone().sub(earthPosition);
-        if (sunward.lengthSq() < 1e-12) sunward.set(1, 0, 0);
-        state.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), sunward.normalize());
-        const displayRadius = Number(state.earthMesh?.userData?.bpDisplayRadiusWorld)
-          || Number(state.earthMesh?.userData?.bpPhysicalRadiusWorld)
-          || state.earthMesh?.getWorldScale?.(new THREE.Vector3())?.x
-          || 0.012;
-        state.smoothR0 = THREE.MathUtils.damp(state.smoothR0, state.targetR0, 0.65, delta);
-        const breathe = 1 + Math.sin(state.time * 0.72) * 0.012 + Math.sin(state.time * 0.24) * 0.007;
-        const pressureScale = state.smoothR0 / 10;
-        state.root.scale.setScalar(1);
-        state.magnetosphere?.scale.setScalar(displayRadius * pressureScale * (state.paused ? 1 : breathe));
-        state.ozoneGroup?.scale.setScalar(displayRadius);
-        if (!state.paused) {
-          state.time += delta;
-          const shellMaterial = state.magnetosphere?.children?.find(child => child.name === 'Live-pressure-driven magnetopause shell')?.material;
-          if (shellMaterial?.uniforms) {
-            shellMaterial.uniforms.uTime.value = state.time;
-            shellMaterial.uniforms.uStress.value = clamp((12.5 - state.smoothR0) / 6.5, 0, 1);
-          }
-          for (const particle of state.streamParticles) {
-            const curve = state.streamCurves[particle.userData.curveIndex];
-            if (!curve) continue;
-            const phase = (particle.userData.phase + state.time * (0.045 + state.feed.speed / 25000)) % 1;
-            particle.position.copy(curve.getPoint(phase));
-            particle.material.opacity = 0.55 + 0.25 * Math.sin(state.time * 2.5 + particle.userData.phase * 20);
-          }
-          const rim = state.ozoneGroup?.children?.find(child => child.material?.uniforms?.uTime);
-          if (rim?.material?.uniforms?.uTime) rim.material.uniforms.uTime.value = state.time;
-        }
+  function animate(now){
+    state.raf=0;if(!state.open)return;
+    const delta=state.lastFrame?clamp((now-state.lastFrame)/1000,0,.08):.016;
+    state.lastFrame=now;
+    if(!document.hidden&&state.root&&state.renderer&&state.camera&&state.earthMesh){
+      state.time+=delta;
+      state.smoothR0=THREE.MathUtils.damp(state.smoothR0,state.targetR0,.65,delta);
+      state.earthMesh.rotation.y+=delta*.014;
+      state.magnetosphere.scale.setScalar(.23*(state.smoothR0/10)*(1+Math.sin(state.time*.7)*.015));
+      state.ozoneGroup.scale.setScalar(1);
+      state.root.rotation.y=Math.sin(state.time*.09)*.12;
+      const stress=clamp((12.5-state.smoothR0)/6.5,0,1);
+      for(const plasma of state.plasmaShells){
+        plasma.material.uniforms.uTime.value=state.time;
+        plasma.material.uniforms.uStress.value=stress;
       }
-      if (!state.paused && Math.floor(state.time * 2) !== Math.floor((state.time - delta) * 2)) updateReadout();
+      const field=state.magnetosphere.children.find(x=>x.name==='Modeled geomagnetic field lines');
+      for(const strand of field?.children||[])strand.material.opacity=.54+.2*Math.sin(state.time*1.8+strand.userData.phase);
+      for(const particle of state.streamParticles){
+        const curve=state.streamCurves[particle.userData.curveIndex];if(!curve)continue;
+        const phase=(particle.userData.phase+state.time*(.045+state.feed.speed/25000))%1;
+        particle.position.copy(curve.getPoint(phase));
+        particle.material.opacity=.55+.25*Math.sin(state.time*2.5+particle.userData.phase*20);
+      }
+      for(const obj of state.ozoneGroup.children)if(obj.material?.uniforms?.uTime)obj.material.uniforms.uTime.value=state.time;
+      const d=state.orbitDistance,y=state.orbitYaw,p=state.orbitPitch;
+      state.camera.position.set(Math.sin(y)*Math.cos(p)*d,Math.sin(p)*d,Math.cos(y)*Math.cos(p)*d);
+      state.camera.lookAt(0,0,0);
+      state.renderer.render(state.scene,state.camera);
+      if(Math.floor(state.time*2)!==Math.floor((state.time-delta)*2))updateReadout();
     }
-    state.raf = requestAnimationFrame(animate);
+    state.raf=requestAnimationFrame(animate);
   }
 
-  async function openShield() {
-    if (state.open) return;
-    injectStyle();
-    ensureHud();
-    const root = $('#' + ROOT_ID);
-    state.open = true;
-    state.paused = false;
-    state.mode = 'magnetosphere';
-    root.hidden = false;
-    $('#' + BUTTON_ID)?.setAttribute('aria-pressed', 'true');
-    hideDock(true);
-    hideSpaceCloseControl(true);
-    setMode('magnetosphere');
-    setStatus('Opening the shared 3D Earth scene…');
-    const pauseButton = $('[data-shield-action="pause"]', root);
-    if (pauseButton) { pauseButton.textContent = 'PAUSE'; pauseButton.setAttribute('aria-pressed', 'false'); }
-    try {
-      await openSharedScene();
-      if (!state.open) return;
+  async function openShield(){
+    if(state.open)return;
+    injectStyle();ensureHud();
+    const root=$('#'+ROOT_ID);
+    state.open=true;state.paused=false;state.mode='both';state.time=0;state.lastFrame=0;
+    state.orbitYaw=0;state.orbitPitch=.1;state.orbitDistance=7;
+    root.hidden=false;$('#'+BUTTON_ID)?.setAttribute('aria-pressed','true');
+    hideDock(true);setStatus('Opening Earth-only 3D shields…');
+    try{
+      if(!history.state?.bpEarthShield){
+        history.pushState({...((history.state&&typeof history.state==='object')?history.state:{}),bpEarthShield:true},'',location.href);
+        state.historyEntry=true;
+      }
+      await openEarthOnlyScene();
+      if(!state.open)return;
       window.clearInterval(state.feedTimer);
-      state.feedTimer = window.setInterval(() => { if (state.open && !document.hidden) void refreshSolarWind(); }, 300000);
-      setStatus(state.feed.live ? 'NOAA solar-wind data connected · shell response updating' : 'Earth-centered scene ready · loading live solar-wind data', state.feed.live ? 'ok' : 'info');
-      startAnimation();
-      $('[data-shield-action="exit"]', root)?.focus();
-    } catch (error) {
-      setStatus(String(error?.message || 'The Earth protection view could not be opened.'), 'error');
-    }
+      state.feedTimer=window.setInterval(()=>{if(state.open&&!document.hidden)void refreshSolarWind()},300000);
+      setStatus('Magnetosphere + ozone active · updating','ok');startAnimation();
+    }catch(error){setStatus(String(error?.message||'Earth Shield unavailable'),'error')}
   }
 
   function startAnimation() {
     if (!state.raf && state.open) state.raf = requestAnimationFrame(animate);
   }
 
-  function disposeLayer() {
-    if (!state.root) return;
-    state.scene?.remove(state.root);
-    state.root.traverse(object => {
-      object.geometry?.dispose?.();
-      if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
-      else object.material?.dispose?.();
-    });
-    state.ozoneTexture?.dispose?.();
-    state.ozoneTexture = null;
-    state.root = null;
-    state.magnetosphere = null;
-    state.ozoneGroup = null;
-    state.streamCurves = [];
-    state.streamParticles = [];
+  function disposeLayer(){
+    if(state.root){
+      state.scene?.remove(state.root);
+      state.root.traverse(o=>{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose?.()});
+    }
+    if(state.earthMesh){state.scene?.remove(state.earthMesh);state.earthMesh.geometry?.dispose?.();state.earthMesh.material?.dispose?.()}
+    state.renderer?.dispose?.();state.renderer?.domElement?.remove?.();
+    state.earthTexture?.dispose?.();state.ozoneTexture?.dispose?.();
+    state.renderer=null;state.earthTexture=null;state.ozoneTexture=null;state.earthMesh=null;
+    state.scene=null;state.camera=null;state.root=null;state.magnetosphere=null;state.ozoneGroup=null;
+    state.plasmaShells=[];state.streamCurves=[];state.streamParticles=[];state.pointers.clear();
+    state.ozoneStatus='NASA daily ozone layer loading…';
   }
 
-  function closeShield() {
-    if (!state.open) return;
-    state.open = false;
-    state.paused = false;
-    const root = $('#' + ROOT_ID);
-    if (root) root.hidden = true;
-    $('#' + BUTTON_ID)?.setAttribute('aria-pressed', 'false');
-    if (state.raf) cancelAnimationFrame(state.raf);
-    state.raf = 0;
-    window.clearInterval(state.feedTimer);
-    state.feedTimer = 0;
-    disposeLayer();
-    state.solarApi?.setNearEarthTrackingMode?.(false);
-    if (state.openedExplorer) window.__BP_APP_SPACE_EXPLORER_V1__?.close?.();
-    else state.spaceApi?.focusSpaceOverview?.(32);
-    state.spaceApi = null;
-    state.solarApi = null;
-    state.scene = null;
-    state.camera = null;
-    state.earthMesh = null;
-    state.openedExplorer = false;
-    hideDock(false);
-    hideSpaceCloseControl(false);
-    $('#' + BUTTON_ID)?.focus();
+  function closeShield(fromHistory=false){
+    if(!state.open)return;
+    state.open=false;state.paused=false;
+    const root=$('#'+ROOT_ID);if(root)root.hidden=true;
+    $('#'+BUTTON_ID)?.setAttribute('aria-pressed','false');
+    if(state.raf)cancelAnimationFrame(state.raf);state.raf=0;
+    window.clearInterval(state.feedTimer);state.feedTimer=0;
+    disposeLayer();hideDock(false);hideSpaceCloseControl(false);
+    $('#'+BUTTON_ID)?.focus();
+    if(state.historyEntry&&!fromHistory&&history.state?.bpEarthShield)history.back();
+    state.historyEntry=false;
   }
 
-  function boot() {
-    injectStyle();
-    installButton();
-    const observer = new MutationObserver(() => installButton());
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    window.setTimeout(() => observer.disconnect(), 120000);
-    window.setInterval(installButton, 1400);
-    window.addEventListener('resize', () => {
-      if (!state.open || !state.spaceApi) return;
-      const center = state.solarApi?.getEarthPosition?.();
-      if (center) state.spaceApi.focusSpacePoint?.(center, 1.2, center.clone().negate().normalize());
-    }, { passive: true });
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && state.raf) { cancelAnimationFrame(state.raf); state.raf = 0; }
-      else if (!document.hidden) startAnimation();
-    });
+  function boot(){
+    injectStyle();installButton();
+    const observer=new MutationObserver(()=>installButton());
+    observer.observe(document.documentElement,{childList:true,subtree:true});
+    window.setTimeout(()=>observer.disconnect(),120000);
+    window.setInterval(installButton,1400);
+    window.addEventListener('resize',resizeEarthOnly,{passive:true});
+    window.addEventListener('popstate',()=>{if(state.open)closeShield(true)});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.open)closeShield()});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.raf){cancelAnimationFrame(state.raf);state.raf=0}else if(!document.hidden)startAnimation()});
   }
 
   window.__BP_EARTH_PROTECTION_V1__ = { version: VERSION, open: openShield, close: closeShield, state };
