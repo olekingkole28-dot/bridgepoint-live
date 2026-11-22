@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6400-fortnite-weather-welcome';
+  const VERSION = 'v6401-neo-space-frame';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -2057,12 +2057,34 @@ function createMoonTerrainController() {
     overviewBaseDistance=Math.hypot(4.2,distance);lastSpaceZoomDistance=NaN;
     animateCamera(new THREE.Vector3(0,4.2,distance),new THREE.Vector3(0,0,0),1.25);
   }
+  function focusSpaceOverview(distance=32){
+    resetView();
+    const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
+    const baseline=aspect<.72?20.5:aspect<1?18.5:16.5;
+    overviewBaseDistance=Math.hypot(4.2,baseline);
+    const direction=new THREE.Vector3(0,4.2,baseline).normalize();
+    animateCamera(direction.multiplyScalar(THREE.MathUtils.clamp(Number(distance)||32,22,240)),new THREE.Vector3(0,0,0),1.2);
+  }
+  function focusSpacePoint(position,distance=1.65){
+    if(!position?.isVector3)return false;
+    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;saturnFocusMesh=null;saturnFocusLocalTarget=null;focusedPlanetRadius=0;
+    solarCosmos?.clearSelection?.();if(bodyPicker)bodyPicker.value='';
+    viewState='overview';scene.background=null;moonTerrainController?.setActive(false);
+    camera.near=.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
+    earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
+    const point=position.clone(),direction=point.clone().normalize();
+    if(direction.lengthSq()<1e-12)direction.set(0,0,1);
+    target.copy(point);
+    const offset=THREE.MathUtils.clamp(Number(distance)||1.65,.45,20);
+    animateCamera(point.clone().addScaledVector(direction,offset),point,.9);
+    return true;
+  }
 
   let solarCosmosPromise=null;
   function ensureSolarCosmos(){
     if(solarCosmos)return Promise.resolve(solarCosmos);
     if(!solarCosmosPromise){
-      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6306-mobile-planet-picker').then(module=>{
+      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6401-neo-space-frame').then(module=>{
         if(!solarCosmos)solarCosmos=module.initBridgePointSolarCosmos({
           THREE,scene,camera,canvas,host,controls,starsGroup:stars,
           getSunPosition:()=>sunPosition.clone(),
@@ -2705,6 +2727,11 @@ function createMoonTerrainController() {
     version:VERSION,
     focus:focusBody,
     reset:resetView,
+    getScene(){return scene},
+    getCamera(){return camera},
+    loadSolarCosmos(){return ensureSolarCosmos()},
+    focusSpaceOverview,
+    focusSpacePoint,
     mountTo(target){if(!target?.appendChild)return false;if(host.parentElement!==target)target.appendChild(host);resize();return true},
     pause(){renderActive=false},
     resume(){if(disposed||renderActive)return;renderActive=true;resize();if(!document.hidden)requestAnimationFrame(render)},

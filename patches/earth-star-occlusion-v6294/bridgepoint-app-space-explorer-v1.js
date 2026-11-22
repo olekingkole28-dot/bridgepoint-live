@@ -4,7 +4,7 @@
  */
 (() => {
   'use strict';
-  const BUILD = 'v6302-earth-ray-opaque';
+  const BUILD = 'v6307-neo-space-persistent';
   if (window.__BP_APP_SPACE_EXPLORER_V1__?.build === BUILD) return;
 
   const STYLE_ID = 'bpAppSpaceExplorerStylesV1';
@@ -106,6 +106,27 @@
       return scale;
     }
 
+    async function focusGlobalMapForSpace() {
+      const deadline = Date.now() + 15000;
+      let mapInstance = null;
+      while (Date.now() < deadline) {
+        const world = window.__bpWorldV2300 || window.__BP_LANDING_WORLD__ || window.__BP_WORLD__ || window.__BP_V5000_WORLD__;
+        const candidate = world?.map;
+        if (candidate && (typeof candidate.jumpTo === 'function' || typeof candidate.flyTo === 'function')) { mapInstance = candidate; break; }
+        await new Promise(resolve => window.setTimeout(resolve, 100));
+      }
+      if (!mapInstance) return false;
+      const shortestSide = Math.min(window.innerWidth || 390, window.innerHeight || 780);
+      const fittedZoom = Math.max(0.75, Math.min(2.7, Math.log2((shortestSide * 0.80) / (512 / Math.PI)))) - 0.12;
+      const currentZoom = Number(mapInstance.getZoom?.());
+      const zoom = Number.isFinite(currentZoom) ? Math.min(currentZoom, fittedZoom) : fittedZoom;
+      const view = { center: [0, 18], zoom, pitch: 0, bearing: 0, essential: true };
+      mapInstance.stop?.();
+      if (typeof mapInstance.jumpTo === 'function') mapInstance.jumpTo(view);
+      else mapInstance.flyTo({ ...view, duration: 0 });
+      return true;
+    }
+
     function ensureOverlay() {
       if (overlay?.isConnected) return overlay;
       overlay = document.createElement('div');
@@ -152,7 +173,7 @@
       const current = getRenderer();
       if (current) return current;
       if (!loading) {
-        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6302-earth-ray-opaque&space=app-explorer-v1')
+        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame&space=app-explorer-v1')
           .then(() => {
             const api = getRenderer();
             if (!api) throw new Error('The 3D celestial scene did not register its renderer');
@@ -177,6 +198,11 @@
         if (!open) { api.pause?.(); syncMapCanvas(1); return; }
         if (!api.mountTo(overlay)) throw new Error('The 3D celestial scene could not attach to this globe');
         api.resume?.();
+        if (!landingMode) {
+          await focusGlobalMapForSpace();
+          await api.loadSolarCosmos?.();
+          api.focusSpaceOverview?.(32);
+        }
         if (!installCloseControl()) {
           throw new Error('The 3D scene loaded without its space controls');
         }
@@ -208,6 +234,7 @@
         };
       }
     };
+    if (!landingMode) window.setTimeout(() => { if (!open) void openExplorer(); }, 650);
     return true;
   }
 

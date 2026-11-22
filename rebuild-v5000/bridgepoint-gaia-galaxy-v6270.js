@@ -240,8 +240,8 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  const nowSun=()=>getSunPosition?getSunPosition():new THREE.Vector3(0,0,8);
  function astronomicalScale(){return Math.max(1,nowSun().length())}
  function applyFrame(){
-   if(starState.frame)return starState.frame;
   const sun=nowSun();
+  if(starState.frame&&starState.frame.sun.distanceToSquared(sun)<1e-12)return starState.frame;
   starsGroup.position.copy(sun);
   const date=new Date(),days=julian(date)-planetDayZero,ob=obliquity(date);
   const earthHelio=planetPos(THREE,PLANETS.find(p=>p.name==='Earth'),days,ob);
@@ -399,6 +399,7 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  const api={
   version:BUILD,state,
   update,
+  getFrame(){return applyFrame()},
   getBody,
   setSelection,
   clearSelection,

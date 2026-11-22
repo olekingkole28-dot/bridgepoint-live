@@ -1,11 +1,11 @@
 import * as THREE from '/vendor/three.module.js?v=169-local';
 
-/* BridgePoint Near-Earth Object Space View v2. */
+/* BridgePoint Near-Earth Object Space View v3. */
 (() => {
   'use strict';
 
-  if (window.__BP_NEO_WATCH_V2__) return;
-  window.__BP_NEO_WATCH_V2__ = true;
+  if (window.__BP_NEO_WATCH_V3__) return;
+  window.__BP_NEO_WATCH_V3__ = true;
 
   const BUTTON_ID = 'bpNeoWatchLaunchV1';
   const ROOT_ID = 'bpNeoSpaceRootV2';
@@ -24,12 +24,12 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     items: [], selectedId: '', checkedAt: 0, loading: false, open: false,
     simulationPaused: false, simulationTime: Date.now(), simulationLastAt: 0,
     orbitCatalog: null, orbitEpoch: null, unmatched: 0, mapCamera: null, mapInteractions: null,
-    viewYaw: 0.10, viewPitch: 0.08, cameraDistance: 8.6, dataLoading: false, dockVisualState: null,
+    dataLoading: false, dockVisualState: null,
   };
   const scene3d = {
-    renderer: null, scene: null, camera: null, root: null, stars: null,
-    occluder: null, objects: new Map(), width: 0, height: 0,
-    frame: 0, lastDraw: 0, failed: false, drag: null,
+    scene: null, camera: null, root: null, spaceApi: null, solarFrame: null,
+    earthReferenceAU: null, objects: new Map(), frame: 0, lastDraw: 0,
+    lastFocusedId: null, failed: false,
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -55,10 +55,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       '#' + ROOT_ID + '[hidden]{display:none!important}',
       '#' + ROOT_ID + '{position:fixed;inset:0;z-index:2147483000;overflow:hidden;background:transparent;color:#effbff;font:500 14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
       '#' + ROOT_ID + ' *{box-sizing:border-box}',
-      '#bpNeoStageV2{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;touch-action:none;cursor:grab}',
-      '#bpNeoStageV2 canvas{display:block;width:100%;height:100%}',
+      '.bpNeoStageV2{position:absolute;inset:0;pointer-events:none}',
       '.bpNeoIconLayerV2{position:absolute;inset:0;pointer-events:none}',
-      '.bpNeoMarkerV2{position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:1px solid #9cf7ff;border-radius:50%;background:radial-gradient(circle at 36% 30%,#78f6ff,#167aa0 62%,#062235);color:#fff;font:950 12px/1 system-ui;box-shadow:0 0 9px #52e7ff,0 0 22px #32d8ff88;transform:translate(-50%,-50%);cursor:pointer;pointer-events:auto;touch-action:manipulation;animation:bpNeoPulseV2 2.4s ease-in-out infinite}',
+      '.bpNeoMarkerV2{position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:1px solid var(--bp-neo-orbit-color,#9cf7ff);border-radius:50%;background:radial-gradient(circle at 36% 30%,#78f6ff,#167aa0 62%,#062235);color:#fff;font:950 12px/1 system-ui;box-shadow:0 0 9px var(--bp-neo-orbit-color,#52e7ff),0 0 22px var(--bp-neo-orbit-color,#32d8ff88);transform:translate(-50%,-50%);cursor:pointer;pointer-events:auto;touch-action:manipulation;animation:bpNeoPulseV2 2.4s ease-in-out infinite}',
       '.bpNeoMarkerV2[data-hazard="true"]{border-color:#ffd194;background:radial-gradient(circle at 36% 30%,#ffd194,#b95c2d 62%,#351416);box-shadow:0 0 9px #ffc675,0 0 22px #ff794f88}',
       '.bpNeoMarkerV2[aria-pressed="true"]{width:42px;height:42px;border:2px solid #fff;box-shadow:0 0 0 7px #53eaff44,0 0 24px #51f1ff}',
       '.bpNeoMarkerV2:focus-visible,#' + ROOT_ID + ' button:focus-visible{outline:3px solid #fff;outline-offset:4px}',
@@ -128,6 +127,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const world = window.__bpWorldV2300 || window.__BP_LANDING_WORLD__ || window.__BP_WORLD__;
     const map = world && world.map;
     return map && typeof map.flyTo === 'function' ? map : null;
+  }
+
+  function setSpaceCloseControlHidden(hidden) {
+    const button = $('[data-app-space-close]');
+    if (button) button.hidden = Boolean(hidden);
   }
 
   function setDockSuppressed(suppressed) {
@@ -252,13 +256,13 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     root.setAttribute('role', 'region');
     root.setAttribute('aria-label', 'Near-Earth object space view');
     root.innerHTML = [
-      '<canvas id="bpNeoStageV2" aria-label="Interactive three-dimensional near-Earth object tracks"></canvas>',
+      '<div class="bpNeoStageV2" aria-hidden="true"></div>',
       '<div class="bpNeoIconLayerV2" data-neo-icons aria-label="Tracked object markers"></div>',
       '<div class="bpNeoHudV2">',
       '<div class="bpNeoHudCardV2">',
       '<div class="bpNeoHudTitleV2"><span class="bpNeoLiveDotV2"></span>SPACE OBJECT TRACKING</div>',
       '<div class="bpNeoHudMetaV2"><strong data-neo-stat="total">—</strong><span>objects in the next 7 days</span></div>',
-      '<div class="bpNeoHudHintV2">Tap an icon · cyan arrows trace motion · gold rods mark closest approach</div>',
+      '<div class="bpNeoHudHintV2">Tap an icon · long 3D rods trace each nominal orbit · full space view</div>',
       '</div>',
       '<div class="bpNeoHudControlsV2">',
       '<button type="button" data-neo-action="playpause" aria-pressed="false">PAUSE</button>',
@@ -269,9 +273,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       '<div class="bpNeoStatusV2" data-neo-status role="status" aria-live="polite">Connecting to NASA approach data and the MPC orbit catalogue…</div>',
       '<aside class="bpNeoDetailV2" data-neo-detail hidden>',
       '<div class="bpNeoDetailHeadV2"><div class="bpNeoDetailBrandV2"><p class="bpNeoDetailKickerV2">OBJECT CLOSE APPROACH</p><h2 data-neo-title></h2><p class="bpNeoDetailSubV2" data-neo-subtitle></p></div><button class="bpNeoDetailCloseV2" type="button" data-neo-action="close-detail" aria-label="Close object details">×</button></div>',
-      '<div class="bpNeoModelBadgeV2">Solid faceted proxy body · selected model enlarged · cyan arrows show nominal motion · gold rod marks closest-approach gap.</div>',
+      '<div class="bpNeoModelBadgeV2">Solid faceted proxy body · selected model enlarged · each colored 3D rod traces the full nominal orbit · the marker follows its predicted motion.</div>',
       '<div class="bpNeoFactsV2" data-neo-details></div>',
-      '<div class="bpNeoDetailNoteV2">Gold rods are miss-distance guides, not impact paths. Paths use nominal orbital elements; object shape and spin are only modeled proxies where measurements are unavailable.</div>',
+      '<div class="bpNeoDetailNoteV2">Long rods show the full nominal MPC orbital path in BridgePoint’s shared solar-system frame; the moving marker follows the orbit. NASA close-approach data does not predict an Earth impact location. Shape and spin are modeled proxies where measurements are unavailable.</div>',
       '</aside>',
     ].join('');
     root.addEventListener('click', onPanelClick);
@@ -288,6 +292,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     installButton();
     ensurePanel();
     setDockSuppressed(true);
+    setSpaceCloseControlHidden(true);
     focusGlobalMap();
     const root = $('#' + ROOT_ID);
     root.hidden = false;
@@ -296,14 +301,25 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     state.simulationPaused = false;
     state.simulationTime = Date.now();
     state.simulationLastAt = 0;
-    state.cameraDistance = 8.6;
-    state.viewYaw = 0.10;
-    state.viewPitch = 0.08;
+    state.lastDraw = 0;
+    scene3d.lastFocusedId = null;
+    root.dataset.neoSelected = 'false';
     $('#' + BUTTON_ID)?.setAttribute('aria-expanded', 'true');
-    init3DScene();
+    setStatus('Opening the shared solar-system scene and nominal orbit tracks…');
     render();
-    void refreshSpaceData(false);
     startAnimation();
+    void (async () => {
+      try {
+        const api = await ensureSharedSpace();
+        if (!api || !state.open) return;
+        setSpaceCloseControlHidden(true);
+        scene3d.root.visible = true;
+        api.focusSpaceOverview?.(32);
+        await refreshSpaceData(false);
+      } catch (error) {
+        setStatus(String(error?.message || 'The shared 3D solar-system scene could not be opened.'), 'error');
+      }
+    })();
   }
 
   function closePanel() {
@@ -312,22 +328,25 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     root.hidden = true;
     state.open = false;
     state.selectedId = '';
+    if (scene3d.root) scene3d.root.visible = false;
+    scene3d.lastFocusedId = null;
     $('#' + BUTTON_ID)?.setAttribute('aria-expanded', 'false');
-    if (state.frame) cancelAnimationFrame(state.frame);
-    state.frame = 0;
+    if (scene3d.frame) cancelAnimationFrame(scene3d.frame);
+    scene3d.frame = 0;
     restoreMapCamera();
     setDockSuppressed(false);
+    setSpaceCloseControlHidden(false);
     $('#' + BUTTON_ID)?.focus();
   }
 
   function closeDetails() {
     state.selectedId = '';
-    state.cameraDistance = 8.6;
-    state.simulationLastAt = 0;
+    scene3d.lastFocusedId = null;
     const panel = $('[data-neo-detail]');
     if (panel) panel.hidden = true;
     const root = $('#' + ROOT_ID);
     if (root) root.dataset.neoSelected = 'false';
+    if (state.open) scene3d.spaceApi?.focusSpaceOverview?.(32);
     renderMarkers();
   }
 
@@ -349,10 +368,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     }
     if (action === 'reset-view') {
       closeDetails();
-      state.viewYaw = 0.10;
-      state.viewPitch = 0.08;
-      state.cameraDistance = 8.6;
       focusGlobalMap();
+      scene3d.spaceApi?.focusSpaceOverview?.(32);
       render();
       return;
     }
@@ -360,6 +377,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     if (marker) {
       state.selectedId = marker.dataset.neoId;
       state.simulationLastAt = 0;
+      scene3d.lastFocusedId = null;
       render();
       renderDetails(state.items.find(item => item.id === state.selectedId));
     }
@@ -600,28 +618,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
   function rawRelativePositionAU(item, timeMs) {
     const jd = timeMs / DAY_MS + 2440587.5;
-    const object = keplerPosition(item.orbit, jd);
-    const earth = earthPositionAU(jd);
-    const relative = object.sub(earth);
-    if (item.epochMs && item.distanceKm !== null) {
-      const caJd = item.epochMs / DAY_MS + 2440587.5;
-      const ca = keplerPosition(item.orbit, caJd).sub(earthPositionAU(caJd));
-      const measuredAU = item.distanceKm / AU_KM;
-      if (ca.lengthSq() > 0 && measuredAU > 0) {
-        const correction = ca.clone().normalize().multiplyScalar(measuredAU).sub(ca);
-        const days = (timeMs - item.epochMs) / DAY_MS;
-        const weight = Math.exp(-0.5 * (days / 1.25) ** 2);
-        relative.addScaledVector(correction, weight);
-      }
-    }
-    return relative;
+    const earthReference = scene3d.earthReferenceAU || earthPositionAU(jd);
+    return keplerPosition(item.orbit, jd).sub(earthReference);
   }
 
   function displayPosition(relativeAU) {
-    const distanceER = relativeAU.length() * AU_TO_EARTH_RADII;
-    if (distanceER < 1e-9) return new THREE.Vector3(0, 0, 1.5);
-    const displayRadius = 1.48 + Math.log1p(distanceER) * 0.075;
-    return relativeAU.clone().normalize().multiplyScalar(displayRadius);
+    const frame = scene3d.solarFrame;
+    if (!frame?.orientation || !Number.isFinite(frame.auScale)) return relativeAU.clone();
+    return relativeAU.clone().applyQuaternion(frame.orientation).multiplyScalar(frame.auScale);
   }
 
   function asteroidGeometry(id) {
@@ -675,107 +679,68 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     return geometry;
   }
 
-  function init3DScene() {
-    if (scene3d.renderer || scene3d.failed) return;
-    const host = $('#bpNeoStageV2');
-    if (!host) return;
-    try {
-      scene3d.scene = new THREE.Scene();
-      scene3d.camera = new THREE.PerspectiveCamera(42, 1, 0.001, 10000);
-      scene3d.camera.position.set(0, 0, state.cameraDistance);
-      scene3d.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-      scene3d.renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
-      scene3d.renderer.setSize(window.innerWidth, window.innerHeight, false);
-      scene3d.renderer.setClearColor(0x020914, 0);
-      scene3d.renderer.outputColorSpace = THREE.SRGBColorSpace;
-      scene3d.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      scene3d.renderer.toneMappingExposure = 1.05;
-      host.replaceWith(scene3d.renderer.domElement);
-      scene3d.renderer.domElement.id = 'bpNeoStageV2';
-      scene3d.renderer.domElement.setAttribute('aria-label', 'Interactive three-dimensional near-Earth object tracks');
-      scene3d.renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab';
-      scene3d.root = new THREE.Group();
-      scene3d.scene.add(scene3d.root);
-      scene3d.scene.add(new THREE.HemisphereLight(0xa8edff, 0x06101b, 1.5));
-      const key = new THREE.DirectionalLight(0xc8f4ff, 2.4);
-      key.position.set(-3, 4, 7);
-      scene3d.scene.add(key);
-      const fill = new THREE.PointLight(0x25bfff, 8, 18, 2);
-      fill.position.set(4, -2, 4);
-      scene3d.scene.add(fill);
-
-      const occluder = new THREE.Mesh(
-        new THREE.SphereGeometry(1.42, 56, 40),
-        new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, side: THREE.FrontSide })
-      );
-      occluder.renderOrder = -10;
-      scene3d.root.add(occluder);
-      scene3d.occluder = occluder;
-
-      const starPositions = new Float32Array(1800 * 3);
-      let seed = 713728;
-      const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-      for (let i = 0; i < starPositions.length; i += 3) {
-        const radius = 7 + random() * 21;
-        const theta = random() * Math.PI * 2;
-        const z = random() * 2 - 1;
-        const planar = Math.sqrt(1 - z * z);
-        starPositions[i] = radius * planar * Math.cos(theta);
-        starPositions[i + 1] = radius * z;
-        starPositions[i + 2] = radius * planar * Math.sin(theta);
-      }
-      const starGeometry = new THREE.BufferGeometry();
-      starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-      scene3d.stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({
-        color: 0xc5efff, size: 0.026, sizeAttenuation: true, transparent: true, opacity: 0.75,
-      }));
-      scene3d.root.add(scene3d.stars);
-
-      const canvas = scene3d.renderer.domElement;
-      canvas.addEventListener('pointerdown', onScenePointerDown);
-      canvas.addEventListener('pointermove', onScenePointerMove);
-      canvas.addEventListener('pointerup', onScenePointerUp);
-      canvas.addEventListener('pointercancel', onScenePointerUp);
-      canvas.addEventListener('wheel', onSceneWheel, { passive: false });
-      scene3d.failed = false;
-    } catch (error) {
-      scene3d.failed = true;
-      setStatus('The 3D space view could not start in this browser.', 'error');
-      console.warn('BridgePoint NEO 3D view', error);
+  function init3DScene(spaceApi) {
+    if (scene3d.root && scene3d.spaceApi === spaceApi) {
+      scene3d.root.visible = true;
+      return true;
     }
+    const sharedScene = spaceApi?.getScene?.();
+    const sharedCamera = spaceApi?.getCamera?.();
+    const frame = window.__BP_SOLAR_COSMOS_V6280__?.getFrame?.();
+    if (!sharedScene || !sharedCamera || !frame?.orientation || !Number.isFinite(frame.auScale) || frame.auScale <= 0) {
+      throw new Error('The shared solar-system coordinate frame is not ready yet.');
+    }
+    if (scene3d.root?.parent) scene3d.root.parent.remove(scene3d.root);
+    scene3d.scene = sharedScene;
+    scene3d.camera = sharedCamera;
+    scene3d.spaceApi = spaceApi;
+    scene3d.solarFrame = frame;
+    scene3d.earthReferenceAU = frame.sun.clone().negate().applyQuaternion(frame.orientation.clone().invert()).divideScalar(frame.auScale);
+    scene3d.root = new THREE.Group();
+    scene3d.root.name = 'BridgePoint near-Earth objects and full nominal orbital paths';
+    scene3d.root.visible = true;
+    sharedScene.add(scene3d.root);
+    scene3d.lastFocusedId = null;
+    scene3d.failed = false;
+    return true;
   }
 
-  function onScenePointerDown(event) {
-    if (!state.open || event.target.closest('button')) return;
-    scene3d.drag = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    event.currentTarget.style.cursor = 'grabbing';
+  async function ensureSharedSpace() {
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline && state.open) {
+      const app = window.__BP_APP_SPACE_EXPLORER_V1__;
+      if (app && typeof app.open === 'function') { await app.open(); break; }
+      await new Promise(resolve => window.setTimeout(resolve, 100));
+    }
+    let api = null;
+    while (Date.now() < deadline && state.open) {
+      api = window.__BP_WELCOME_SPACE_V6257__;
+      if (api && typeof api.getScene === 'function' && typeof api.getCamera === 'function') break;
+      await new Promise(resolve => window.setTimeout(resolve, 100));
+    }
+    if (!state.open) return null;
+    if (!api || typeof api.getScene !== 'function') throw new Error('The shared BridgePoint 3D space renderer did not become ready.');
+    if (typeof api.loadSolarCosmos === 'function') await api.loadSolarCosmos();
+    let solar = window.__BP_SOLAR_COSMOS_V6280__;
+    while (Date.now() < deadline && state.open && (!solar?.getFrame || !solar.getFrame()?.orientation)) {
+      await new Promise(resolve => window.setTimeout(resolve, 100));
+      solar = window.__BP_SOLAR_COSMOS_V6280__;
+    }
+    if (!state.open) return null;
+    if (!solar?.getFrame) throw new Error('The planetary orbital frame did not become ready.');
+    init3DScene(api);
+    api.focusSpaceOverview?.(32);
+    return api;
   }
 
-  function onScenePointerMove(event) {
-    if (!scene3d.drag || scene3d.drag.pointerId !== event.pointerId) return;
-    const dx = event.clientX - scene3d.drag.x;
-    const dy = event.clientY - scene3d.drag.y;
-    scene3d.drag.x = event.clientX;
-    scene3d.drag.y = event.clientY;
-    state.viewYaw -= dx * 0.006;
-    state.viewPitch = clamp(state.viewPitch + dy * 0.005, -1.1, 1.1);
-  }
-
-  function onScenePointerUp(event) {
-    if (!scene3d.drag) return;
-    scene3d.drag = null;
-    if (event.currentTarget) event.currentTarget.style.cursor = 'grab';
-  }
-
-  function onSceneWheel(event) {
-    if (!state.open) return;
-    event.preventDefault();
-    state.cameraDistance = clamp(state.cameraDistance * Math.exp(event.deltaY * 0.001), 2.8, 11.5);
+  function orbitColor(item) {
+    if (item.hazardous) return 0xffb45e;
+    const colors = [0x55e8ff, 0x9b8cff, 0xff80d1, 0xa8ee83, 0x78b8ff, 0xffd46e, 0x67f0c5];
+    return colors[hash(item.id) % colors.length];
   }
 
   function buildSpaceObjects() {
-    if (!scene3d.scene || !scene3d.root) return;
+    if (!scene3d.scene || !scene3d.root || !scene3d.solarFrame) return;
     for (const obj of scene3d.objects.values()) {
       scene3d.root.remove(obj.group);
       obj.group.traverse(child => {
@@ -789,81 +754,43 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const icons = $('[data-neo-icons]');
     if (icons) icons.replaceChildren();
     let plotted = 0;
-    const now = Date.now();
+    const gravitationalParameter = 0.00029591220828559104; // AU^3/day^2
     for (const item of state.items) {
       item.orbit = orbitFromRecord(item._orbitRecord);
       if (!item.orbit) continue;
       plotted += 1;
       const group = new THREE.Group();
-      const closestAt = item.epochMs ?? now + DAY_MS;
-      const pathStart = Math.min(now - 2 * DAY_MS, closestAt - DAY_MS);
-      const pathEnd = Math.max(now + DAY_MS, closestAt + DAY_MS);
+      const periodDays = Math.PI * 2 * Math.sqrt(item.orbit.a ** 3 / gravitationalParameter);
+      const orbitStart = (item.orbit.epoch - 2440587.5) * DAY_MS;
       const pathPoints = [];
-      const pathSamples = 56;
+      const pathSamples = 240;
       for (let i = 0; i <= pathSamples; i += 1) {
-        const time = pathStart + (pathEnd - pathStart) * i / pathSamples;
+        const time = orbitStart + periodDays * DAY_MS * i / pathSamples;
         pathPoints.push(displayPosition(rawRelativePositionAU(item, time)));
       }
-      const orbitCurve = new THREE.CatmullRomCurve3(pathPoints, false, 'centripetal', 0.38);
-      const color = item.hazardous ? 0xffb45e : 0x67eaff;
+      const orbitCurve = new THREE.CatmullRomCurve3(pathPoints, true, 'centripetal', 0.22);
+      const color = orbitColor(item);
       const orbitGlow = new THREE.Mesh(
-        new THREE.TubeGeometry(orbitCurve, 160, 0.025, 6, false),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false })
+        new THREE.TubeGeometry(orbitCurve, 320, 0.050, 6, true),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.14, depthWrite: false, toneMapped: false })
       );
       orbitGlow.renderOrder = 1;
       const orbitLine = new THREE.Mesh(
-        new THREE.TubeGeometry(orbitCurve, 160, 0.008, 5, false),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.64, depthWrite: false })
+        new THREE.TubeGeometry(orbitCurve, 320, 0.013, 5, true),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.82, depthWrite: false, toneMapped: false })
       );
       orbitLine.renderOrder = 2;
-
-      const approachStart = closestAt > now ? now : closestAt - DAY_MS;
-      const approachEnd = closestAt > now ? closestAt : closestAt + DAY_MS;
-      const approachPoints = [];
-      const approachSamples = 48;
-      for (let i = 0; i <= approachSamples; i += 1) {
-        const time = approachStart + (approachEnd - approachStart) * i / approachSamples;
-        approachPoints.push(displayPosition(rawRelativePositionAU(item, time)));
-      }
-      const approachCurve = new THREE.CatmullRomCurve3(approachPoints, false, 'centripetal', 0.32);
-      const approachGlow = new THREE.Mesh(
-        new THREE.TubeGeometry(approachCurve, 112, 0.050, 7, false),
-        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffbd70 : 0x65efff, transparent: true, opacity: 0.26, depthWrite: false })
-      );
-      approachGlow.renderOrder = 4;
-      const approachLine = new THREE.Mesh(
-        new THREE.TubeGeometry(approachCurve, 112, 0.016, 6, false),
-        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffd197 : 0xbafaff, transparent: true, opacity: 0.98, depthWrite: false })
-      );
-      approachLine.renderOrder = 5;
-
-      const closestPoint = displayPosition(rawRelativePositionAU(item, closestAt));
-      const earthEdge = closestPoint.clone().normalize().multiplyScalar(1.465);
-      const missCurve = new THREE.CatmullRomCurve3([earthEdge, closestPoint], false, 'centripetal', 0);
-      const missRod = new THREE.Mesh(
-        new THREE.TubeGeometry(missCurve, 18, 0.010, 5, false),
-        new THREE.MeshBasicMaterial({ color: 0xffd477, transparent: true, opacity: 0.84, depthWrite: false })
-      );
-      missRod.renderOrder = 6;
-      const closestPin = new THREE.Mesh(
-        new THREE.SphereGeometry(0.031, 12, 8),
-        new THREE.MeshBasicMaterial({ color: 0xfff1c7 })
-      );
-      closestPin.position.copy(closestPoint);
-      closestPin.renderOrder = 7;
-
       const tracer = new THREE.Mesh(
-        new THREE.SphereGeometry(0.031, 10, 8),
-        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffe0aa : 0xf0ffff })
+        new THREE.SphereGeometry(0.030, 10, 8),
+        new THREE.MeshBasicMaterial({ color: 0xf0ffff, toneMapped: false })
       );
       tracer.renderOrder = 8;
       const arrow = new THREE.Mesh(
-        new THREE.ConeGeometry(0.038, 0.14, 7),
-        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffbc69 : 0x9af7ff })
+        new THREE.ConeGeometry(0.040, 0.18, 7),
+        new THREE.MeshBasicMaterial({ color, toneMapped: false })
       );
       arrow.renderOrder = 8;
-      group.add(orbitGlow, orbitLine, approachGlow, approachLine, missRod, closestPin, tracer, arrow);
-
+      group.add(orbitGlow, orbitLine, tracer, arrow);
       const radiusKm = item.diameterMinKm !== null && item.diameterMaxKm !== null
         ? (item.diameterMinKm + item.diameterMaxKm) * 0.25
         : 0.025;
@@ -883,25 +810,25 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       body.renderOrder = 9;
       group.add(body);
       scene3d.root.add(group);
-
       const marker = text('button', 'bpNeoMarkerV2', '✦');
       marker.type = 'button';
       marker.dataset.neoId = item.id;
       marker.dataset.hazard = String(item.hazardous);
-      marker.title = item.name + ' · closest approach ' + formatDistance(item.distanceKm);
-      marker.setAttribute('aria-label', 'Focus ' + item.name + ', closest approach ' + formatDistance(item.distanceKm));
+      marker.style.setProperty('--bp-neo-orbit-color', '#' + color.toString(16).padStart(6, '0'));
+      marker.title = item.name + ' · nominal orbital path · closest approach ' + formatDistance(item.distanceKm);
+      marker.setAttribute('aria-label', 'Focus ' + item.name + ', nominal orbit and closest approach ' + formatDistance(item.distanceKm));
       marker.setAttribute('aria-pressed', String(item.id === state.selectedId));
       icons?.appendChild(marker);
       scene3d.objects.set(item.id, {
         item, group, body, marker, physicalRadius, pos: new THREE.Vector3(),
-        curve: orbitCurve, approachCurve, approachStart, approachEnd, tracer, arrow,
+        orbitCurve, orbitGlow, orbitLine, tracer, arrow, periodDays,
       });
     }
     state.unmatched = Math.max(0, state.items.length - plotted);
     const label = state.items.length.toLocaleString() + ' tracked · ' + plotted.toLocaleString() + ' plotted';
     if (plotted) {
       const epoch = state.orbitEpoch ? new Date((state.orbitEpoch - 2440587.5) * DAY_MS).toLocaleDateString() : 'daily';
-      setStatus(label + ' · MPC orbit elements ' + epoch + ' · distance readouts are NASA values', state.unmatched ? 'info' : 'ok');
+      setStatus(label + ' · full 3D nominal orbits · MPC elements ' + epoch + ' · close-approach distances are NASA values', state.unmatched ? 'info' : 'ok');
     } else if (state.items.length) {
       setStatus('The approach feed loaded, but no matching orbit records were found in the MPC catalogue.', 'error');
     }
@@ -1056,18 +983,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   }
 
   function drawFrame(now) {
-    if (!state.open || !scene3d.renderer || !scene3d.scene) return;
-    const host = $('#' + ROOT_ID);
-    const rect = host?.getBoundingClientRect();
-    if (!rect || rect.width < 2 || rect.height < 2) return;
-    const width = Math.floor(rect.width), height = Math.floor(rect.height);
-    if (width !== scene3d.width || height !== scene3d.height) {
-      scene3d.renderer.setSize(width, height, false);
-      scene3d.width = width;
-      scene3d.height = height;
-      scene3d.camera.aspect = width / height;
-      scene3d.camera.updateProjectionMatrix();
-    }
+    if (!state.open || !scene3d.root || !scene3d.camera || !scene3d.spaceApi) return;
     const delta = scene3d.lastDraw ? Math.min(100, Math.max(0, now - scene3d.lastDraw)) : 16;
     scene3d.lastDraw = now;
     if (!state.simulationPaused) state.simulationTime += delta * SIM_MS_PER_REAL_MS;
@@ -1075,43 +991,33 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const loopEnd = Date.now() + 9 * DAY_MS;
     if (state.simulationTime > loopEnd) state.simulationTime = loopStart;
     for (const obj of scene3d.objects.values()) {
-      const relative = rawRelativePositionAU(obj.item, state.simulationTime);
-      obj.pos.copy(displayPosition(relative));
+      obj.pos.copy(displayPosition(rawRelativePositionAU(obj.item, state.simulationTime)));
       obj.body.position.copy(obj.pos);
       const selected = obj.item.id === state.selectedId;
       const targetRadius = selected ? 0.11 : obj.physicalRadius;
       obj.body.scale.setScalar(THREE.MathUtils.damp(obj.body.scale.x, targetRadius, 7, Math.max(0.001, delta / 1000)));
+      const spinSeconds = now / 1000;
       const rotationRate = obj.item.orbit?.spinHours ? Math.PI * 2 / (obj.item.orbit.spinHours * 3600) : 0.035;
-      obj.body.rotation.set(now / 1000 * rotationRate * 0.5, now / 1000 * rotationRate, now / 1000 * rotationRate * 0.3);
-      if (obj.approachCurve) {
-        const progress = clamp((state.simulationTime - obj.approachStart) / Math.max(1, obj.approachEnd - obj.approachStart), 0, 1);
-        const approachPoint = obj.approachCurve.getPointAt(progress);
-        const tangent = obj.approachCurve.getTangentAt(Math.min(0.9999, progress)).normalize();
-        obj.tracer.position.copy(approachPoint);
-        obj.arrow.position.copy(approachPoint);
+      obj.body.rotation.set(spinSeconds * rotationRate * 0.5, spinSeconds * rotationRate, spinSeconds * rotationRate * 0.3);
+      const nextTime = state.simulationTime + 15 * 60 * 1000;
+      const nextPosition = displayPosition(rawRelativePositionAU(obj.item, nextTime));
+      const tangent = nextPosition.sub(obj.pos);
+      if (tangent.lengthSq() > 1e-12) {
+        tangent.normalize();
+        obj.tracer.position.copy(obj.pos);
+        obj.arrow.position.copy(obj.pos);
         obj.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
       }
+      obj.orbitGlow.material.opacity = selected ? 0.30 : 0.14;
+      obj.orbitLine.material.opacity = selected ? 1.0 : 0.82;
     }
-    const selected = scene3d.objects.get(state.selectedId);
-    if (selected) {
-      const direction = selected.pos.clone().normalize();
-      const target = selected.pos;
-      const desiredCamera = target.clone().addScaledVector(direction, 1.0);
-      scene3d.camera.position.lerp(desiredCamera, 0.09);
-      scene3d.camera.lookAt(target);
-    } else {
-      const distance = state.cameraDistance;
-      const cosPitch = Math.cos(state.viewPitch);
-      const desiredCamera = new THREE.Vector3(
-        Math.sin(state.viewYaw) * cosPitch * distance,
-        Math.sin(state.viewPitch) * distance,
-        Math.cos(state.viewYaw) * cosPitch * distance
-      );
-      scene3d.camera.position.lerp(desiredCamera, 0.08);
-      scene3d.camera.lookAt(0, 0, 0);
+    if (scene3d.lastFocusedId !== state.selectedId) {
+      scene3d.lastFocusedId = state.selectedId;
+      const selected = scene3d.objects.get(state.selectedId);
+      if (selected) scene3d.spaceApi.focusSpacePoint?.(selected.pos, THREE.MathUtils.clamp(selected.pos.length() * 0.28, 0.8, 4.5));
+      else scene3d.spaceApi.focusSpaceOverview?.(32);
     }
-    if (scene3d.stars) scene3d.stars.rotation.y = now * 0.000002;
-    scene3d.renderer.render(scene3d.scene, scene3d.camera);
+    scene3d.camera.updateMatrixWorld();
     renderMarkers();
   }
 
@@ -1151,10 +1057,19 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     installButton();
     window.setInterval(installButton, 1200);
     window.addEventListener('resize', () => {
-      if (state.open) {
-        focusGlobalMap();
+      if (!state.open) return;
+      focusGlobalMap();
+      window.setTimeout(() => {
+        if (!state.open) return;
+        const frame = window.__BP_SOLAR_COSMOS_V6280__?.getFrame?.();
+        if (frame?.orientation && Number.isFinite(frame.auScale)) {
+          scene3d.solarFrame = frame;
+          scene3d.earthReferenceAU = frame.sun.clone().negate().applyQuaternion(frame.orientation.clone().invert()).divideScalar(frame.auScale);
+          buildSpaceObjects();
+        }
+        scene3d.spaceApi?.focusSpaceOverview?.(32);
         renderMarkers();
-      }
+      }, 180);
     }, { passive: true });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && scene3d.frame) {

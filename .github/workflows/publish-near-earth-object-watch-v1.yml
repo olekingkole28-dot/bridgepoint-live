@@ -9,6 +9,9 @@ on:
     paths:
       - '.github/workflows/publish-near-earth-object-watch-v1.yml'
       - 'rebuild-v5000/bridgepoint-neo-watch-v1.js'
+      - 'recovery/bridgepoint-welcome-space-v6260.js'
+      - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
+      - 'patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js'
 
 permissions:
   actions: read
@@ -79,7 +82,7 @@ jobs:
           import hashlib,json,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js','nea_extended.json.gz'}
+          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js','bridgepoint-welcome-space-v6260.js','bridgepoint-app-space-explorer-v1.js','bridgepoint-gaia-galaxy-v6270.js','nea_extended.json.gz'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -108,7 +111,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/bp-neo-orbits"
           curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 120 -fSL \
-            -H 'User-Agent: BridgePoint Intelligence NEO Watch 1.4.0 (https://bridgepointintelligence.online)' \
+            -H 'User-Agent: BridgePoint Intelligence NEO Watch 1.5.0 (https://bridgepointintelligence.online)' \
             'https://minorplanetcenter.net/Extended_Files/nea_extended.json.gz' \
             -o "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
           gzip -t "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
@@ -134,23 +137,37 @@ jobs:
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-site"
           cp rebuild-v5000/bridgepoint-neo-watch-v1.js "$SITE/bridgepoint-neo-watch-v1.js"
+          cp recovery/bridgepoint-welcome-space-v6260.js "$SITE/bridgepoint-welcome-space-v6260.js"
+          cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          cp patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js "$SITE/bridgepoint-app-space-explorer-v1.js"
           cp "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz" "$SITE/nea_extended.json.gz"
           python3 - <<'PY'
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.4.0"></script>'
+          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.0"></script>'
           module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
-          required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function buildSpaceObjects()','function fullGlobeZoom()','geometry.setIndex','approachCurve','Gold rods are miss-distance guides','function rawRelativePositionAU','function displayPosition','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','nominal orbital elements','import * as THREE from')
+          welcome=Path('recovery/bridgepoint-welcome-space-v6260.js').read_text(encoding='utf-8')
+          app=Path('patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js').read_text(encoding='utf-8')
+          gaia=Path('rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js').read_text(encoding='utf-8')
+          required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function ensureSharedSpace()','function buildSpaceObjects()','function rawRelativePositionAU','function displayPosition','new THREE.CatmullRomCurve3(pathPoints, true','full 3D nominal orbits','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','import * as THREE from')
           if not all(token in module for token in required):
-              raise SystemExit('Overlay is missing its NASA feed, 3D visualization, attribution, or non-prediction disclosures')
-          if 'ssd-api.jpl.nasa.gov' in module or 'new maplibregl.Map(' in module or '.setStyle(' in module:
-              raise SystemExit('Overlay must reuse the existing globe without replacing its map instance or style')
+              raise SystemExit('Overlay is missing its NASA feed, shared-space orbit paths, or object controls')
+          if 'gold rods' in module.lower() or 'missRod' in module or 'approachCurve' in module or 'new THREE.WebGLRenderer' in module:
+              raise SystemExit('Overlay must use long shared-space orbits without a separate, misleading Earth-impact scene')
+          for token in ('getScene(){return scene}','getCamera(){return camera}','loadSolarCosmos(){return ensureSolarCosmos()}','focusSpaceOverview','focusSpacePoint'):
+              if token not in welcome: raise SystemExit('Welcome scene is missing shared-space camera access: '+token)
+          if 'getFrame(){return applyFrame()}' not in gaia: raise SystemExit('Gaia solar-system frame is not exposed to the orbital overlay')
+          if 'v6307-neo-space-persistent' not in app or 'focusGlobalMapForSpace' not in app or 'focusSpaceOverview?.(32)' not in app:
+              raise SystemExit('Signed-in space persistence is missing')
           for rel in ('index.html','app/index.html'):
               path=site/rel
               html=path.read_text(encoding='utf-8')
               html=re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',html,flags=re.I)
               if html.count('id="bpPublicScansImportMapV1"')!=1: raise SystemExit(rel+' must preserve one Three.js import map')
+              html,welcome_n=re.subn(r'<script type="module" src="/bridgepoint-welcome-space-v6260\.js[^\"]*"></script>', '<script type="module" src="/bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame"></script>', html, flags=re.I)
+              html,app_n=re.subn(r'data-bp-deferred-src="/bridgepoint-app-space-explorer-v1\.js[^\"]*"', 'data-bp-deferred-src="/bridgepoint-app-space-explorer-v1.js?v=v6307-neo-space-persistent"', html, flags=re.I)
+              if welcome_n!=1 or app_n!=1: raise SystemExit(rel+' is missing the shared-space module entries')
               html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
               if html.count(script)!=1: raise SystemExit(rel+' must load exactly one near-Earth object overlay')
               for marker in ('bridgepoint-view-v5917.js','bridgepoint-bottom-card-categories-v1.js','bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js','bridgepoint-power-outages-v1.js','bridgepoint-maps-v1.js','bridgepoint-public-scans-v1.js'):
@@ -159,6 +176,9 @@ jobs:
           print('NEAR_EARTH_OBJECT_OVERLAY_ADDED_WITH_EXISTING_FEATURE_LOADERS_RETAINED')
           PY
           node --input-type=module --check < rebuild-v5000/bridgepoint-neo-watch-v1.js
+          node --input-type=module --check < recovery/bridgepoint-welcome-space-v6260.js
+          node --input-type=module --check < rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js
+          node --check < patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js
 
       - name: Prove unrelated production files and entrypoint content are preserved
         shell: bash
@@ -169,7 +189,7 @@ jobs:
           from pathlib import Path
           tmp=Path(os.environ['RUNNER_TEMP']); site=tmp/'bp-site'
           before=json.loads((tmp/'bp-neo-preservation-before.json').read_text())
-          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js','nea_extended.json.gz'}
+          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js','bridgepoint-welcome-space-v6260.js','bridgepoint-app-space-explorer-v1.js','bridgepoint-gaia-galaxy-v6270.js','nea_extended.json.gz'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -185,11 +205,17 @@ jobs:
           for rel in ('index.html','app/index.html'):
               prior=(tmp/(rel.replace('/','-')+'.before.html')).read_text(encoding='utf-8')
               current=(site/rel).read_text(encoding='utf-8')
-              normalize=lambda s: re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',s,flags=re.I)
-              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the new overlay script tag')
-              if current.count('bridgepoint-neo-watch-v1.js?v=1.4.0')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
+              def normalize(s):
+                  s=re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',s,flags=re.I)
+                  s=re.sub(r'(src="/bridgepoint-welcome-space-v6260\.js\?v=)[^"]*"',r'\1WELCOME',s)
+                  s=re.sub(r'(data-bp-deferred-src="/bridgepoint-app-space-explorer-v1\.js\?v=)[^"]*"',r'\1APP',s)
+                  return s
+              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the near-Earth overlay and shared-space version tags')
+              if current.count('bridgepoint-neo-watch-v1.js?v=1.5.0')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
+              if 'bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame' not in current: raise SystemExit(rel+' does not load the updated shared-space renderer')
+              if 'bridgepoint-app-space-explorer-v1.js?v=v6307-neo-space-persistent' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
           print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
-          print('ENTRYPOINT_CHANGES_LIMITED_TO_NEAR_EARTH_OBJECT_SCRIPT_TAG')
+          print('ENTRYPOINT_CHANGES_LIMITED_TO_NEO_AND_SHARED_SPACE_VERSION_TAGS')
           PY
 
       - uses: actions/configure-pages@v5
@@ -217,17 +243,28 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-neo-watch" -o "$DIR/root.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-neo-watch" -o "$DIR/app.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-neo-watch-v1.js?verify=$GITHUB_SHA-neo-watch" -o "$DIR/neo.js"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-welcome-space-v6260.js?verify=$GITHUB_SHA-space" -o "$DIR/welcome.js"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-app-space-explorer-v1.js?verify=$GITHUB_SHA-app-space" -o "$DIR/app-space.js"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-gaia-galaxy-v6270.js?verify=$GITHUB_SHA-gaia" -o "$DIR/gaia.js"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 60 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/nea_extended.json.gz?verify=$GITHUB_SHA-mpc" -o "$DIR/nea_extended.json.gz"
           gzip -t "$DIR/nea_extended.json.gz"
           cmp -s "$DIR/neo.js" rebuild-v5000/bridgepoint-neo-watch-v1.js
+          cmp -s "$DIR/welcome.js" recovery/bridgepoint-welcome-space-v6260.js
+          cmp -s "$DIR/app-space.js" patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js
+          cmp -s "$DIR/gaia.js" rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js
           for route in root app; do
-            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.4.0' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.0' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6401-neo-space-frame' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6307-neo-space-persistent' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
             grep -Fq 'bridgepoint-view-v5917.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-maps-v1.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-public-scans-v1.js' "$DIR/$route.html"
           done
           grep -Fq 'SPACE OBJECT TRACKING' "$DIR/neo.js"
-          grep -Fq 'nominal orbital elements' "$DIR/neo.js"
+          grep -Fq 'full 3D nominal orbits' "$DIR/neo.js"
+          grep -Fq 'getScene(){return scene}' "$DIR/welcome.js"
+          grep -Fq 'getFrame(){return applyFrame()}' "$DIR/gaia.js"
+          grep -Fq 'v6307-neo-space-persistent' "$DIR/app-space.js"
           test -s "$DIR/nea_extended.json.gz"
           echo 'NEAR_EARTH_OBJECT_SPACE_VIEW_AND_DAILY_ORBIT_CATALOGUE_LIVE'
