@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/publish-bridgepoint-public-scans-v1.yml'
       - 'rebuild-v5000/bridgepoint-public-scans-v1.js'
+      - 'rebuild-v5000/bridgepoint-public-scan-catalog-v1.json'
 
 permissions:
   actions: read
@@ -76,7 +77,7 @@ jobs:
           import hashlib,json,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          targets={'index.html','app/index.html','bridgepoint-public-scans-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-public-scans-v1.js','bridgepoint-public-scan-catalog-v1.json'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -97,19 +98,20 @@ jobs:
           print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
           PY
 
-      - name: Add only the public scan import map and script tags
+      - name: Add only the public scan module and indexed model catalog
         shell: bash
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-site"
           cp rebuild-v5000/bridgepoint-public-scans-v1.js "$SITE/bridgepoint-public-scans-v1.js"
+          cp rebuild-v5000/bridgepoint-public-scan-catalog-v1.json "$SITE/bridgepoint-public-scan-catalog-v1.json"
           python3 - <<'PY'
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          script='<script defer src="/bridgepoint-public-scans-v1.js?v=1.0.0"></script>'
+          script='<script defer src="/bridgepoint-public-scans-v1.js?v=1.1.0"></script>'
           import_map='<script type="importmap" id="bpPublicScansImportMapV1">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>'
-          required=('PUBLIC 3D SCAN LIBRARY','bpPublicScansLaunchV1','PUBLISH THIS SCAN TO BRIDGEPOINT','X-BP-Public-Consent','preflightZip','OpenScanCloud','https://openscan.eu/pages/openscancloud-uploader')
+          required=('PUBLIC 3D SCAN LIBRARY','bpPublicScansLaunchV1','PUBLISH THIS SCAN TO BRIDGEPOINT','X-BP-Public-Consent','preflightZip','OpenScanCloud','https://openscan.eu/pages/openscancloud-uploader','INDEXED 3D MODELS','CATALOG_URL','creator-hosted viewers')
           module=Path('rebuild-v5000/bridgepoint-public-scans-v1.js').read_text(encoding='utf-8')
           if not all(token in module for token in required):
               raise SystemExit('Scan module is missing the public gallery, explicit-consent upload, archive safety, or OpenScan handoff')
@@ -142,7 +144,7 @@ jobs:
           from pathlib import Path
           tmp=Path(os.environ['RUNNER_TEMP']); site=tmp/'bp-site'
           before=json.loads((tmp/'bp-public-scans-preservation-before.json').read_text())
-          targets={'index.html','app/index.html','bridgepoint-public-scans-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-public-scans-v1.js','bridgepoint-public-scan-catalog-v1.json'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -194,17 +196,26 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-public-scans" -o "$DIR/root.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-public-scans" -o "$DIR/app.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-public-scans-v1.js?verify=$GITHUB_SHA-public-scans" -o "$DIR/scans.js"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-public-scan-catalog-v1.json?verify=$GITHUB_SHA-public-scans" -o "$DIR/catalog.json"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 20 -fsSL 'https://bridgepoint-scan-library-api.olekingkole28.chatgpt.site/api/v1/scans?limit=1&offset=0' -o "$DIR/api.json"
           cmp -s "$DIR/scans.js" rebuild-v5000/bridgepoint-public-scans-v1.js
+          cmp -s "$DIR/catalog.json" rebuild-v5000/bridgepoint-public-scan-catalog-v1.json
           python3 - "$DIR/api.json" <<'PY'
           import json,sys
           payload=json.load(open(sys.argv[1],encoding='utf-8'))
           if not isinstance(payload.get('items'),list) or not isinstance(payload.get('total'),int):
               raise SystemExit('Public library API did not return a usable scan collection')
           print('PUBLIC_SCAN_API_READY',payload['total'],'public scans')
+          catalog=json.load(open(sys.argv[1].replace('api.json','catalog.json'),encoding='utf-8'))
+          items=catalog.get('items')
+          if not isinstance(items,list) or catalog.get('total') != len(items): raise SystemExit('Indexed scan catalog total does not match its entries')
+          locations={item.get('location') for item in items}
+          if None in locations or catalog.get('locationCount') != len(locations): raise SystemExit('Indexed scan catalog location totals are incorrect')
+          if any(not item.get('viewer_url') and not item.get('asset_url') for item in items): raise SystemExit('Indexed scan catalog has a model without a viewer or hosted asset')
+          print('INDEXED_SCAN_CATALOG_READY',catalog['total'],'models across',catalog['locationCount'],'locations')
           PY
           for route in root app; do
-            grep -Fq 'bridgepoint-public-scans-v1.js?v=1.0.0' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-public-scans-v1.js?v=1.1.0' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
             grep -Fq 'bridgepoint-view-v5917.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-bottom-card-categories-v1.js' "$DIR/$route.html"
@@ -216,4 +227,6 @@ jobs:
           grep -Fq 'PUBLISH THIS SCAN TO BRIDGEPOINT' "$DIR/scans.js"
           grep -Fq 'preflightZip' "$DIR/scans.js"
           grep -Fq 'OpenScanCloud' "$DIR/scans.js"
+          grep -Fq 'INDEXED 3D MODELS' "$DIR/scans.js"
+          grep -Fq 'CATALOG_URL' "$DIR/scans.js"
           echo 'PUBLIC_SCAN_LIBRARY_LIVE_AND_EXISTING_FEATURE_LOADERS_PRESENT'
