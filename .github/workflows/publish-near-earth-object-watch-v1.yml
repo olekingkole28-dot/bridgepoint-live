@@ -110,9 +110,9 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.0.0"></script>'
+          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.0.1"></script>'
           module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
-          required=('NASA · NEAR-EARTH OBJECT WATCH','api.nasa.gov/neo/rest/v1/feed','estimated diameter ranges','reported flyby distance','NASA/JPL close approaches','NASA/JPL impact-risk table','Path, orientation, and scale are illustrative','init3DScene','import * as THREE from')
+          required=('#bpv-dock-actions','bpv-v2-tool-button','function focusGlobalMap()','map.flyTo','playpause','NASA · NEAR-EARTH OBJECT WATCH','api.nasa.gov/neo/rest/v1/feed','estimated diameter ranges','reported flyby distance','NASA/JPL close approaches','NASA/JPL impact-risk table','Path, orientation, and scale are illustrative','init3DScene','import * as THREE from')
           if not all(token in module for token in required):
               raise SystemExit('Overlay is missing its NASA feed, 3D visualization, attribution, or non-prediction disclosures')
           if 'ssd-api.jpl.nasa.gov' in module or 'new maplibregl.Map(' in module or '.setStyle(' in module:

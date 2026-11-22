@@ -25,6 +25,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     open: false,
     frame: 0,
     lastDraw: 0,
+    mapCamera: null,
+    simulationPaused: false,
+    simulationProgress: 0,
+    simulationLastAt: 0,
   };
   const scene3d = { renderer: null, scene: null, camera: null, earth: null, asteroid: null, asteroidLight: null, path: null, glowPath: null, curve: null, currentId: '', width: 0, height: 0, failed: false };
 
@@ -62,13 +66,31 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       @media(max-width:520px){#${BUTTON_ID}{min-height:42px;padding:0 10px;font-size:13px}.bpNeoPanelV1{border-radius:18px}.bpNeoHeadV1{padding:12px}.bpNeoSummaryV1{gap:6px;padding:9px}.bpNeoStatV1{padding:8px}.bpNeoStatV1 strong{font-size:18px}.bpNeoContentV1{gap:9px;padding:9px}.bpNeoViewerV1{min-height:190px;flex-basis:190px}.bpNeoFactsV1{grid-template-columns:1fr 1fr}.bpNeoFootV1{padding:8px 10px}.bpNeoFilterV1 button{flex:1}}
       @media(prefers-reduced-motion:reduce){#${BUTTON_ID}:hover,#${BUTTON_ID}:active{transform:none}}
     `;
+    style.textContent += `
+      #${BUTTON_ID}{position:relative!important;inset:auto!important;z-index:auto!important;width:100%;min-height:45px;margin:0;padding:7px 11px;border-radius:12px;color:#eafcff;font-size:12px;letter-spacing:.04em;box-shadow:inset 0 0 0 1px #6cecf55a,0 0 18px #3ce5ff18;background:linear-gradient(135deg,#0b2d3d,#101f31 72%,#18223b);justify-content:flex-start}
+      #${BUTTON_ID} .bpNeoButtonLabelV1{font:900 12px/1.15 system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.05em}
+      #${BUTTON_ID} .bpv-command-icon{color:#7af1ff;text-shadow:0 0 15px #21dbff99}
+      #${ROOT_ID}{align-items:flex-start;justify-content:flex-end;padding:12px;background:transparent;pointer-events:none}
+      #${ROOT_ID} .bpNeoPanelV1{width:min(510px,calc(100vw - 20px));height:min(850px,calc(100dvh - 24px));pointer-events:auto;border-color:#67ddec75;background:radial-gradient(110% 35% at 100% 0%,#17415aa8 0%,transparent 82%),linear-gradient(155deg,#061722f2,#06121ef5 72%,#061b25f2);box-shadow:0 22px 65px #0009,0 0 34px #36d5ee22}
+      #${ROOT_ID} .bpNeoContentV1{display:flex;flex-direction:column;gap:9px;overflow:auto;overscroll-behavior:contain}
+      #${ROOT_ID} .bpNeoLeftV1,#${ROOT_ID} .bpNeoRightV1{display:contents}
+      #${ROOT_ID} .bpNeoViewerV1{flex:0 0 205px;min-height:205px}
+      #${ROOT_ID} .bpNeoSummaryV1{grid-template-columns:repeat(2,minmax(0,1fr))}
+      #${ROOT_ID} .bpNeoListV1{flex:1 0 120px;max-height:230px}
+      @media(max-width:700px){
+        #${ROOT_ID}{align-items:flex-end;justify-content:center;padding:6px 6px calc(env(safe-area-inset-bottom) + 6px)}
+        #${ROOT_ID} .bpNeoPanelV1{width:100%;height:min(76dvh,760px);border-radius:20px 20px 16px 16px}
+        #${ROOT_ID} .bpNeoContentV1{gap:8px;padding:9px}
+        #${ROOT_ID} .bpNeoViewerV1{flex-basis:185px;min-height:185px}
+        #${ROOT_ID} .bpNeoListV1{max-height:190px}
+      }`;
     document.head.appendChild(style);
   }
 
   function installButton() {
-    const mapButton = $('#bpMapsLaunchV1');
+    const dock = $('#bpv-dock-actions');
     const existingButton = $('#' + BUTTON_ID);
-    if (!mapButton || mapButton.hidden || !document.body) {
+    if (!dock || !document.body) {
       if (existingButton) existingButton.hidden = true;
       return;
     }
@@ -78,18 +100,59 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       button = text('button');
       button.id = BUTTON_ID;
       button.type = 'button';
-      button.textContent = '◉  NEAR-EARTH OBJECTS';
+      button.className = 'bpv-v2-tool-button';
+      button.dataset.bpvCommandSection = 'Explore';
       button.setAttribute('aria-label', 'Open the near-Earth object tracker');
       button.setAttribute('aria-haspopup', 'dialog');
       button.setAttribute('aria-expanded', 'false');
-      button.addEventListener('click', openPanel);
-      document.body.appendChild(button);
+      const icon = text('span', 'bpv-command-icon bpv-v2-icon', '◉');
+      icon.setAttribute('aria-hidden', 'true');
+      const label = text('span', 'bpNeoButtonLabelV1', 'NEAR-EARTH OBJECTS');
+      button.append(icon, label);
+      button.addEventListener('click', () => state.open ? closePanel() : openPanel());
     }
+    if (button.parentElement !== dock) dock.appendChild(button);
     button.hidden = false;
-    const anchor = $('#bpPublicScansLaunchV1') || mapButton;
-    const rect = anchor.getBoundingClientRect();
-    button.style.top = `${Math.max(5, rect.bottom + 8)}px`;
-    button.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+  }
+
+  function getBridgePointMap() {
+    const world = window.__bpWorldV2300 || window.__BP_LANDING_WORLD__ || window.__BP_WORLD__;
+    const map = world && world.map;
+    return map && typeof map.flyTo === 'function' ? map : null;
+  }
+
+  function focusGlobalMap() {
+    const map = getBridgePointMap();
+    if (!map) return false;
+    if (!state.mapCamera) {
+      const center = map.getCenter?.();
+      state.mapCamera = center ? {
+        center: [center.lng, center.lat],
+        zoom: map.getZoom?.(),
+        pitch: map.getPitch?.(),
+        bearing: map.getBearing?.(),
+      } : null;
+    }
+    const minZoom = Number(map.getMinZoom?.() ?? 0);
+    const maxZoom = Number(map.getMaxZoom?.() ?? 24);
+    const globalZoom = clamp(0.65, minZoom, maxZoom);
+    map.flyTo({
+      center: [0, 15],
+      zoom: globalZoom,
+      pitch: 0,
+      bearing: 0,
+      duration: 1800,
+      essential: true,
+    });
+    return true;
+  }
+
+  function restoreMapCamera() {
+    const map = getBridgePointMap();
+    const camera = state.mapCamera;
+    state.mapCamera = null;
+    if (!map || !camera?.center || !Number.isFinite(camera.zoom)) return;
+    map.flyTo({ ...camera, duration: 1200, essential: true });
   }
 
   function ensurePanel() {
@@ -97,8 +160,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const root = text('section');
     root.id = ROOT_ID;
     root.hidden = true;
-    root.setAttribute('role', 'dialog');
-    root.setAttribute('aria-modal', 'true');
+    root.setAttribute('role', 'complementary');
+    root.setAttribute('aria-modal', 'false');
     root.setAttribute('aria-labelledby', 'bpNeoTitleV1');
     root.innerHTML = `
       <div class="bpNeoPanelV1">
@@ -127,7 +190,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
             <div class="bpNeoDetailsV1" data-neo-details></div>
           </section>
           <section class="bpNeoRightV1" aria-label="Upcoming asteroid approaches">
-            <div class="bpNeoListHeadV1"><h3>UPCOMING APPROACHES</h3><small data-neo-window>Connecting to NASA…</small><button class="bpNeoRefreshV1" type="button" data-neo-action="refresh">REFRESH NASA FEED</button></div>
+            <div class="bpNeoListHeadV1"><h3>UPCOMING APPROACHES</h3><small data-neo-window>Connecting to NASA…</small><button class="bpNeoRefreshV1" type="button" data-neo-action="playpause" aria-pressed="false">PAUSE PATH</button>
+              <button class="bpNeoRefreshV1" type="button" data-neo-action="refresh">REFRESH NASA FEED</button></div>
             <nav class="bpNeoFilterV1" aria-label="Filter asteroid list">
               <button type="button" data-neo-filter="all" aria-pressed="true">ALL OBJECTS</button>
               <button type="button" data-neo-filter="close" aria-pressed="false">UNDER 1 LUNAR DISTANCE</button>
@@ -154,6 +218,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   function openPanel() {
     installButton();
     ensurePanel();
+    focusGlobalMap();
     const root = $('#' + ROOT_ID);
     root.hidden = false;
     state.open = true;
@@ -172,6 +237,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     $('#' + BUTTON_ID)?.setAttribute('aria-expanded', 'false');
     if (state.frame) cancelAnimationFrame(state.frame);
     state.frame = 0;
+    restoreMapCamera();
     $('#' + BUTTON_ID)?.focus();
   }
 
@@ -179,6 +245,12 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const action = event.target.closest('[data-neo-action]')?.dataset.neoAction;
     if (action === 'close') {
       closePanel();
+      return;
+    }
+    if (action === 'playpause') {
+      state.simulationPaused = !state.simulationPaused;
+      state.simulationLastAt = 0;
+      render();
       return;
     }
     const filter = event.target.closest('[data-neo-filter]')?.dataset.neoFilter;
@@ -195,6 +267,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const row = event.target.closest('[data-neo-id]');
     if (row) {
       state.selectedId = row.dataset.neoId;
+      state.simulationProgress = 0;
+      state.simulationLastAt = 0;
       render();
     }
     if (event.target === $('#' + ROOT_ID)) closePanel();
@@ -477,6 +551,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     $('#' + ROOT_ID)?.querySelectorAll('[data-neo-filter]').forEach(button => {
       button.setAttribute('aria-pressed', String(button.dataset.neoFilter === state.filter));
     });
+    const playPause = $('[data-neo-action="playpause"]');
+    if (playPause) {
+      playPause.setAttribute('aria-pressed', String(state.simulationPaused));
+      playPause.textContent = state.simulationPaused ? 'PLAY PATH' : 'PAUSE PATH';
+    }
     const refresh = $('[data-neo-action="refresh"]');
     if (refresh) {
       refresh.disabled = state.loading;
@@ -666,7 +745,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     }
     if (scene3d.earth) scene3d.earth.rotation.y = now * .000035;
     const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const t = reducedMotion ? .5 : ((now * .000085) % 1 + 1) % 1;
+    if (!state.simulationLastAt) state.simulationLastAt = now;
+    const elapsed = Math.min(250, Math.max(0, now - state.simulationLastAt));
+    state.simulationLastAt = now;
+    if (!state.simulationPaused && !reducedMotion) state.simulationProgress = (state.simulationProgress + elapsed * .000085) % 1;
+    const t = reducedMotion ? .5 : state.simulationProgress;
     const position = scene3d.curve.getPoint(t);
     scene3d.asteroid.position.copy(position);
     scene3d.asteroid.rotation.set(now * .00024, now * .00031, now * .00019);
