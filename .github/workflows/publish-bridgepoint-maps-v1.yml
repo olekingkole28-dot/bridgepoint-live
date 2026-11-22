@@ -125,7 +125,9 @@ jobs:
               body=re.search(r'<body\b[^>]*>',html,flags=re.I)
               if not body: raise SystemExit(rel+' has no body opening tag for the fixed Maps button')
               button=button_app if rel=='app/index.html' else button_root
-              html=html[:body.end()]+button+html[body.end():]
+              opening_whitespace=re.match(r'\s*',html[body.end():]).group(0)
+              button_position=body.end()+len(opening_whitespace)
+              html=html[:button_position]+button+html[button_position:]
               html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
               if html.count(script)!=1: raise SystemExit(rel+' must load exactly one Maps module')
               if html.count('id="bpMapsLaunchV1"')!=1: raise SystemExit(rel+' must contain exactly one fixed Maps button')
