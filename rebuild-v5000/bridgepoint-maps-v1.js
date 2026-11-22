@@ -3,7 +3,7 @@
   'use strict';
   if (window.__BP_MAPS_V1__) return;
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const ROUTE_SOURCE = 'bp-maps-routes-source-v1';
   const ROUTE_LAYER = 'bp-maps-routes-layer-v1';
   const MODE = [
@@ -15,6 +15,8 @@
     { id:'sedan', label:'Car · sedan', icon:'🚘', kind:'car', color:'#ffca5c', note:'Sedan driving viewpoint' },
     { id:'suv', label:'Car · SUV', icon:'🚙', kind:'car', color:'#ff9b52', note:'SUV driving viewpoint' },
     { id:'pickup', label:'Car · pickup', icon:'🛻', kind:'car', color:'#d88cff', note:'Pickup driving viewpoint' },
+    { id:'muscle', label:'Car · muscle coupe', icon:'🏎️', kind:'car', color:'#ff705e', note:'Muscle-car driving viewpoint' },
+    { id:'supercar', label:'Car · supercar', icon:'🏎️', kind:'car', color:'#ff874f', note:'Supercar driving viewpoint' },
     { id:'tesla3', label:'Tesla · Model 3', icon:'🚗', kind:'car', color:'#e95a66', note:'Tesla Model 3 driving viewpoint' },
     { id:'teslay', label:'Tesla · Model Y', icon:'🚙', kind:'car', color:'#ed6973', note:'Tesla Model Y driving viewpoint' },
     { id:'motorboat', label:'Boat · motorboat', icon:'🚤', kind:'boat', color:'#50d6e8', note:'Motorboat viewpoint' },
@@ -55,17 +57,39 @@
     { group:'Islands', name:'Manhattan Island, USA', coordinates:[-73.9712,40.7831], zoom:11 },
     { group:'Islands', name:'Santorini, Greece', coordinates:[25.4615,36.3932], zoom:12 }
   ];
+  const MODELS = {
+    robot:{type:'sketchfab',name:'Humanoid Robot 01',artist:'Vavtrudner',license:'CC BY 4.0',triangles:'150k',url:'https://sketchfab.com/3d-models/humanoid-robot-01-e6151273e4974faca26728eba40c0066',uid:'e6151273e4974faca26728eba40c0066',note:'Rigged and animated community 3D model; not a specific commercial robot CAD.'},
+    rover:{type:'gltf',name:'Six-Wheel Planetary Rover',artist:'tevy',license:'CC0 1.0',triangles:'12k',dimensions:'2.62 × 2.23 × 2.88 m',src:'https://tevy.dev/models/planetary-rover/v1/lod0.glb',url:'https://tevy.dev/models/planetary-rover',note:'Six-wheel rocker-bogie rover with articulating wheels, mast, arm and antenna.'},
+    drone:{type:'gltf',name:'Quad-Rotor Recon Drone',artist:'tevy',license:'CC0 1.0',triangles:'10.5k',dimensions:'1.04 × 0.40 × 0.86 m',src:'https://tevy.dev/models/quad-rotor-recon-drone/v1/lod0.glb',url:'https://tevy.dev/models/quad-rotor-recon-drone',note:'Four-rotor body, gimbal camera, landing skids and articulated rotors.'},
+    helicopter:{type:'gltf',name:'Twin-Engine Utility Helicopter',artist:'tevy',license:'CC0 1.0',triangles:'72k',dimensions:'9.97 × 4.80 × 15.09 m',src:'https://tevy.dev/models/utility-helicopter/v1/lod0.glb',url:'https://tevy.dev/models/utility-helicopter',note:'Rescue helicopter with main and tail rotors, hoist, doors and retractable gear.'},
+    plane:{type:'gltf',name:'Twin-Jet Airliner',artist:'tevy',license:'CC0 1.0',triangles:'82k',dimensions:'35.27 × 11.75 × 38.17 m',src:'https://tevy.dev/models/narrowbody-airliner/v1/lod0.glb',url:'https://tevy.dev/models/narrowbody-airliner',note:'Single-aisle twin-engine airliner with moving control surfaces, fans and landing gear.'},
+    sedan:{type:'gltf',name:'Family Sedan',artist:'tevy',license:'CC0 1.0',triangles:'150k',dimensions:'2.10 × 1.45 × 4.91 m',src:'https://tevy.dev/models/family-sedan/v1/lod0.glb',url:'https://tevy.dev/models/family-sedan',note:'Four-door sedan with cabin, wheels, steering and opening panels.'},
+    suv:{type:'gltf',name:'Mid-Size SUV',artist:'tevy',license:'CC0 1.0',triangles:'44.6k',dimensions:'2.14 × 1.70 × 4.65 m',src:'https://tevy.dev/models/suv/v1/lod0.glb',url:'https://tevy.dev/models/suv',note:'Five-seat crossover with turning wheels and steering.'},
+    pickup:{type:'gltf',name:'Crew-Cab Pickup',artist:'tevy',license:'CC0 1.0',triangles:'44k',dimensions:'2.21 × 1.82 × 5.30 m',src:'https://tevy.dev/models/pickup-truck/v1/lod0.glb',url:'https://tevy.dev/models/pickup-truck',note:'Four-door pickup with open bed, articulated wheels and tailgate.'},
+    muscle:{type:'gltf',name:'Muscle Car',artist:'tevy',license:'CC0 1.0',triangles:'55k',dimensions:'2.16 × 1.31 × 4.90 m',src:'https://tevy.dev/models/muscle-car/v1/lod0.glb',url:'https://tevy.dev/models/muscle-car',note:'Late-1960s fastback with opening panels and articulated wheels.'},
+    supercar:{type:'gltf',name:'Mid-Engine Supercar',artist:'tevy',license:'CC0 1.0',triangles:'160k',dimensions:'2.32 × 1.16 × 4.60 m',src:'https://tevy.dev/models/supercar/v2/lod0.glb',url:'https://tevy.dev/models/supercar',note:'High-detail mid-engine body, glass engine cover, opening doors and working wheel meshes.'},
+    tesla3:{type:'sketchfab',name:'Tesla Model 3',artist:'dannzjs',license:'CC BY 4.0',triangles:'684k',url:'https://sketchfab.com/3d-models/tesla-model-3-5af35a4772f240039a6e58c58998555b',uid:'5af35a4772f240039a6e58c58998555b',note:'Detailed community-made Model 3; not an OEM-issued CAD file.'},
+    teslay:{type:'sketchfab',name:'Tesla Model Y 2021',artist:'763468712',license:'CC BY 4.0',triangles:'2.4M',url:'https://sketchfab.com/3d-models/tesla-model-y-2021-c0a86cac582d4b33aba0fb1b1912d970',uid:'c0a86cac582d4b33aba0fb1b1912d970',note:'High-detail community-made Model Y; not an OEM-issued CAD file.'},
+    motorboat:{type:'gltf',name:'Speedboat',artist:'tevy',license:'CC0 1.0',triangles:'15.8k',dimensions:'2.61 × 2.54 × 9.00 m',src:'https://tevy.dev/models/speedboat/v1/lod0.glb',url:'https://tevy.dev/models/speedboat',note:'Open-bow sport boat with twin outboards, helm, seating and boarding ladder.'},
+    sailboat:{type:'gltf',name:'Sailing Yacht',artist:'tevy',license:'CC0 1.0',triangles:'26.8k',dimensions:'4.20 × 22.13 × 14.66 m',src:'https://tevy.dev/models/sailing-yacht/v1/lod0.glb',url:'https://tevy.dev/models/sailing-yacht',note:'Cruising sloop with keel, twin wheels, rigging and set/furled sail meshes.'},
+    yacht:{type:'gltf',name:'Harbour Tug',artist:'tevy',license:'CC0 1.0',triangles:'39k',dimensions:'12.04 × 19.72 × 32.20 m',src:'https://tevy.dev/models/tugboat/v1/lod0.glb',url:'https://tevy.dev/models/tugboat',note:'Waterline-anchored tug with wheelhouse, twin thrusters, props and radar.'},
+    bicycle:{type:'gltf',name:'Road Bicycle',artist:'tevy',license:'CC0 1.0',triangles:'57.9k',dimensions:'0.46 × 0.98 × 1.67 m',src:'https://tevy.dev/models/road-bicycle/v1/lod0.glb',url:'https://tevy.dev/models/road-bicycle',note:'Detailed road bike with chain, derailleur, brakes and articulated wheels.'},
+    walk:{type:'gltf',name:'Casual Walker',artist:'tevy',license:'CC0 1.0',triangles:'28k',dimensions:'1.37 × 1.79 × 0.38 m',src:'https://tevy.dev/models/casual-walker/v1/lod0.glb',url:'https://tevy.dev/models/casual-walker',note:'Rigged human with idle, walking, waving and look-around animations.',animation:'walk'},
+    train:{type:'gltf',name:'Steam Locomotive',artist:'tevy',license:'CC0 1.0',triangles:'48k',dimensions:'2.90 × 4.20 × 13.60 m',src:'https://tevy.dev/models/steam-locomotive/v1/lod0.glb',url:'https://tevy.dev/models/steam-locomotive',note:'Standard-gauge 4-6-2 locomotive with connecting rods and moving wheelsets.'},
+    balloon:{type:'sketchfab',name:'Hot Air Balloon',artist:'daniel.katz',license:'CC BY 4.0',triangles:'127.8k',url:'https://sketchfab.com/3d-models/hot-air-baloon-517cdea254bd450d960d0bd2efc87f15',uid:'517cdea254bd450d960d0bd2efc87f15',note:'Detailed balloon and burner community model.'}
+  };
   const state = {
     tab:'explore', screen:'home', mode:'default', place:null, origin:null, destination:null,
     results:{explore:[],from:[],to:[]}, routes:[], selectedRoute:0, status:'', statusKind:'info',
-    exploreSession:false, navigation:false, watchId:null, marker:null, lastFix:null,
+    exploreSession:false, navigation:false, watchId:null, marker:null, lastFix:null, modelReturn:'home',
     startedAt:0, travelledMeters:0, speedMph:0, arrived:false, routeGeoJSON:null,
     cache:new Map(), lastRequest:{geo:0,route:0}, map:null, mapHandlers:false, mountButton:null
   };
   const $ = (sel, root=document) => root.querySelector(sel);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const getMode = id => MODE.find(m => m.id === id) || MODE[MODE.length - 1];
-  const mapNow = () => window.__BP_V5000_WORLD__?.map || window.__bpWorldV2300?.map || null;
+  const mapNow = () => window.__BP_V5000_WORLD__?.map || window.__bpWorldV2300?.map || window.__BP_LANDING_WORLD__?.map || window.__bpLandingWorldV5420?.map || null;
+  const appRoute = () => /(?:^|\/)app(?:\/|$)/i.test(location.pathname) || !!$('#liveMap');
   function signedIn(){
     try {
       const s = JSON.parse(localStorage.getItem('bp_auth_v5045') || 'null');
@@ -97,26 +121,34 @@
       .bpMapsClose{width:38px;height:38px;border:1px solid #6d9bab55;border-radius:12px;background:#0b1921;color:#eaf5fa;font-size:22px;cursor:pointer}
       .bpMapsTabs{display:flex;gap:8px;padding:11px 16px 0}.bpMapsTab{flex:1;min-height:40px;border:1px solid #3a5968;border-radius:12px;background:#0a1820;color:#a9c2cc;font-weight:800;letter-spacing:.04em;cursor:pointer}.bpMapsTab[aria-selected=true]{border-color:#f0ca59;background:linear-gradient(115deg,#654f1f,#292313);color:#ffe187;box-shadow:inset 0 0 18px #f4ce5422}
       .bpMapsBody{overflow:auto;overscroll-behavior:contain;padding:14px 16px 18px}.bpMapsSection{margin:0 0 17px}.bpMapsSection h3{margin:0 0 8px;color:#a7d4df;font-size:11px;letter-spacing:.12em;text-transform:uppercase}.bpMapsIntro{margin:0 0 12px;color:#a8bac2;font-size:12px}.bpMapsModeGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.bpMapsMode{min-height:68px;display:flex;align-items:center;gap:9px;padding:8px;border:1px solid #29414e;border-radius:13px;background:linear-gradient(145deg,#10212c,#09151d);color:#e6f3f7;text-align:left;cursor:pointer}.bpMapsMode[aria-pressed=true]{border-color:var(--mode-color,#f0ca59);box-shadow:0 0 0 1px color-mix(in srgb,var(--mode-color,#f0ca59) 45%,transparent),inset 0 0 22px color-mix(in srgb,var(--mode-color,#f0ca59) 13%,transparent)}.bpMapsIcon{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;border-radius:12px;background:radial-gradient(circle at 30% 20%,#fff3,transparent 70%),linear-gradient(145deg,color-mix(in srgb,var(--mode-color,#f0ca59) 35%,#13232d),#0a1119);font-size:22px;filter:drop-shadow(0 5px 5px #0007)}.bpMapsMode span:last-child{font-size:11px;font-weight:800;line-height:1.2}.bpMapsQuickGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.bpMapsPlace{min-height:43px;padding:8px 10px;border:1px solid #29424d;border-radius:11px;background:#0c1b24;color:#d9edf3;text-align:left;font-size:11px;cursor:pointer}.bpMapsPlace small{display:block;color:#75c9d7;font-size:9px;letter-spacing:.07em;text-transform:uppercase}.bpMapsSearch{display:flex;gap:7px}.bpMapsSearch input{width:100%;min-width:0;min-height:42px;padding:0 12px;border:1px solid #426172;border-radius:11px;background:#061119;color:#f4f8fa;font:600 13px system-ui}.bpMapsSearch button,.bpMapsPrimary,.bpMapsSecondary,.bpMapsDanger{min-height:42px;padding:0 14px;border:1px solid #f0cf65;border-radius:11px;background:linear-gradient(120deg,#f6db82,#d1a438);color:#1c170a;font-weight:900;letter-spacing:.03em;cursor:pointer;white-space:nowrap}.bpMapsSecondary{border-color:#467182;background:linear-gradient(120deg,#173746,#0d202b);color:#cbeaf1}.bpMapsDanger{border-color:#a84d52;background:#431c25;color:#ffdfe1}.bpMapsResults{display:grid;gap:6px;margin-top:8px}.bpMapsResult{width:100%;padding:10px 11px;border:1px solid #385765;border-radius:11px;background:#0b1a22;color:#eff8fa;text-align:left;font-size:12px;cursor:pointer}.bpMapsResult small{display:block;margin-top:3px;color:#89a7b2;font-size:10px}.bpMapsSelected{display:flex;align-items:center;gap:12px;padding:11px;border:1px solid #51707b;border-radius:15px;background:linear-gradient(120deg,#102935,#0a171e)}.bpMapsSelectedFigure{width:78px;height:72px;flex:0 0 78px;display:grid;place-items:center;overflow:hidden;border:1px solid #70d0d955;border-radius:16px;background:radial-gradient(ellipse at 50% 70%,#50d3e422,transparent 65%),linear-gradient(145deg,#1b3440,#07121a);perspective:400px}.bpMapsSelectedFigure span{display:block;font-size:44px;transform:rotateX(18deg) rotateY(-20deg);filter:drop-shadow(8px 10px 3px #0009);animation:bpMapsBob 2.6s ease-in-out infinite}.bpMapsSelectedCopy{min-width:0;flex:1}.bpMapsSelectedCopy b{display:block;color:#f8dc85}.bpMapsSelectedCopy small{display:block;margin-top:3px;color:#a5bdc5;font-size:10px}.bpMapsNotice{margin:8px 0 0;color:#8ea8b3;font-size:10px}.bpMapsStatus{min-height:0;margin:9px 0 0;padding:0;color:#9bc6d2;font-size:11px}.bpMapsStatus:not([hidden]){padding:9px 11px;border:1px solid #3f6772;border-radius:10px;background:#0c222c}.bpMapsStatus[data-kind=error]{border-color:#a74c55;background:#301920;color:#ffdadd}.bpMapsStatus[data-kind=success]{border-color:#4c9e82;background:#102b25;color:#bff5db}.bpMapsRouteList{display:grid;gap:8px}.bpMapsRoute{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #3a5969;border-radius:13px;background:#0a1922;color:#e7f4f8;text-align:left;cursor:pointer}.bpMapsRoute[aria-pressed=true]{border-color:#f0ce62;background:linear-gradient(120deg,#403719,#10212a)}.bpMapsRouteNum{width:27px;height:27px;flex:0 0 27px;display:grid;place-items:center;border:1px solid #f0cc60;border-radius:50%;color:#ffe285;font-weight:900}.bpMapsRouteInfo{min-width:0;flex:1}.bpMapsRouteInfo b{display:block;font-size:12px}.bpMapsRouteInfo small{display:block;margin-top:2px;color:#95b0bb;font-size:10px}.bpMapsRouteTime{font-size:12px;font-weight:900;color:#c6eff6;white-space:nowrap}.bpMapsHud{position:fixed;z-index:2147482880;right:14px;bottom:clamp(145px,21vh,230px);width:min(245px,calc(100vw - 28px));padding:11px;border:1px solid #54bfd0aa;border-radius:17px;background:linear-gradient(145deg,#071820ee,#09131eea);box-shadow:0 9px 30px #0009;color:#e6f5f8;backdrop-filter:blur(12px);touch-action:manipulation}.bpMapsHudTop{display:flex;align-items:center;gap:7px}.bpMapsHudTop b{flex:1;color:#f4d472;font-size:10px;letter-spacing:.08em}.bpMapsHudTop button{min-height:28px;padding:0 8px;border:1px solid #476c78;border-radius:8px;background:#10242d;color:#d9edf2;font-size:10px;font-weight:800}.bpMapsPad{display:grid;grid-template-columns:repeat(3,39px);grid-template-rows:repeat(2,37px);justify-content:center;gap:4px;margin-top:8px}.bpMapsPad button{border:1px solid #588796;border-radius:10px;background:linear-gradient(145deg,#183643,#0c1b24);color:#c9f2f8;font-size:17px;font-weight:900;touch-action:manipulation}.bpMapsPad button:nth-child(1){grid-column:2}.bpMapsPad button:nth-child(2){grid-column:1;grid-row:2}.bpMapsPad button:nth-child(3){grid-column:2;grid-row:2}.bpMapsPad button:nth-child(4){grid-column:3;grid-row:2}.bpMapsSpeed{margin-top:8px;padding:7px;border-radius:10px;background:#08121a;text-align:center;color:#a8c1c9;font-size:10px}.bpMapsSpeed strong{color:#f4dc88;font-size:18px}.bpMapsFooter{padding:9px 16px;border-top:1px solid #89d6e21e;color:#829ba5;font-size:10px}.bpMapsFooter a{color:#9bd9e3}.bpMapsRail{font-size:10px;color:#9bb3bd}
+      .bpMapsModelCard{overflow:hidden;border:1px solid #51707b;border-radius:16px;background:linear-gradient(145deg,#102935,#07131b)}.bpMapsModelStage{position:relative;width:100%;height:228px;overflow:hidden;border-bottom:1px solid #72c6d033;background:radial-gradient(ellipse at 50% 80%,#52d5eb22,transparent 58%),linear-gradient(145deg,#102b36,#050c12)}.bpMapsModelStage.compact{height:110px;border:1px solid #72c6d055;border-radius:14px}.bpMapsModelStage model-viewer,.bpMapsModelStage iframe{display:block;width:100%;height:100%;border:0;background:transparent;--poster-color:transparent}.bpMapsModelStage model-viewer{--progress-bar-color:#f0cf65;--progress-mask:transparent}.bpMapsModelFallback{position:absolute;inset:auto 8px 7px;z-index:1;pointer-events:none;text-align:center;color:#9ec4cf;font-size:9px;text-shadow:0 1px 5px #000}.bpMapsModelInfo{padding:11px 12px}.bpMapsModelInfo b{display:block;color:#f7dc87;font-size:13px}.bpMapsModelInfo small{display:block;margin-top:4px;color:#b3c7ce;font-size:10px;line-height:1.4}.bpMapsModelInfo a,.bpMapsModelCredits a{color:#8edcea}.bpMapsModelCredits{padding:0 12px 12px;color:#9bb3bc;font-size:10px}.bpMapsLiveMarker{width:128px;padding:4px;border:1px solid #79d8e5;border-radius:15px;background:linear-gradient(150deg,#071820f5,#09131ef2);box-shadow:0 8px 25px #000b,0 0 21px #35cfe455;cursor:pointer}.bpMapsLiveMarker .bpMapsModelStage.compact{height:82px}.bpMapsLiveMarkerLabel{display:block;padding:3px 2px 2px;color:#f6dc88;text-align:center;font:800 9px/1.15 system-ui,sans-serif;letter-spacing:.04em;white-space:nowrap}.bpMapsSelected{display:block;overflow:hidden;padding:9px;border:1px solid #51707b;border-radius:15px;background:linear-gradient(120deg,#102935,#0a171e)}.bpMapsSelectedCopy{min-width:0;padding:9px 2px 2px}.bpMapsSelectedCopy b{display:block;color:#f8dc85}.bpMapsSelectedCopy small{display:block;margin-top:3px;color:#a5bdc5;font-size:10px}.bpMapsModelFacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}.bpMapsModelFacts span{padding:4px 7px;border:1px solid #45616d;border-radius:99px;background:#0a1820;color:#b9d4dc;font-size:9px}.bpMapsModelButtons{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
       @keyframes bpMapsBob{0%,100%{transform:translateY(2px) rotateX(18deg) rotateY(-20deg)}50%{transform:translateY(-4px) rotateX(18deg) rotateY(-20deg)}}
       @media(max-width:700px){#bpMapsLaunchV1{top:max(9px,env(safe-area-inset-top));right:9px;min-height:39px;padding:0 11px;border-radius:12px;font-size:10px}.bpMapsPanel{border-radius:17px}.bpMapsHead{padding:11px 12px}.bpMapsTabs{padding:8px 10px 0}.bpMapsBody{padding:11px 10px 13px}.bpMapsModeGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.bpMapsMode{min-height:58px;padding:6px;gap:7px}.bpMapsIcon{width:34px;height:34px;flex-basis:34px;font-size:19px}.bpMapsMode span:last-child{font-size:10px}.bpMapsQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.bpMapsPlace{min-height:40px;padding:7px;font-size:10px}.bpMapsSearch input{font-size:12px}.bpMapsHud{right:8px;bottom:max(112px,calc(env(safe-area-inset-bottom) + 105px));width:196px;padding:8px}.bpMapsPad{grid-template-columns:repeat(3,34px);grid-template-rows:repeat(2,32px)}.bpMapsSpeed strong{font-size:16px}.bpMapsFooter{padding:8px 11px}}
       @media(min-width:701px){.bpMapsHud{bottom:20px}}
     `;
     const style = document.createElement('style'); style.id='bpMapsStyleV1'; style.textContent=css; document.head.appendChild(style);
   }
+  function ensureButton(){
+    let btn=$('#bpMapsLaunchV1');
+    if(!btn){btn=document.createElement('button');btn.id='bpMapsLaunchV1';btn.type='button';btn.textContent='✦  BRIDGEPOINT MAPS';btn.setAttribute('aria-haspopup','dialog');btn.setAttribute('aria-expanded','false');document.body.appendChild(btn);}
+    if(btn.dataset.bpMapsBound!=='true'){btn.addEventListener('click',openPanel);btn.dataset.bpMapsBound='true';}
+    state.mountButton=btn;
+    return btn;
+  }
   function ensureNodes(){
-    if ($('#bpMapsRootV1')) return;
-    const btn=document.createElement('button');btn.id='bpMapsLaunchV1';btn.type='button';btn.textContent='✦  BRIDGEPOINT MAPS';btn.setAttribute('aria-haspopup','dialog');btn.setAttribute('aria-expanded','false');
-    btn.addEventListener('click',()=>{openPanel();});document.body.appendChild(btn);state.mountButton=btn;
-    const root=document.createElement('div');root.id='bpMapsRootV1';root.hidden=true;root.innerHTML='<section class="bpMapsPanel" role="dialog" aria-modal="true" aria-labelledby="bpMapsTitle"><header class="bpMapsHead"><div class="bpMapsBrand"><b id="bpMapsTitle">BRIDGEPOINT MAPS</b><small>3D WORLD EXPLORATION · DIRECTIONS</small></div><button class="bpMapsClose" type="button" data-action="close" aria-label="Close BridgePoint Maps">×</button></header><nav class="bpMapsTabs" aria-label="BridgePoint Maps mode"><button class="bpMapsTab" type="button" data-action="tab" data-tab="explore" aria-selected="true">EXPLORE THE WORLD</button><button class="bpMapsTab" type="button" data-action="tab" data-tab="directions" aria-selected="false">DIRECTIONS</button></nav><main class="bpMapsBody" id="bpMapsBody"></main><footer class="bpMapsFooter">Place searches go to OpenStreetMap Nominatim; route requests send the selected endpoints to FOSSGIS. Live GPS tracking stays in this browser. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Fix the map</a>. Exact vehicle CAD assets are not included in this build; previews are visual mode markers.</footer></section>';
-    root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('keydown',onKeyDown);document.body.appendChild(root);
-    const hud=document.createElement('aside');hud.id='bpMapsHudV1';hud.className='bpMapsHud';hud.hidden=true;document.body.appendChild(hud);
+    const btn=ensureButton();btn.hidden=false;
+    if(!$('#bpMapsRootV1')){
+      const root=document.createElement('div');root.id='bpMapsRootV1';root.hidden=true;root.innerHTML='<section class="bpMapsPanel" role="dialog" aria-modal="true" aria-labelledby="bpMapsTitle"><header class="bpMapsHead"><div class="bpMapsBrand"><b id="bpMapsTitle">BRIDGEPOINT MAPS</b><small>3D WORLD EXPLORATION · DIRECTIONS</small></div><button class="bpMapsClose" type="button" data-action="close" aria-label="Close BridgePoint Maps">×</button></header><nav class="bpMapsTabs" aria-label="BridgePoint Maps mode"><button class="bpMapsTab" type="button" data-action="tab" data-tab="explore" aria-selected="true">EXPLORE THE WORLD</button><button class="bpMapsTab" type="button" data-action="tab" data-tab="directions" aria-selected="false">DIRECTIONS</button></nav><main class="bpMapsBody" id="bpMapsBody"></main><footer class="bpMapsFooter">Models are openly licensed community-created reference assets, not manufacturer-issued CAD. Creator and license credits appear on each model card. Place searches go to OpenStreetMap Nominatim; route requests go to FOSSGIS. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>.</footer></section>';
+      root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('keydown',onKeyDown);document.body.appendChild(root);
+    }
+    if(!$('#bpMapsHudV1')){const hud=document.createElement('aside');hud.id='bpMapsHudV1';hud.className='bpMapsHud';hud.hidden=true;document.body.appendChild(hud);}
   }
   function mount(){
-    const ok=signedIn() && visibleAppMap() && !!window.__BRIDGEPOINT_VIEW_V5917__?.ready && !!mapNow();
-    if(ok){installCSS();ensureNodes();return true;}
-    const btn=$('#bpMapsLaunchV1');if(btn)btn.remove();
-    const root=$('#bpMapsRootV1');if(root){root.hidden=true;root.remove();}
-    const hud=$('#bpMapsHudV1');if(hud){hud.hidden=true;hud.remove();}
+    const allowed=appRoute()||signedIn();
+    if(allowed){installCSS();ensureNodes();return true;}
+    const btn=$('#bpMapsLaunchV1');if(btn)btn.hidden=true;
+    const root=$('#bpMapsRootV1');if(root)root.hidden=true;
+    const hud=$('#bpMapsHudV1');if(hud)hud.hidden=true;
     return false;
   }
   function openPanel(){
@@ -131,6 +163,7 @@
     root.querySelectorAll('.bpMapsTab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===state.tab)));
     const body=$('#bpMapsBody');if(!body)return;
     body.innerHTML=state.tab==='explore'?renderExplore():renderDirections();
+    if(body.querySelector('model-viewer'))loadModelViewer();
     const n=$('#bpMapsStatus');if(n){n.textContent=state.status;n.dataset.kind=state.statusKind;n.hidden=!state.status;}
     updateHud();
   }
@@ -143,14 +176,40 @@
     const val=kind==='from'?state.origin?.name:kind==='to'?state.destination?.name:state.place?.name;
     return `<form class="bpMapsSearch" data-search-kind="${kind}" autocomplete="off"><input name="q" type="search" value="${esc(val||'')}" placeholder="${esc(placeholder)}" aria-label="${esc(label)}" maxlength="180"><button type="submit">SEARCH</button></form>${placeResults(kind)}`;
   }
-  function selectedPreview(){
-    const m=getMode(state.mode);const name=state.place?.name||'Choose a starting location';
-    return `<div class="bpMapsSelected"><div class="bpMapsSelectedFigure"><span>${m.icon}</span></div><div class="bpMapsSelectedCopy"><b>${esc(m.label)} · 3D world view</b><small>${esc(name)}</small><small>${esc(m.note)}. The current world layers remain available.</small></div></div><p class="bpMapsNotice">The globe moves to the selected place. Use the floating directional pad (or W/A/S/D) to roam; close this panel to reach the existing BridgePoint layer controls.</p>`;
+  function loadModelViewer(){
+    if(window.customElements?.get('model-viewer'))return;
+    if($('#bpMapsModelViewerLoaderV1'))return;
+    const script=document.createElement('script');script.id='bpMapsModelViewerLoaderV1';script.type='module';script.crossOrigin='anonymous';script.src='https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js';document.head.appendChild(script);
+  }
+  function modelEmbedHTML(modeId,compact=false){
+    const mode=getMode(modeId),model=MODELS[modeId];
+    if(!model)return `<div class="bpMapsModelStage${compact?' compact':''}"><div class="bpMapsModelFallback" style="inset:25% 8px auto;font-size:38px">${mode.icon}</div><span class="bpMapsModelFallback">BridgePoint default viewpoint</span></div>`;
+    if(model.type==='sketchfab'){
+      const src=`https://sketchfab.com/models/${model.uid}/embed?autostart=1&ui_theme=dark&ui_controls=1&ui_infos=0`;
+      return `<div class="bpMapsModelStage${compact?' compact':''}"><iframe src="${src}" title="Interactive 3D model: ${esc(model.name)}" loading="lazy" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>`;
+    }
+    return `<div class="bpMapsModelStage${compact?' compact':''}"><model-viewer src="${model.src}" alt="${esc(model.name)}" camera-controls auto-rotate rotation-per-second="12deg" shadow-intensity="1.1" exposure="1.05" environment-image="neutral" interaction-prompt="none" loading="lazy" reveal="auto" ${model.animation?`animation-name="${esc(model.animation)}" autoplay`:''}></model-viewer><span class="bpMapsModelFallback">Loading interactive 3D model · <a href="${model.url}" target="_blank" rel="noopener">open source</a></span></div>`;
+  }
+  function modelCard(modeId,compact=false){
+    const mode=getMode(modeId),model=MODELS[modeId];
+    if(!model)return `<div class="bpMapsModelCard">${modelEmbedHTML(modeId,compact)}<div class="bpMapsModelInfo"><b>${esc(mode.label)}</b><small>Uses the existing BridgePoint globe viewpoint.</small></div></div>`;
+    const licenseUrl=model.license==='CC0 1.0'?'https://creativecommons.org/publicdomain/zero/1.0/':'https://creativecommons.org/licenses/by/4.0/';
+    const provenance=model.type==='sketchfab'?'Creator-uploaded community model; not manufacturer-issued CAD.':'Open reference model; not a manufacturer-issued CAD file.';
+    return `<div class="bpMapsModelCard">${modelEmbedHTML(modeId,compact)}<div class="bpMapsModelInfo"><b>${esc(model.name)}</b><small>${esc(model.note)} ${esc(provenance)}</small><div class="bpMapsModelFacts"><span>${esc(model.triangles)} triangles</span>${model.dimensions?`<span>${esc(model.dimensions)}</span>`:''}<span>${esc(model.license)}</span></div></div><div class="bpMapsModelCredits">Model by <a href="${model.url}" target="_blank" rel="noopener">${esc(model.artist)} · source</a> · <a href="${licenseUrl}" target="_blank" rel="noopener">${esc(model.license)} license</a></div></div>`;
+  }
+  function selectedPreview(showViewer=true){
+    const m=getMode(state.mode),name=state.place?.name||'Choose a starting location';
+    return `<div class="bpMapsSelected">${showViewer?modelCard(state.mode):''}<div class="bpMapsSelectedCopy"><b>${esc(m.label)} · 3D world view</b><small>${esc(name)}</small><small>${esc(m.note)}. Existing BridgePoint globe layers remain available.</small><div class="bpMapsModelButtons"><button type="button" class="bpMapsSecondary" data-action="model-details">OPEN MODEL DETAILS</button></div></div></div><p class="bpMapsNotice">The chosen 3D model is pinned at the selected map location. Use the floating directional pad (or W/A/S/D) to roam; close this panel to reach the existing BridgePoint layer controls.</p>`;
+  }
+  function renderModelDetails(){
+    const back=state.modelReturn==='roam'?'roam':'home';
+    return `<section class="bpMapsSection"><h3>Selected 3D model</h3>${modelCard(state.mode)}<div class="bpMapsModelButtons"><button class="bpMapsPrimary" type="button" data-action="back-model">BACK TO ${back==='roam'?'ROAMING':'MODE SELECTION'}</button>${back==='roam'?'<button class="bpMapsSecondary" type="button" data-action="close">CLOSE AND ROAM</button>':''}</div></section><div id="bpMapsStatus" class="bpMapsStatus" role="status" hidden></div>`;
   }
   function renderExplore(){
-    if(state.screen==='roam')return `<section class="bpMapsSection"><h3>Explore session</h3>${selectedPreview()}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="bpMapsPrimary" type="button" data-action="close">CLOSE AND ROAM</button><button class="bpMapsSecondary" type="button" data-action="end-explore">END SESSION</button></div></section><div id="bpMapsStatus" class="bpMapsStatus" role="status" hidden></div>`;
+    if(state.screen==='model')return renderModelDetails();
+    if(state.screen==='roam')return `<section class="bpMapsSection"><h3>Explore session</h3>${selectedPreview(false)}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="bpMapsPrimary" type="button" data-action="close">CLOSE AND ROAM</button><button class="bpMapsSecondary" type="button" data-action="end-explore">END SESSION</button></div></section><div id="bpMapsStatus" class="bpMapsStatus" role="status" hidden></div>`;
     const groups=[...new Set(PLACES.map(p=>p.group))];
-    return `<p class="bpMapsIntro">Pick a travel viewpoint, then choose a preset or search a place anywhere in the world. The current BridgePoint globe and its layer controls stay in place.</p><section class="bpMapsSection"><h3>1 · Choose a travel mode or model</h3>${modeCards()}</section><section class="bpMapsSection"><h3>2 · Search the globe</h3>${placeSearch('explore','Search for a place','City, ocean, lake, river, highway, island, address…')}</section><section class="bpMapsSection"><h3>Quick places</h3><div class="bpMapsQuickGrid">${groups.map(g=>PLACES.filter(p=>p.group===g).slice(0,5).map(p=>`<button type="button" class="bpMapsPlace" data-action="quick-place" data-name="${esc(p.name)}"><small>${esc(g)}</small>${esc(p.name)}</button>`).join('')).join('')}</div></section><div id="bpMapsStatus" class="bpMapsStatus" role="status" hidden></div>`;
+    return `<p class="bpMapsIntro">Pick a travel viewpoint, inspect its interactive 3D model, then choose a preset or search anywhere in the world. The current BridgePoint globe and its layer controls stay in place.</p><section class="bpMapsSection"><h3>1 · Choose a travel mode or model</h3>${modeCards()}<div style="margin-top:10px">${modelCard(state.mode)}</div></section><section class="bpMapsSection"><h3>2 · Search the globe</h3>${placeSearch('explore','Search for a place','City, ocean, lake, river, highway, island, address…')}</section><section class="bpMapsSection"><h3>Quick places</h3><div class="bpMapsQuickGrid">${groups.map(g=>PLACES.filter(p=>p.group===g).slice(0,5).map(p=>`<button type="button" class="bpMapsPlace" data-action="quick-place" data-name="${esc(p.name)}"><small>${esc(g)}</small>${esc(p.name)}</button>`).join('')).join('')}</div></section><div id="bpMapsStatus" class="bpMapsStatus" role="status" hidden></div>`;
   }
   function fieldBox(kind,label,placeholder,value){return `<div class="bpMapsSection"><h3>${label}</h3><div style="display:flex;gap:7px;align-items:stretch"><form class="bpMapsSearch" data-search-kind="${kind}" autocomplete="off" style="flex:1"><input name="q" type="search" value="${esc(value||'')}" placeholder="${esc(placeholder)}" aria-label="${label}" maxlength="180"><button type="submit">SEARCH</button></form><button type="button" class="bpMapsSecondary" style="padding:0 10px" data-action="use-center" data-kind="${kind}" title="Use the current globe center">CENTER</button></div>${placeResults(kind)}<div class="bpMapsNotice">${esc(kind==='from'?state.origin?.name||'No starting point selected':state.destination?.name||'No destination selected')}</div></div>`;}
   function renderRoutes(){
@@ -160,7 +219,7 @@
   }
   function renderDirections(){
     const m=getMode(state.mode);
-    return `<p class="bpMapsIntro">Enter the start and destination. The map will show up to five fastest alternatives returned by the open routing source; available routes vary with location and transport mode.</p><section class="bpMapsSection"><h3>Travel mode</h3><div class="bpMapsModeGrid">${MODE.filter(x=>['sedan','suv','tesla3','teslay','bicycle','walk','train'].includes(x.id)).map(x=>`<button class="bpMapsMode" style="--mode-color:${x.color}" type="button" data-action="mode" data-mode="${x.id}" aria-pressed="${state.mode===x.id}"><span class="bpMapsIcon">${x.icon}</span><span>${esc(x.label)}</span></button>`).join('')}</div>${state.mode==='train'?'<p class="bpMapsNotice">Worldwide rail journey planning is not connected to this app yet. No train route will be fabricated.</p>':''}</section>${fieldBox('from','STARTING POINT','Address, city, station or place',state.origin?.name)}${fieldBox('to','DESTINATION','Address, city, station or place',state.destination?.name)}<section class="bpMapsSection"><button class="bpMapsPrimary" type="button" data-action="find-routes" ${state.mode==='train'?'disabled':''}>FIND FASTEST AVAILABLE ROUTES</button> ${state.routes.length?'<button class="bpMapsSecondary" type="button" data-action="clear-route">CLEAR ROUTE</button>':''}<div class="bpMapsNotice">Current directions support driving, walking and cycling. Train is shown as a selectable mode but has no connected global rail routing feed. Route requests go to the OSM/FOSSGIS service.</div></section><section class="bpMapsSection">${state.routes.length?`<h3>Routes · ${state.routes.length} available</h3>${renderRoutes()}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" class="bpMapsPrimary" data-action="start-navigation">START LIVE NAVIGATION</button><button type="button" class="bpMapsSecondary" data-action="close">CLOSE MAPS</button></div><p class="bpMapsNotice">Live navigation asks for browser location permission only after you press Start. Speed and trip tracking stay in this browser.</p>`:''}</section><div id="bpMapsStatus" class="bpMapsStatus" role="status" hidden></div>`;
+    return `<p class="bpMapsIntro">Enter the start and destination. The map will show up to five fastest alternatives returned by the open routing source; available routes vary with location and transport mode.</p><section class="bpMapsSection"><h3>Travel mode</h3><div class="bpMapsModeGrid">${MODE.filter(x=>['sedan','suv','pickup','muscle','supercar','tesla3','teslay','bicycle','walk','train'].includes(x.id)).map(x=>`<button class="bpMapsMode" style="--mode-color:${x.color}" type="button" data-action="mode" data-mode="${x.id}" aria-pressed="${state.mode===x.id}"><span class="bpMapsIcon">${x.icon}</span><span>${esc(x.label)}</span></button>`).join('')}</div>${state.mode==='train'?'<p class="bpMapsNotice">Worldwide rail journey planning is not connected to this app yet. No train route will be fabricated.</p>':''}</section>${fieldBox('from','STARTING POINT','Address, city, station or place',state.origin?.name)}${fieldBox('to','DESTINATION','Address, city, station or place',state.destination?.name)}<section class="bpMapsSection"><button class="bpMapsPrimary" type="button" data-action="find-routes" ${state.mode==='train'?'disabled':''}>FIND FASTEST AVAILABLE ROUTES</button> ${state.routes.length?'<button class="bpMapsSecondary" type="button" data-action="clear-route">CLEAR ROUTE</button>':''}<div class="bpMapsNotice">Current directions support driving, walking and cycling. Train is shown as a selectable mode but has no connected global rail routing feed. Route requests go to the OSM/FOSSGIS service.</div></section><section class="bpMapsSection">${state.routes.length?`<h3>Routes · ${state.routes.length} available</h3>${renderRoutes()}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" class="bpMapsPrimary" data-action="start-navigation">START LIVE NAVIGATION</button><button type="button" class="bpMapsSecondary" data-action="close">CLOSE MAPS</button></div><p class="bpMapsNotice">Live navigation asks for browser location permission only after you press Start. Speed and trip tracking stay in this browser.</p>`:''}</section><div id="bpMapsStatus" class="bpMapsStatus" role="status" hidden></div>`;
   }
   async function pace(which){
     const now=Date.now(),wait=Math.max(0,1000-(now-state.lastRequest[which]));
@@ -196,6 +255,8 @@
     if(action==='close'){closePanel();return;}
     if(action==='tab'){if(b.dataset.tab==='directions'&&state.mode==='default')state.mode='sedan';setTab(b.dataset.tab);return;}
     if(action==='mode'){state.mode=b.dataset.mode;state.status='';render();return;}
+    if(action==='model-details'){state.modelReturn=state.screen==='roam'?'roam':'home';state.screen='model';state.tab='explore';render();return;}
+    if(action==='back-model'){state.screen=state.modelReturn==='roam'?'roam':'home';render();return;}
     if(action==='quick-place'){const p=PLACES.find(x=>x.name===b.dataset.name);if(p)beginExplore(p);return;}
     if(action==='place-result'){const arr=state.results[b.dataset.kind]||[];const p=arr[Number(b.dataset.index)];if(!p)return;if(b.dataset.kind==='explore')beginExplore(p);else if(b.dataset.kind==='from'){state.origin=p;state.results.from=[];render();setStatus('Starting point selected.');}else{state.destination=p;state.results.to=[];render();setStatus('Destination selected.');}return;}
     if(action==='use-center'){const m=mapNow();if(!m){setStatus('The 3D globe is still initializing.','error');return;}const c=m.getCenter();const p={name:'Current globe center',display:`${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`,coordinates:[c.lng,c.lat],zoom:14};if(b.dataset.kind==='from')state.origin=p;else state.destination=p;render();setStatus('Current globe center selected.');return;}
@@ -215,9 +276,11 @@
   function setVehicleMarker(coordinates){
     const map=mapNow();if(!map||!window.maplibregl?.Marker)return;
     state.marker?.remove();state.marker=null;
-    const mode=getMode(state.mode);const el=document.createElement('div');el.className='bpMapsLiveMarker';el.setAttribute('role','img');el.setAttribute('aria-label',mode.label);
-    el.style.cssText=`width:54px;height:54px;display:grid;place-items:center;border:1px solid ${mode.color};border-radius:18px;background:radial-gradient(circle at 30% 25%,#fff8,transparent 55%),linear-gradient(145deg,${mode.color}55,#06141ddd);box-shadow:0 8px 22px #0009,0 0 20px ${mode.color}77;transform:perspective(300px) rotateX(18deg) rotateY(-16deg);font:32px system-ui;`;
-    el.textContent=mode.icon;state.marker=new window.maplibregl.Marker({element:el,anchor:'center'}).setLngLat(coordinates).addTo(map);
+    const mode=getMode(state.mode),model=MODELS[state.mode];const el=document.createElement('div');el.className='bpMapsLiveMarker';el.setAttribute('role','group');el.setAttribute('aria-label',`${mode.label} 3D model marker`);
+    el.innerHTML=`${modelEmbedHTML(state.mode,true)}<button class="bpMapsLiveMarkerLabel" type="button" aria-label="Open details for ${esc(model?.name||mode.label)}">${esc(model?.name||mode.label)} · DETAILS</button>`;
+    const detail=el.querySelector('button');detail.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();state.modelReturn='roam';state.screen='model';state.tab='explore';openPanel();});
+    if(el.querySelector('model-viewer'))loadModelViewer();
+    state.marker=new window.maplibregl.Marker({element:el,anchor:'center'}).setLngLat(coordinates).addTo(map);
   }
   function beginExplore(place){
     if(!place?.coordinates?.every(Number.isFinite)){setStatus('This place has no usable map coordinates.','error');return;}
@@ -225,8 +288,8 @@
     state.place=place;state.exploreSession=true;state.navigation=false;state.mode=state.mode||'default';state.screen='roam';
     state.routes=[];state.routeGeoJSON=null;drawRoutes();
     const mode=getMode(state.mode);const zoom=Number(place.zoom)||(['plane','balloon','helicopter'].includes(mode.kind)?12:14);
-    setVehicleMarker(place.coordinates);fitCamera(place.coordinates,zoom);
-    render();setStatus(`${mode.label} placed at ${place.name}. Use the direction controls to roam the live BridgePoint globe.` ,'success');updateHud();
+    fitCamera(place.coordinates,zoom);setVehicleMarker(place.coordinates);
+    render();setStatus(`${mode.label} 3D model placed at ${place.name}. Use the direction controls to roam the live BridgePoint globe.` ,'success');updateHud();
   }
   function roam(dx,dy){
     const map=mapNow();if(!map||!state.exploreSession||state.navigation)return;
@@ -326,9 +389,9 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#bpMapsRootV1')?.hidden)closePanel();});
   const observer=new MutationObserver(()=>{if(!$('#bpMapsLaunchV1'))mount();});observer.observe(document.documentElement,{childList:true,subtree:true});
   const timer=setInterval(()=>{
-    if(!signedIn()){mount();return;}
-    const map=mapNow();if(map!==state.map&&map){state.map=map;state.mapHandlers=false;drawRoutes();if(state.exploreSession&&state.place?.coordinates)setVehicleMarker(state.place.coordinates);}
     if(!$('#bpMapsLaunchV1'))mount();
+    const map=mapNow();if(map!==state.map&&map){state.map=map;state.mapHandlers=false;drawRoutes();if(state.exploreSession&&state.place?.coordinates)setVehicleMarker(state.place.coordinates);}
+    if($('#bpMapsLaunchV1')?.hidden&& (appRoute()||signedIn()))mount();
   },900);
   window.addEventListener('pagehide',()=>{clearInterval(timer);stopNavigation();observer.disconnect();});
   window.__BP_MAPS_V1__={version:VERSION,ready:true,open:openPanel,getState:()=>({tab:state.tab,mode:state.mode,explore:state.exploreSession,navigation:state.navigation,routeCount:state.routes.length})};

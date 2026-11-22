@@ -107,8 +107,11 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          script='<script defer src="/bridgepoint-maps-v1.js?v=6540-maps-explore-directions"></script>'
-          required=('BRIDGEPOINT MAPS','routed-car','routed-bike','routed-foot',"alternatives:'4'",'watchPosition','bp_auth_v5045')
+          script='<script defer src="/bridgepoint-maps-v1.js?v=6541-maps-visible-models"></script>'
+          button_style='position:fixed;z-index:2147483646;top:max(12px,env(safe-area-inset-top));right:14px;min-height:44px;padding:0 16px;border:1px solid #ffe29a;border-radius:14px;background:linear-gradient(135deg,#ffe597,#dcae38 60%,#a87716);color:#171108;font:900 12px/1 system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.065em;box-shadow:0 8px 28px #0008,0 0 20px #f2c54b44;cursor:pointer;touch-action:manipulation'
+          button_app=f'<button id="bpMapsLaunchV1" type="button" aria-haspopup="dialog" aria-expanded="false" style="{button_style}">✦&nbsp; BRIDGEPOINT MAPS</button>'
+          button_root=f'<button id="bpMapsLaunchV1" type="button" hidden aria-haspopup="dialog" aria-expanded="false" style="{button_style}">✦&nbsp; BRIDGEPOINT MAPS</button>'
+          required=('BRIDGEPOINT MAPS','routed-car','routed-bike','routed-foot',"alternatives:'4'",'watchPosition','bp_auth_v5045','model-viewer','sketchfab.com/models/')
           module=Path('rebuild-v5000/bridgepoint-maps-v1.js').read_text(encoding='utf-8')
           if not all(token in module for token in required):
               raise SystemExit('Maps module is missing a required map, routing, or explicit geolocation hook')
@@ -117,9 +120,15 @@ jobs:
           for rel in ('index.html','app/index.html'):
               path=site/rel
               html=path.read_text(encoding='utf-8')
+              html=re.sub(r'<button id="bpMapsLaunchV1"[^>]*>.*?</button>\s*','',html,flags=re.I|re.S)
               html=re.sub(r'<script defer src="/bridgepoint-maps-v1\.js[^\"]*"></script>','',html,flags=re.I)
+              body=re.search(r'<body\b[^>]*>',html,flags=re.I)
+              if not body: raise SystemExit(rel+' has no body opening tag for the fixed Maps button')
+              button=button_app if rel=='app/index.html' else button_root
+              html=html[:body.end()]+'\n'+button+html[body.end():]
               html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
               if html.count(script)!=1: raise SystemExit(rel+' must load exactly one Maps module')
+              if html.count('id="bpMapsLaunchV1"')!=1: raise SystemExit(rel+' must contain exactly one fixed Maps button')
               for marker in ('bridgepoint-view-v5917.js','bridgepoint-bottom-card-categories-v1.js','bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js','bridgepoint-power-outages-v1.js'):
                   if marker not in html: raise SystemExit(rel+' is missing a preserved app feature loader: '+marker)
               path.write_text(html,encoding='utf-8')
@@ -152,11 +161,11 @@ jobs:
           for rel in ('index.html','app/index.html'):
               prior=(tmp/(rel.replace('/','-')+'.before.html')).read_text(encoding='utf-8')
               current=(site/rel).read_text(encoding='utf-8')
-              normalize=lambda s: re.sub(r'<script defer src="/bridgepoint-maps-v1\.js[^\"]*"></script>\s*','',s,flags=re.I)
-              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the Maps script tag')
+              normalize=lambda s: re.sub(r'<script defer src="/bridgepoint-maps-v1\.js[^\"]*"></script>\s*','',re.sub(r'<button id="bpMapsLaunchV1"[^>]*>.*?</button>\s*','',s,flags=re.I|re.S),flags=re.I)
+              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the fixed Maps button and script tag')
           if not (site/'bridgepoint-maps-v1.js').is_file(): raise SystemExit('Maps module was not copied')
           print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
-          print('ENTRYPOINT_CHANGE_LIMITED_TO_MAPS_SCRIPT_TAG')
+          print('ENTRYPOINT_CHANGE_LIMITED_TO_FIXED_MAPS_BUTTON_AND_SCRIPT_TAG')
           PY
 
       - uses: actions/configure-pages@v5
@@ -186,7 +195,9 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-maps-v1.js?verify=$GITHUB_SHA-maps" -o "$DIR/maps.js"
           cmp -s "$DIR/maps.js" rebuild-v5000/bridgepoint-maps-v1.js
           for route in root app; do
-            grep -Fq 'bridgepoint-maps-v1.js?v=6540-maps-explore-directions' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-maps-v1.js?v=6541-maps-visible-models' "$DIR/$route.html"
+            grep -Fq 'id="bpMapsLaunchV1"' "$DIR/$route.html"
+            grep -Fq 'background:linear-gradient(135deg,#ffe597,#dcae38 60%,#a87716)' "$DIR/$route.html"
             grep -Fq 'bridgepoint-view-v5917.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-bottom-card-categories-v1.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-iconic-wonders-v1.js' "$DIR/$route.html"
@@ -195,4 +206,6 @@ jobs:
           done
           grep -Fq 'BRIDGEPOINT MAPS' "$DIR/maps.js"
           grep -Fq 'watchPosition' "$DIR/maps.js"
+          grep -Fq 'model-viewer' "$DIR/maps.js"
+          grep -Fq 'https://sketchfab.com/models/' "$DIR/maps.js"
           echo 'MAPS_OVERLAY_LIVE_AND_PRIOR_FEATURE_LOADERS_PRESENT'
