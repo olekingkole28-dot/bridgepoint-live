@@ -94,6 +94,19 @@ jobs:
           GH_TOKEN: "${{ github.token }}"
         run: |
           set -euo pipefail
+          # This is the site snapshot serving when this outage request began.
+          # Keep this task's final overlay rooted in that deployment, not in sibling
+          # feature publishers that were triggered by the shared source HTML edits.
+          TASK_BASELINE_ID='44976601756'
+          TASK_BASELINE_ARTIFACT='bridgepoint-v5000-2'
+          TASK_PUBLISH_STEP="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TASK_BASELINE_ID/jobs?per_page=100" --jq '[.jobs[] | .steps[]? | select(.name == "Publish the preserved production snapshot") | .conclusion][0] // ""' 2>/dev/null || true)"
+          TASK_ARTIFACT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TASK_BASELINE_ID/artifacts" --jq ".artifacts[]? | select((.expired|not) and .name == \"$TASK_BASELINE_ARTIFACT\") | .name" 2>/dev/null | head -n 1 || true)"
+          if [ "$TASK_PUBLISH_STEP" = "success" ] && [ "$TASK_ARTIFACT" = "$TASK_BASELINE_ARTIFACT" ]; then
+            echo "run_id=$TASK_BASELINE_ID" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=$TASK_BASELINE_ARTIFACT" >> "$GITHUB_OUTPUT"
+            echo "TASK_START_DEPLOYED_BASELINE run=$TASK_BASELINE_ID artifact=$TASK_BASELINE_ARTIFACT"
+            exit 0
+          fi
           RUNS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&per_page=100" --jq '.workflow_runs[] | [.id,.head_sha,(.conclusion // "")] | @tsv')"
           BASELINE_ID=""
           ARTIFACT=""
