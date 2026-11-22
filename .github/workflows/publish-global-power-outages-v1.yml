@@ -364,7 +364,7 @@ jobs:
               path.write_text(html,encoding='utf-8')
           for rel in ('rebuild-v5000/index.html','rebuild-v5000/app-index.html'):
               html=Path(rel).read_text(encoding='utf-8')
-              if not re.search(r'data-bp-deferred-src="/bridgepoint-power-outages-v1\\.js[^"]*"',html) or priority not in html:
+              if not re.search(r'data-bp-deferred-src="/bridgepoint-power-outages-v1\.js[^"]*"',html) or priority not in html:
                   raise SystemExit(rel+' source loader or priority entry is missing')
           print('POWER_OUTAGES_ROOT_AND_APP_LOADERS_PASS')
           PY
