@@ -162,7 +162,11 @@ jobs:
               prior=(tmp/(rel.replace('/','-')+'.before.html')).read_text(encoding='utf-8')
               current=(site/rel).read_text(encoding='utf-8')
               normalize=lambda s: re.sub(r'<script defer src="/bridgepoint-maps-v1\.js[^\"]*"></script>\s*','',re.sub(r'<button id="bpMapsLaunchV1"[^>]*>.*?</button>\s*','',s,flags=re.I|re.S),flags=re.I)
-              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the fixed Maps button and script tag')
+              normalized_prior=normalize(prior);normalized_current=normalize(current)
+              if normalized_prior!=normalized_current:
+                  offset=next((i for i,(a,b) in enumerate(zip(normalized_prior,normalized_current)) if a!=b),min(len(normalized_prior),len(normalized_current)))
+                  left=max(0,offset-100);right=offset+200
+                  raise SystemExit(f'{rel} changed outside the fixed Maps button and script tag at byte {offset}; baseline={normalized_prior[left:right]!r}; result={normalized_current[left:right]!r}')
           if not (site/'bridgepoint-maps-v1.js').is_file(): raise SystemExit('Maps module was not copied')
           print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
           print('ENTRYPOINT_CHANGE_LIMITED_TO_FIXED_MAPS_BUTTON_AND_SCRIPT_TAG')
