@@ -1,0 +1,201 @@
+name: Publish BridgePoint Near-Earth Object Watch over preserved production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-near-earth-object-watch-v1.yml'
+      - 'rebuild-v5000/bridgepoint-neo-watch-v1.js'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-neo-watch-v1-preserved-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the latest successful production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          for run_id in $RUNS; do
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
+
+      - name: Restore production and fingerprint every unrelated file
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          test -s "$SITE/index.html"
+          test -s "$SITE/app/index.html"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          for path in sorted(site.rglob('*')):
+              if path.is_file():
+                  rel=path.relative_to(site).as_posix()
+                  if rel not in targets: before[rel]=digest(path)
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          (tmp/'bp-neo-preservation-before.json').write_text(json.dumps(before,sort_keys=True))
+          for rel in ('index.html','app/index.html'):
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              if '</body>' not in html.lower(): raise SystemExit(rel+' has no closing body tag')
+              if 'id="bpPublicScansImportMapV1"' not in html or 'three@0.180.0/build/three.module.js' not in html:
+                  raise SystemExit(rel+' lacks the preserved Three.js import map required by the 3D overlay')
+              (tmp/(rel.replace('/','-')+'.before.html')).write_text(html,encoding='utf-8')
+          print('UNRELATED_PRODUCTION_FILES_FINGERPRINTED',len(before))
+          PY
+
+      - name: Add the near-Earth object overlay to production
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          cp rebuild-v5000/bridgepoint-neo-watch-v1.js "$SITE/bridgepoint-neo-watch-v1.js"
+          python3 - <<'PY'
+          import re,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.0.0"></script>'
+          module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
+          required=('NASA · NEAR-EARTH OBJECT WATCH','api.nasa.gov/neo/rest/v1/feed','estimated diameter ranges','reported flyby distance','NASA/JPL close approaches','NASA/JPL impact-risk table','Path, orientation, and scale are illustrative','init3DScene','import * as THREE from')
+          if not all(token in module for token in required):
+              raise SystemExit('Overlay is missing its NASA feed, 3D visualization, attribution, or non-prediction disclosures')
+          if 'ssd-api.jpl.nasa.gov' in module or 'new maplibregl.Map(' in module or '.setStyle(' in module:
+              raise SystemExit('Overlay must use the NASA Open API feed and leave the existing globe untouched')
+          for rel in ('index.html','app/index.html'):
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              html=re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',html,flags=re.I)
+              if html.count('id="bpPublicScansImportMapV1"')!=1: raise SystemExit(rel+' must preserve one Three.js import map')
+              html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
+              if html.count(script)!=1: raise SystemExit(rel+' must load exactly one near-Earth object overlay')
+              for marker in ('bridgepoint-view-v5917.js','bridgepoint-bottom-card-categories-v1.js','bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js','bridgepoint-power-outages-v1.js','bridgepoint-maps-v1.js','bridgepoint-public-scans-v1.js'):
+                  if marker not in html: raise SystemExit(rel+' is missing a preserved feature loader: '+marker)
+              path.write_text(html,encoding='utf-8')
+          print('NEAR_EARTH_OBJECT_OVERLAY_ADDED_WITH_EXISTING_FEATURE_LOADERS_RETAINED')
+          PY
+          node --input-type=module --check < rebuild-v5000/bridgepoint-neo-watch-v1.js
+
+      - name: Prove unrelated production files and entrypoint content are preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          tmp=Path(os.environ['RUNNER_TEMP']); site=tmp/'bp-site'
+          before=json.loads((tmp/'bp-neo-preservation-before.json').read_text())
+          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          for path in site.rglob('*'):
+              if path.is_file():
+                  rel=path.relative_to(site).as_posix()
+                  if rel not in targets: after[rel]=digest(path)
+          if before!=after:
+              raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGE '+json.dumps({'missing':sorted(set(before)-set(after))[:20],'added':sorted(set(after)-set(before))[:20],'changed':sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:20]}))
+          for rel in ('index.html','app/index.html'):
+              prior=(tmp/(rel.replace('/','-')+'.before.html')).read_text(encoding='utf-8')
+              current=(site/rel).read_text(encoding='utf-8')
+              normalize=lambda s: re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',s,flags=re.I)
+              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the new overlay script tag')
+              if current.count('bridgepoint-neo-watch-v1.js?v=1.0.0')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
+          print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
+          print('ENTRYPOINT_CHANGES_LIMITED_TO_NEAR_EARTH_OBJECT_SCRIPT_TAG')
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved production with near-Earth object watch
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify the overlay on the live site
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          DIR="$RUNNER_TEMP/bp-neo-live"
+          mkdir -p "$DIR"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-neo-watch" -o "$DIR/root.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-neo-watch" -o "$DIR/app.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-neo-watch-v1.js?verify=$GITHUB_SHA-neo-watch" -o "$DIR/neo.js"
+          cmp -s "$DIR/neo.js" rebuild-v5000/bridgepoint-neo-watch-v1.js
+          for route in root app; do
+            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.0.0' "$DIR/$route.html"
+            grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-view-v5917.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-maps-v1.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-public-scans-v1.js' "$DIR/$route.html"
+          done
+          grep -Fq 'NASA · NEAR-EARTH OBJECT WATCH' "$DIR/neo.js"
+          grep -Fq 'SCHEMATIC' "$DIR/neo.js"
+          grep -Fq 'impact location' "$DIR/neo.js"
+          echo 'NEAR_EARTH_OBJECT_WATCH_LIVE_AND_EXISTING_FEATURE_LOADERS_PRESENT'
