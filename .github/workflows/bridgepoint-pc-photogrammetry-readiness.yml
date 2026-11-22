@@ -9,10 +9,10 @@ permissions:
   contents: read
 concurrency:
   group: bridgepoint-pc-photogrammetry-readiness
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   inspect-pc:
-    runs-on: [self-hosted, windows, x64]
+    runs-on: [self-hosted, windows, x64, horizon-ue58, gpu]
     timeout-minutes: 5
     steps:
       - name: Confirm the existing PC runner is connected
