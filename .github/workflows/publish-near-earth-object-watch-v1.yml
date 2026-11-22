@@ -12,6 +12,8 @@ on:
       - 'recovery/bridgepoint-welcome-space-v6260.js'
       - 'rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js'
       - 'patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js'
+      - 'patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js'
+      - 'patches/near-earth-object-physical-v1/bridgepoint-gaia-galaxy-v6270.js'
 
 permissions:
   actions: read
@@ -78,11 +80,15 @@ jobs:
           test -s "$SITE/index.html"
           test -s "$SITE/app/index.html"
           test -s "$SITE/vendor/three.module.js"
+          test -s "$SITE/landing.js"
+          test -s "$SITE/app.js"
+          cp "$SITE/landing.js" "$RUNNER_TEMP/bp-landing.before.js"
+          cp "$SITE/app.js" "$RUNNER_TEMP/bp-app.before.js"
           python3 - <<'PY'
           import hashlib,json,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js','bridgepoint-welcome-space-v6260.js','bridgepoint-app-space-explorer-v1.js','bridgepoint-gaia-galaxy-v6270.js','nea_extended.json.gz'}
+          targets={'index.html','app/index.html','landing.js','app.js','bridgepoint-neo-watch-v1.js','bridgepoint-welcome-space-v6260.js','bridgepoint-app-space-explorer-v1.js','bridgepoint-gaia-galaxy-v6270.js','nea_extended.json.gz'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -137,8 +143,8 @@ jobs:
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-site"
           cp rebuild-v5000/bridgepoint-neo-watch-v1.js "$SITE/bridgepoint-neo-watch-v1.js"
-          cp recovery/bridgepoint-welcome-space-v6260.js "$SITE/bridgepoint-welcome-space-v6260.js"
-          cp rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js "$SITE/bridgepoint-gaia-galaxy-v6270.js"
+          cp patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js "$SITE/bridgepoint-welcome-space-v6260.js"
+          cp patches/near-earth-object-physical-v1/bridgepoint-gaia-galaxy-v6270.js "$SITE/bridgepoint-gaia-galaxy-v6270.js"
           cp patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js "$SITE/bridgepoint-app-space-explorer-v1.js"
           cp "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz" "$SITE/nea_extended.json.gz"
           python3 - <<'PY'
@@ -147,9 +153,22 @@ jobs:
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
           script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.2"></script>'
           module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
-          welcome=Path('recovery/bridgepoint-welcome-space-v6260.js').read_text(encoding='utf-8')
+          welcome=Path('patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js').read_text(encoding='utf-8')
           app=Path('patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js').read_text(encoding='utf-8')
-          gaia=Path('rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js').read_text(encoding='utf-8')
+          gaia=Path('patches/near-earth-object-physical-v1/bridgepoint-gaia-galaxy-v6270.js').read_text(encoding='utf-8')
+          landing_before=Path(os.environ['RUNNER_TEMP'])/'bp-landing.before.js'
+          app_before=Path(os.environ['RUNNER_TEMP'])/'bp-app.before.js'
+          cloud_call=re.compile(r"(?m)^[ \t]*void window\.__BP_ACTIVATE_CLOUDS__\(\)\.catch\(e=>console\.warn\('BridgePoint (?:mobile )?always-on 3D clouds unavailable',e\)\);[ \t]*$")
+          cloud_comment='/* Synthetic 3D cloud-volume auto-start disabled. */'
+          for name,expected in (('landing.js',2),('app.js',1)):
+              path=site/name
+              before=path.read_text(encoding='utf-8')
+              original=landing_before.read_text(encoding='utf-8') if name=='landing.js' else app_before.read_text(encoding='utf-8')
+              if before!=original: raise SystemExit(name+' changed before the focused cloud patch')
+              after,count=cloud_call.subn(cloud_comment,before)
+              if count!=expected: raise SystemExit(name+' expected '+str(expected)+' automatic procedural-cloud starts; found '+str(count))
+              if cloud_call.search(after): raise SystemExit(name+' still auto-starts procedural 3D clouds')
+              path.write_text(after,encoding='utf-8')
           required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function ensureSharedSpace()','function buildSpaceObjects()','function rawRelativePositionAU','function displayPosition','new THREE.CatmullRomCurve3(pathPoints, true','full 3D nominal orbits','heliocentric ? objectHeliocentric','window.__BP_NEO_SIMULATION_TIME_V1__','setBearing?.(bearing)','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','import * as THREE from')
           if not all(token in module for token in required):
               raise SystemExit('Overlay is missing its NASA feed, shared-space orbit paths, or object controls')
@@ -158,8 +177,12 @@ jobs:
           for token in ('getScene(){return scene}','getCamera(){return camera}','loadSolarCosmos(){return ensureSolarCosmos()}','focusSpaceOverview','focusHeliocentricOverview','setNearEarthOrbitMode','focusSpacePoint'):
               if token not in welcome: raise SystemExit('Welcome scene is missing shared-space camera access: '+token)
           if 'getFrame(){return applyFrame()}' not in gaia or 'eclipticJ2000ToGalactic' not in gaia or 'setNearEarthTrackingMode' not in gaia or 'heliocentric:nearEarthTracking' not in gaia or 'const earthPositionAU=earthHelio;' not in gaia or 'mesh.position.copy(position).multiplyScalar(auScale);' not in gaia or 'orbitScaleRoot.quaternion.identity();' not in gaia: raise SystemExit('Gaia heliocentric positions are not in the shared galactic frame; Earth/planet coordinates must not be transformed twice')
+          physical_scale_tokens=('const displayAUScale=aspect<.72?.18:aspect<1?.30:.40','earthAnchor.scale.setScalar(auScale*EARTH_RADIUS_KM/KM_AU)','mesh.scale.setScalar(nearEarthTracking?auScale*EARTH_RADIUS_KM/KM_AU:1)','saturnController?.systemRoot?.scale.setScalar(heliocentricBodyScale)','marsController?.systemRoot?.scale.setScalar(heliocentricBodyScale)','return new THREE.Vector3(...eclToGal(x,y,z,23.439291*DEG));','f.heliocentric?p:p.applyQuaternion')
+          if not all(token in gaia for token in physical_scale_tokens): raise SystemExit('Planets are not sharing physical AU positions, sizes, and an aligned ecliptic frame')
+          if 'Disabled synthetic welcome weather atmosphere' not in welcome or 'weatherGroup.visible = false;' not in welcome or 'earthDepthOccluder.getWorldScale(new THREE.Vector3()).x' not in welcome or 'syncHeliocentricSunScale' not in welcome or 'bridgepoint-gaia-galaxy-v6270.js?v=6311-physical-heliocentric-scale' not in welcome: raise SystemExit('Welcome view is missing physical Earth/Sun scale or disabled synthetic cloud volumes')
+          if 'const orbitCompression=nearEarthOrbitMode?1:' not in welcome: raise SystemExit('The Moon is not at its true Earth-relative distance in heliocentric view')
           if 'const toGalactic = frame?.eclipticJ2000ToGalactic' not in module or 'frame?.heliocentric ? objectHeliocentric' not in module: raise SystemExit('MPC heliocentric positions are not converted into BridgePoint galactic coordinates')
-          if 'v6309-heliocentric-earth' not in app or 'focusGlobalMapForSpace' not in app or 'earthProjection.radiusPx' not in app:
+          if 'v6310-physical-heliocentric-scale-cloud-off' not in app or 'focusGlobalMapForSpace' not in app or 'earthProjection.radiusPx' not in app:
               raise SystemExit('Signed-in space persistence is missing')
           for rel in ('index.html','app/index.html'):
               path=site/rel
@@ -167,11 +190,11 @@ jobs:
               html=re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',html,flags=re.I)
               if html.count('id="bpPublicScansImportMapV1"')!=1: raise SystemExit(rel+' must preserve one Three.js import map')
               welcome_pattern=r'(src=["\'][^"\']*bridgepoint-welcome-space-v6260\.js)(?:\?[^"\']*)?(["\'])'
-              html,welcome_n=re.subn(welcome_pattern,r'\1?v=v6403-heliocentric-earth\2',html,flags=re.I)
+              html,welcome_n=re.subn(welcome_pattern,r'\1?v=v6410-physical-heliocentric-scale-cloud-off\2',html,flags=re.I)
               if welcome_n>1: raise SystemExit(rel+' has duplicate shared-space renderer references')
               if rel=='index.html' and welcome_n!=1: raise SystemExit('index.html must keep its welcome space renderer')
               app_deferred_pattern=r'(data-bp-deferred-src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])'
-              html,app_deferred_n=re.subn(app_deferred_pattern,r'\1?v=v6309-heliocentric-earth\2',html,flags=re.I)
+              html,app_deferred_n=re.subn(app_deferred_pattern,r'\1?v=v6310-physical-heliocentric-scale-cloud-off\2',html,flags=re.I)
               if app_deferred_n>1: raise SystemExit(rel+' has duplicate deferred signed-in space loaders')
               if app_deferred_n==0:
                   app_script_pattern=re.compile(r'<script\b(?=[^>]*\bsrc=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)[^>]*>.*?</script>',re.I|re.S)
@@ -179,19 +202,22 @@ jobs:
                   if len(app_scripts)>1: raise SystemExit(rel+' has duplicate signed-in space scripts')
                   if app_scripts:
                       tag=app_scripts[0].group(0)
-                      updated=re.sub(r'(src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?v=v6309-heliocentric-earth\2',tag,flags=re.I)
+                      updated=re.sub(r'(src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?v=v6310-physical-heliocentric-scale-cloud-off\2',tag,flags=re.I)
                       html=html[:app_scripts[0].start()]+updated+html[app_scripts[0].end():]
                   else:
-                      app_script='<script src="/bridgepoint-app-space-explorer-v1.js?v=v6309-heliocentric-earth"></script>'
+                      app_script='<script src="/bridgepoint-app-space-explorer-v1.js?v=v6310-physical-heliocentric-scale-cloud-off"></script>'
                       html=re.sub(r'</body>',app_script+'\n</body>',html,flags=re.I,count=1)
               html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
               if html.count(script)!=1: raise SystemExit(rel+' must load exactly one near-Earth object overlay')
+              cloud_count=html.count('cloudsv=6400-fortnite-atmosphere')
+              if cloud_count<1: raise SystemExit(rel+' does not contain the expected cloud cache key')
+              html=html.replace('cloudsv=6400-fortnite-atmosphere','cloudsv=6511-no-procedural-3d-clouds')
               path.write_text(html,encoding='utf-8')
           print('NEAR_EARTH_OBJECT_OVERLAY_ADDED_AND_SIGNED_IN_SPACE_LOADER_PRESERVED')
           PY
           node --input-type=module --check < rebuild-v5000/bridgepoint-neo-watch-v1.js
-          node --input-type=module --check < recovery/bridgepoint-welcome-space-v6260.js
-          node --input-type=module --check < rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js
+          node --input-type=module --check < patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js
+          node --input-type=module --check < patches/near-earth-object-physical-v1/bridgepoint-gaia-galaxy-v6270.js
           node --check < patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js
 
       - name: Prove unrelated production files and entrypoint content are preserved
@@ -203,7 +229,9 @@ jobs:
           from pathlib import Path
           tmp=Path(os.environ['RUNNER_TEMP']); site=tmp/'bp-site'
           before=json.loads((tmp/'bp-neo-preservation-before.json').read_text())
-          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js','bridgepoint-welcome-space-v6260.js','bridgepoint-app-space-explorer-v1.js','bridgepoint-gaia-galaxy-v6270.js','nea_extended.json.gz'}
+          cloud_call=re.compile(r"(?m)^[ \t]*void window\.__BP_ACTIVATE_CLOUDS__\(\)\.catch\(e=>console\.warn\('BridgePoint (?:mobile )?always-on 3D clouds unavailable',e\)\);[ \t]*$")
+          cloud_comment='/* Synthetic 3D cloud-volume auto-start disabled. */'
+          targets={'index.html','app/index.html','landing.js','app.js','bridgepoint-neo-watch-v1.js','bridgepoint-welcome-space-v6260.js','bridgepoint-app-space-explorer-v1.js','bridgepoint-gaia-galaxy-v6270.js','nea_extended.json.gz'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -224,13 +252,21 @@ jobs:
                   s=re.sub(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-welcome-space-v6260\.js[^"\']*["\'][^>]*>\s*</script>\s*','',s,flags=re.I)
                   s=re.sub(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js[^"\']*["\'][^>]*>\s*</script>\s*','',s,flags=re.I)
                   s=re.sub(r'(data-bp-deferred-src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?APP\2',s,flags=re.I)
+                  s=re.sub(r'cloudsv=(?:6400-fortnite-atmosphere|6511-no-procedural-3d-clouds)','cloudsv=CLOUD',s)
                   return s
-              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the NEO and shared-space module references')
+              if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the NEO, shared-space and cloud-cache references')
               if current.count('bridgepoint-neo-watch-v1.js?v=1.5.2')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
-              if 'bridgepoint-app-space-explorer-v1.js?v=v6309-heliocentric-earth' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
-              if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6403-heliocentric-earth' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
+              if 'bridgepoint-app-space-explorer-v1.js?v=v6310-physical-heliocentric-scale-cloud-off' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
+              if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6410-physical-heliocentric-scale-cloud-off' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
+              if current.count('cloudsv=6511-no-procedural-3d-clouds')!=prior.count('cloudsv=6400-fortnite-atmosphere'): raise SystemExit(rel+' did not update every cloud cache key')
+          for name,expected in (('landing.js',2),('app.js',1)):
+              prior=(tmp/('bp-'+name.replace('.js','.before.js'))).read_text(encoding='utf-8')
+              current=(site/name).read_text(encoding='utf-8')
+              wanted,count=cloud_call.subn(cloud_comment,prior)
+              if count!=expected or wanted!=current or cloud_call.search(current):
+                  raise SystemExit(name+' changed beyond disabling its expected automatic cloud-volume starts')
           print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
-          print('ENTRYPOINT_CHANGES_LIMITED_TO_NEO_AND_SHARED_SPACE_MODULE_REFERENCES')
+          print('ENTRYPOINT_CHANGES_LIMITED_TO_NEO_SHARED_SPACE_AND_CLOUD_CACHE_REFERENCES')
           PY
 
       - uses: actions/configure-pages@v5
@@ -261,23 +297,44 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-welcome-space-v6260.js?verify=$GITHUB_SHA-space" -o "$DIR/welcome.js"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-app-space-explorer-v1.js?verify=$GITHUB_SHA-app-space" -o "$DIR/app-space.js"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-gaia-galaxy-v6270.js?verify=$GITHUB_SHA-gaia" -o "$DIR/gaia.js"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/landing.js?verify=$GITHUB_SHA-clouds" -o "$DIR/landing.js"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app.js?verify=$GITHUB_SHA-clouds" -o "$DIR/app.js"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 60 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/nea_extended.json.gz?verify=$GITHUB_SHA-mpc" -o "$DIR/nea_extended.json.gz"
           gzip -t "$DIR/nea_extended.json.gz"
           cmp -s "$DIR/neo.js" rebuild-v5000/bridgepoint-neo-watch-v1.js
-          cmp -s "$DIR/welcome.js" recovery/bridgepoint-welcome-space-v6260.js
+          cmp -s "$DIR/welcome.js" patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js
           cmp -s "$DIR/app-space.js" patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js
-          cmp -s "$DIR/gaia.js" rebuild-v5000/bridgepoint-gaia-galaxy-v6270.js
+          cmp -s "$DIR/gaia.js" patches/near-earth-object-physical-v1/bridgepoint-gaia-galaxy-v6270.js
+          cmp -s "$DIR/landing.js" "$RUNNER_TEMP/bp-site/landing.js"
+          cmp -s "$DIR/app.js" "$RUNNER_TEMP/bp-site/app.js"
+          python3 - "$DIR" <<'PY'
+          import re,sys
+          from pathlib import Path
+          for name in ('landing.js','app.js'):
+              text=(Path(sys.argv[1])/name).read_text(encoding='utf-8')
+              if re.search(r"(?m)^[ \t]*void window\.__BP_ACTIVATE_CLOUDS__\(\)\.catch\(e=>console\.warn\('BridgePoint (?:mobile )?always-on 3D clouds unavailable',e\)\);[ \t]*$",text):
+                  raise SystemExit(name+' still automatically starts procedural 3D clouds')
+          print('AUTOMATIC_PROCEDURAL_3D_CLOUD_STARTS_DISABLED')
+          PY
           for route in root app; do
             grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.2' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6309-heliocentric-earth' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6310-physical-heliocentric-scale-cloud-off' "$DIR/$route.html"
+            grep -Fq 'cloudsv=6511-no-procedural-3d-clouds' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
           done
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6403-heliocentric-earth' "$DIR/root.html"
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6410-physical-heliocentric-scale-cloud-off' "$DIR/root.html"
+          grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6311-physical-heliocentric-scale' "$DIR/welcome.js"
+          grep -Fq 'const displayAUScale=aspect<.72?.18:aspect<1?.30:.40' "$DIR/gaia.js"
+          grep -Fq 'earthAnchor.scale.setScalar(auScale*EARTH_RADIUS_KM/KM_AU)' "$DIR/gaia.js"
+          grep -Fq 'saturnController?.systemRoot?.scale.setScalar(heliocentricBodyScale)' "$DIR/gaia.js"
+          grep -Fq 'marsController?.systemRoot?.scale.setScalar(heliocentricBodyScale)' "$DIR/gaia.js"
+          grep -Fq 'earthDepthOccluder.getWorldScale(new THREE.Vector3()).x' "$DIR/welcome.js"
+          grep -Fq 'Disabled synthetic welcome weather atmosphere' "$DIR/welcome.js"
           grep -Fq 'SPACE OBJECT TRACKING' "$DIR/neo.js"
           grep -Fq 'full 3D nominal orbits' "$DIR/neo.js"
           grep -Fq 'const toGalactic = frame?.eclipticJ2000ToGalactic' "$DIR/neo.js"
           grep -Fq 'getScene(){return scene}' "$DIR/welcome.js"
           grep -Fq 'eclipticJ2000ToGalactic' "$DIR/gaia.js"
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6403-heliocentric-earth' "$DIR/app-space.js"
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6410-physical-heliocentric-scale-cloud-off' "$DIR/app-space.js"
           test -s "$DIR/nea_extended.json.gz"
           echo 'NEAR_EARTH_OBJECT_SPACE_VIEW_AND_DAILY_ORBIT_CATALOGUE_LIVE'
