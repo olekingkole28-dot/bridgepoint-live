@@ -158,7 +158,7 @@ jobs:
               current=(site/rel).read_text(encoding='utf-8')
               normalize=lambda s: re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',s,flags=re.I)
               if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the new overlay script tag')
-              if current.count('bridgepoint-neo-watch-v1.js?v=1.0.0')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
+              if current.count('bridgepoint-neo-watch-v1.js?v=1.0.1')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
           print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
           print('ENTRYPOINT_CHANGES_LIMITED_TO_NEAR_EARTH_OBJECT_SCRIPT_TAG')
           PY
@@ -190,7 +190,7 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-neo-watch-v1.js?verify=$GITHUB_SHA-neo-watch" -o "$DIR/neo.js"
           cmp -s "$DIR/neo.js" rebuild-v5000/bridgepoint-neo-watch-v1.js
           for route in root app; do
-            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.0.0' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.0.1' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
             grep -Fq 'bridgepoint-view-v5917.js' "$DIR/$route.html"
             grep -Fq 'bridgepoint-maps-v1.js' "$DIR/$route.html"
