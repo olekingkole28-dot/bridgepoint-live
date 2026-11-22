@@ -1016,12 +1016,8 @@ function seedRadarFramesV6170(){
 }
 function ensureRadarTimelineV6170(){
  seedRadarFramesV6170();
- if(!radarAnimTimer)radarAnimTimer=setInterval(()=>{
-  if(document.hidden||mapBackgroundBlocked()||!liveContextVisible||!radarFrames.length||mapInteracting)return;
-  const frame=radarFrames[radarIndex%radarFrames.length];radarIndex=(radarIndex+1)%radarFrames.length;
-  swapRaster('Radar',radarTileUrl(frame),.93);
- },5200);
- window.__BP_RADAR_TIMELINE_V6170__={enabled:true,provider:'NOAA/NWS MRMS radar reflectivity',layerId:'bp-v6132-ground-radar',animationAllZoom:true,sourceMaxZoom:18,displayMaxZoom:24,frameCount:radarFrames.length,cadenceMs:5200,refreshMs:120000,updatedAt:Date.now()};
+ if(radarAnimTimer){clearInterval(radarAnimTimer);radarAnimTimer=null}
+ window.__BP_RADAR_TIMELINE_V6170__={enabled:true,provider:'NOAA/NWS MRMS radar reflectivity',layerId:'bp-v6132-ground-radar',animationAllZoom:false,sourceMaxZoom:18,displayMaxZoom:24,frameCount:radarFrames.length,cadenceMs:0,refreshMs:0,mode:'latest-static-frame',updatedAt:Date.now()};
 }
 async function refreshRadarFrames(){
  ensureRadarTimelineV6170();
@@ -1035,9 +1031,9 @@ async function refreshRadarFrames(){
  seedRadarFramesV6170();
  ensureRadarTimelineV6170();
  const latest=radarFrames[radarFrames.length-1];
- window.__BP_RADAR_STATE__={live:payload?.live_available===true,degraded:payload?.degraded===true,frameCount:radarFrames.length,latest:payload?.latest_epoch_ms||latest,groundDrapeThroughZoom:24,sourceMaxZoom:18,animationAllZoom:true,closeZoomAnimated:true,mobileStaticLatest:false,updatedAt:Date.now()};
+ window.__BP_RADAR_STATE__={live:payload?.live_available===true,degraded:payload?.degraded===true,frameCount:radarFrames.length,latest:payload?.latest_epoch_ms||latest,groundDrapeThroughZoom:24,sourceMaxZoom:18,animationAllZoom:false,closeZoomAnimated:false,mobileStaticLatest:true,mode:'latest-static-frame',updatedAt:Date.now()};
  if(!mapInteracting&&liveContextVisible&&latest)swapRaster('Radar',radarTileUrl(latest),.93);
- window.__BP_RADAR_TIMELINE_V6170__={...window.__BP_RADAR_TIMELINE_V6170__,enabled:true,frameCount:radarFrames.length,animationAllZoom:true,lastSourceRefreshAt:Date.now(),latestFrame:latest,serviceFresh:payload?.live_available===true,updatedAt:Date.now()};
+ window.__BP_RADAR_TIMELINE_V6170__={...window.__BP_RADAR_TIMELINE_V6170__,enabled:true,frameCount:radarFrames.length,animationAllZoom:false,cadenceMs:0,refreshMs:0,mode:'latest-static-frame',lastSourceRefreshAt:Date.now(),latestFrame:latest,serviceFresh:payload?.live_available===true,updatedAt:Date.now()};
 }
 window.__BP_CLOUD_STATE__={enabled:false,reason:'disabled_by_owner_v5365',updatedAt:Date.now()};
 const BP_WEATHER_ICON_CATALOG_V6132=[
@@ -1276,11 +1272,11 @@ function activateLiveWeather(){
  window.__BP_ACTIVATE_SHARED_WEATHER__?.();
  try{const shared=window.__BP_SHARED_VISUAL_WEATHER__;shared?.weather?.setCloudsOnly?.(false);shared?.weather?.setRadar?.(false);shared?.weather?.setActive?.(true);shared?.present?.setActive?.(false)}catch(_){}
  installLiveContextLayers();restoreCachedLiveWeatherFirstFrameV6134();ensureRadarTimelineV6170();void refreshRadarFrames();
- clearInterval(radarRefreshTimer);radarRefreshTimer=setInterval(()=>{if(liveContextVisible)void refreshRadarFrames()},120000);
+ clearInterval(radarRefreshTimer);radarRefreshTimer=null;
  void loadLiveWeather(true);
  clearInterval(liveContextTimer);liveContextTimer=setInterval(()=>{if(liveContextVisible)void loadLiveWeather(false)},60000);
- window.__BP_LIVE_WEATHER_REFRESH_V6132__={enabled:true,initialFetchRequested:true,refreshMs:60000,icons:true,sourcePolygons:true,groundRadar:true,radarAnimationAllZoom:true,radarRefreshMs:120000,updatedAt:Date.now()};
- window.__BP_STARTUP_SCHEDULER_V5939__={version:6134,enabled:true,serializedWeather:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarRefreshMs:300000,groundDrapedRadar:true,sourceWeatherVisible:true,updatedAt:Date.now()};
+ window.__BP_LIVE_WEATHER_REFRESH_V6132__={enabled:true,initialFetchRequested:true,refreshMs:60000,icons:true,sourcePolygons:true,groundRadar:true,radarAnimationAllZoom:false,radarRefreshMs:0,updatedAt:Date.now()};
+ window.__BP_STARTUP_SCHEDULER_V5939__={version:6134,enabled:true,serializedWeather:true,renderer:'source-weather-data-plus-dedicated-rain-lightning',radarRefreshMs:0,groundDrapedRadar:true,sourceWeatherVisible:true,updatedAt:Date.now()};
 }
 function startLiveWeather(){
  // Bind the control but do not create radar layers, start timers, or request feeds on boot.

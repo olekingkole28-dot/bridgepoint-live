@@ -146,12 +146,12 @@ function ensureLandingGroundRadarDrapeV6132(map){
      window.__BP_LANDING_RADAR_STATE__={version:6170,visible:true,enabled:true,groundDraped:true,layerId,source:'NOAA/NWS radar reflectivity',frameEpoch:epoch,frameCount:state.frames.length,animationAllZoom:true,sourceMaxZoom:18,refreshCadenceMs:120000,updatedAt:Date.now()};
     }catch(_){}
    };
-   state.animationTimer=setInterval(state.nextFrame,5200);
-   state.refreshTimer=setInterval(()=>{if(document.hidden)return;state.frames=landingRadarFramesNow();state.framesAt=Date.now();state.frameIndex=0;},120000);
+   if(state.animationTimer){clearInterval(state.animationTimer);state.animationTimer=null}
+   if(state.refreshTimer){clearInterval(state.refreshTimer);state.refreshTimer=null}
    map.on?.('styledata',pin);map.on?.('pitchend',pin);map.on?.('zoomend',pin);map.on?.('moveend',pin);
   }
   pin();setTimeout(pin,0);
-  window.__BP_LANDING_RADAR_TIMELINE_V6170__={enabled:true,provider:'NOAA/NWS MRMS radar reflectivity',layerId,animationAllZoom:true,sourceMaxZoom:18,displayMaxZoom:24,cadenceMs:5200,refreshMs:120000,updatedAt:Date.now()};
+  window.__BP_LANDING_RADAR_TIMELINE_V6170__={enabled:true,provider:'NOAA/NWS MRMS radar reflectivity',layerId,animationAllZoom:false,sourceMaxZoom:18,displayMaxZoom:24,cadenceMs:0,refreshMs:0,mode:'latest-static-frame',updatedAt:Date.now()};
   return true
  }catch(error){window.__BP_LANDING_GROUND_RADAR_DRAPE_V6132_ERROR__=String(error?.message||error);return false}
 }
@@ -225,7 +225,7 @@ function startLandingRadar(world){
  const m=world?.map;if(!m)return;
  ensureLandingGroundRadarDrapeV6132(m);
  const state=window.__BP_LANDING_GROUND_RADAR_DRAPE_V6170__;
- window.__BP_LANDING_RADAR_STATE__={version:6170,visible:true,enabled:true,groundDraped:true,layerId:'bp-landing-v6132-ground-radar',source:'NOAA/NWS radar reflectivity',refreshCadenceMs:120000,animationAllZoom:true,sourceMaxZoom:18,terrainAware:!!m.getTerrain?.(),updatedAt:Date.now(),timeline:!!state?.animationTimer};
+ window.__BP_LANDING_RADAR_STATE__={version:6170,visible:true,enabled:true,groundDraped:true,layerId:'bp-landing-v6132-ground-radar',source:'NOAA/NWS radar reflectivity',refreshCadenceMs:0,animationAllZoom:false,sourceMaxZoom:18,terrainAware:!!m.getTerrain?.(),updatedAt:Date.now(),timeline:false};
 }
 function installLandingNationalWeather(world){
  const m=world?.map;if(!m)return false;ensureLandingGroundRadarDrapeV6132(m);ensureLandingWeatherIconSprites(m);
