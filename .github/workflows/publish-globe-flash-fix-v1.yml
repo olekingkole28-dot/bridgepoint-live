@@ -227,12 +227,12 @@ jobs:
             name="$(printf '%s' "$spec" | tr '/?.=' '_____')"
             curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/$spec?verify=$GITHUB_SHA" -o "$DIR/$name"
           done
-          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/landing_js_v6313-globe-flash-fix-v1"
-          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/app_js_v6313-globe-flash-fix-v1"
-          grep -Fq 'window.__BP_COAST_FOAM_TIMER__=0' "$DIR/world-v2300-map_js_v6239-globe-flash-fix-v1"
-          if grep -Fq 'waterTimer=setInterval' "$DIR/world-v2300-map_js_v6239-globe-flash-fix-v1"; then
+          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/landing_js_v_6313-globe-flash-fix-v1"
+          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/app_js_v_6313-globe-flash-fix-v1"
+          grep -Fq 'window.__BP_COAST_FOAM_TIMER__=0' "$DIR/world-v2300-map_js_v_6239-globe-flash-fix-v1"
+          if grep -Fq 'waterTimer=setInterval' "$DIR/world-v2300-map_js_v_6239-globe-flash-fix-v1"; then
             echo 'Periodic water paint loop is still live' >&2
             exit 1
           fi
-          cmp -s "$DIR/world-v2300-map_js_v6239-globe-flash-fix-v1" "$DIR/app_world-v2300-map_js"
+          cmp -s "$DIR/world-v2300-map_js_v_6239-globe-flash-fix-v1" "$DIR/app_world-v2300-map_js"
           echo 'GLOBE_FLASH_FIX_LIVE_ROOT_AND_APP'
