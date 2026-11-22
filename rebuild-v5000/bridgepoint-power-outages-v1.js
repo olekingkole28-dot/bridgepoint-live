@@ -1,7 +1,7 @@
 (function(){
  'use strict';
 
- const VERSION='6526-global-power-outages-v2';
+ const VERSION='6527-global-power-outages-v3';
  const BUTTON_ACTION='poweroutages';
  const BUTTON_ID='bp-power-outages-v1-button';
  const STATUS_ID='bp-power-outages-v1-status';
@@ -12,17 +12,19 @@
  const ORNL_URL='https://ornl.opendatasoft.com/explore/assets/odin-real-time-outages-county/';
  const POWERCUT_API='https://powercut.io/api/now.json';
  const POWERCUT_URL='https://powercut.io/';
- const SEED_URL='/bp-power-outages-seed-v1.json?v=6526-global-power-outages-v2';
+ const SEED_URL='/bp-power-outages-seed-v1.json?v=6527-global-power-outages-v3';
  const SEED_CACHE_KEY='bp-power-outages-seed-v2';
  const ORNL_SELECT='cause,communitydescriptor,metersaffected,reportedstarttime,statuskind,estimatedrestorationtime,causekind,incident_cause,name,utility_id,county,state,geom,geo_point_2d,centroid';
  const IDS={
   countiesSource:'bp-global-outage-counties-v1',
-  countyMarkersSource:'bp-global-outage-county-markers-v2',
-  pointsSource:'bp-global-outage-points-v1',
+  countyMarkersSource:'bp-global-outage-county-markers-v3',
+  pointsSource:'bp-global-outage-report-points-v3',
   areaFill:'bp-global-outage-area-fill-v1',
   areaLine:'bp-global-outage-area-line-v1',
-  areaPoints:'bp-global-outage-area-points-v1',
-  reportPoints:'bp-global-outage-report-points-v1'
+  areaPoints:'bp-global-outage-county-icons-v3',
+  reportPoints:'bp-global-outage-report-icons-v3',
+  areaDots:'bp-global-outage-county-dots-v3',
+  reportDots:'bp-global-outage-report-dots-v3'
  };
  let map=null,enabled=false,busy=false,lastData=null,lastRefresh=0,refreshTimer=0,mapWaitTimer=0,refreshTimeout=0,observer=null,scanQueued=false,mapWaitStartedAt=0;
  let metaLastModified='',activeController=null;
@@ -205,30 +207,42 @@
    map.addSource(IDS.countyMarkersSource,{type:'geojson',data:empty(),maxzoom:10,tolerance:0.3,buffer:32});
   }
   addLayer({
+   id:IDS.areaDots,type:'circle',source:IDS.countyMarkersSource,filter:['==',['get','kind'],'county'],
+   paint:{'circle-color':['match',['get','severity'],'major','#ff4055','moderate','#ffb63e','#ffe269'],
+    'circle-radius':['interpolate',['linear'],['zoom'],0,5.2,2,5.8,5,6.8,9,8,13,9.5],
+    'circle-stroke-color':'#fff','circle-stroke-width':1.6,'circle-opacity':0.98}
+  });
+  addLayer({
+   id:IDS.reportDots,type:'circle',source:IDS.pointsSource,filter:['==',['get','kind'],'point'],
+   paint:{'circle-color':['match',['get','severity'],'major','#ff4055','moderate','#ffb63e','#ffe269'],
+    'circle-radius':['interpolate',['linear'],['zoom'],0,5.4,2,6,5,7,9,8.2,13,9.8],
+    'circle-stroke-color':'#fff','circle-stroke-width':1.6,'circle-opacity':0.98}
+  });
+  addLayer({
    id:IDS.areaPoints,type:'symbol',source:IDS.countyMarkersSource,filter:['==',['get','kind'],'county'],
    layout:{'icon-image':['concat','bp-outage-icon-',['get','severity'],'-v1'],
-    'icon-size':['interpolate',['linear'],['zoom'],0,0.42,2,0.58,5,0.76,9,0.92,13,1.08],
+    'icon-size':['interpolate',['linear'],['zoom'],0,0.62,2,0.7,5,0.82,9,0.98,13,1.14],
     'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center'}
   });
   addLayer({
    id:IDS.reportPoints,type:'symbol',source:IDS.pointsSource,filter:['==',['get','kind'],'point'],
    layout:{'icon-image':['concat','bp-outage-icon-',['get','severity'],'-v1'],
-    'icon-size':['interpolate',['linear'],['zoom'],0,0.48,2,0.62,5,0.82,9,1,13,1.14],
+    'icon-size':['interpolate',['linear'],['zoom'],0,0.64,2,0.74,5,0.86,9,1.02,13,1.18],
     'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-anchor':'center'}
   });
-  for(const id of [IDS.areaFill,IDS.areaLine,IDS.areaPoints,IDS.reportPoints]){
+  for(const id of [IDS.areaFill,IDS.areaLine,IDS.areaDots,IDS.reportDots,IDS.areaPoints,IDS.reportPoints]){
    if(map.getLayoutProperty(id,'visibility')!== (enabled?'visible':'none'))map.setLayoutProperty(id,'visibility',enabled?'visible':'none');
+  }
+  for(const id of ['bp-global-outage-area-points-v1','bp-global-outage-report-points-v1',
+   'bp-global-outage-area-points-v2','bp-global-outage-report-points-v2']){
+   if(map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none')map.setLayoutProperty(id,'visibility','none');
   }
   map.off('click',handleMapClick);
   map.on('click',handleMapClick);
-  map.off('mouseenter',IDS.areaPoints,setPointer);
-  map.off('mouseleave',IDS.areaPoints,clearPointer);
-  map.off('mouseenter',IDS.reportPoints,setPointer);
-  map.off('mouseleave',IDS.reportPoints,clearPointer);
-  map.on('mouseenter',IDS.areaPoints,setPointer);
-  map.on('mouseleave',IDS.areaPoints,clearPointer);
-  map.on('mouseenter',IDS.reportPoints,setPointer);
-  map.on('mouseleave',IDS.reportPoints,clearPointer);
+  for(const id of [IDS.areaPoints,IDS.reportPoints,IDS.areaDots,IDS.reportDots]){
+   map.off('mouseenter',id,setPointer);map.off('mouseleave',id,clearPointer);
+   map.on('mouseenter',id,setPointer);map.on('mouseleave',id,clearPointer);
+  }
   return true;
  }
  function setPointer(){try{map.getCanvas().style.cursor='pointer'}catch(_){}}
@@ -509,7 +523,7 @@
  function handleMapClick(e){
   if(!enabled||!map)return;
   let hits=[];
-  try{hits=map.queryRenderedFeatures(e.point,{layers:[IDS.reportPoints,IDS.areaPoints,IDS.areaLine,IDS.areaFill].filter(id=>!!map.getLayer(id))})||[]}catch(_){}
+  try{hits=map.queryRenderedFeatures(e.point,{layers:[IDS.reportPoints,IDS.areaPoints,IDS.reportDots,IDS.areaDots,IDS.areaLine,IDS.areaFill].filter(id=>!!map.getLayer(id))})||[]}catch(_){}
   if(!hits.length)return;
   const feature=hits[0];
   showDetails(feature);
@@ -527,7 +541,7 @@
    if(activeController)activeController.abort();clearTimeout(refreshTimeout);refreshTimeout=0;mapWaitStartedAt=0;
    busy=false;
    if(map&&map.isStyleLoaded?.()){
-    for(const id of [IDS.areaFill,IDS.areaLine,IDS.areaPoints,IDS.reportPoints])if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');
+    for(const id of [IDS.areaFill,IDS.areaLine,IDS.areaDots,IDS.reportDots,IDS.areaPoints,IDS.reportPoints])if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');
    }
    const status=document.getElementById(STATUS_ID);if(status)status.hidden=true;
    const card=document.getElementById(DETAIL_ID);if(card)card.hidden=true;
