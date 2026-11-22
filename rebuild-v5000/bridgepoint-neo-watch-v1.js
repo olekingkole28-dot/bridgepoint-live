@@ -158,6 +158,12 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     state.dockVisualState = null;
   }
 
+  function fullGlobeZoom() {
+    const shortestSide = Math.min(window.innerWidth || 390, window.innerHeight || 780);
+    const fittedZoom = Math.max(0.75, Math.min(2.7, Math.log2((shortestSide * 0.80) / (512 / Math.PI))));
+    return fittedZoom - 0.12;
+  }
+
   function focusGlobalMap() {
     const map = getBridgePointMap();
     if (!map) return false;
@@ -169,16 +175,19 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         pitch: map.getPitch?.(),
         bearing: map.getBearing?.(),
         minZoom: map.getMinZoom?.(),
+        maxZoom: map.getMaxZoom?.(),
       } : null;
     }
+    const targetZoom = Math.min(Number(map.getZoom?.() ?? fullGlobeZoom()), fullGlobeZoom());
     const minZoom = Number(map.getMinZoom?.() ?? 0);
-    const maxZoom = Number(map.getMaxZoom?.() ?? 24);
+    if (minZoom > targetZoom) map.setMinZoom?.(targetZoom);
+    map.setMaxZoom?.(targetZoom);
     map.flyTo({
-      center: [0, 15],
-      zoom: clamp(0.45, minZoom, maxZoom),
+      center: [0, 18],
+      zoom: targetZoom,
       pitch: 0,
       bearing: 0,
-      duration: 1850,
+      duration: Math.abs(Number(map.getZoom?.() ?? targetZoom) - targetZoom) < 0.04 ? 450 : 1850,
       essential: true,
     });
     return true;
@@ -189,6 +198,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const camera = state.mapCamera;
     state.mapCamera = null;
     if (!map || !camera?.center || !Number.isFinite(camera.zoom)) return;
+    if (Number.isFinite(camera.maxZoom)) map.setMaxZoom?.(camera.maxZoom);
     if (Number.isFinite(camera.minZoom)) map.setMinZoom?.(camera.minZoom);
     map.flyTo({
       center: camera.center,
@@ -214,7 +224,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       '<div class="bpNeoHudCardV2">',
       '<div class="bpNeoHudTitleV2"><span class="bpNeoLiveDotV2"></span>SPACE OBJECT TRACKING</div>',
       '<div class="bpNeoHudMetaV2"><strong data-neo-stat="total">—</strong><span>objects in the next 7 days</span></div>',
-      '<div class="bpNeoHudHintV2">Tap an object marker · nominal paths · compressed space scale</div>',
+      '<div class="bpNeoHudHintV2">Tap an icon · cyan arrows trace motion · gold rods mark closest approach</div>',
       '</div>',
       '<div class="bpNeoHudControlsV2">',
       '<button type="button" data-neo-action="playpause" aria-pressed="false">PAUSE</button>',
@@ -225,9 +235,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       '<div class="bpNeoStatusV2" data-neo-status role="status" aria-live="polite">Connecting to NASA approach data and the MPC orbit catalogue…</div>',
       '<aside class="bpNeoDetailV2" data-neo-detail hidden>',
       '<div class="bpNeoDetailHeadV2"><div class="bpNeoDetailBrandV2"><p class="bpNeoDetailKickerV2">OBJECT CLOSE APPROACH</p><h2 data-neo-title></h2><p class="bpNeoDetailSubV2" data-neo-subtitle></p></div><button class="bpNeoDetailCloseV2" type="button" data-neo-action="close-detail" aria-label="Close object details">×</button></div>',
-      '<div class="bpNeoModelBadgeV2">The marker is for visibility; selected model is enlarged. Line shows a nominal orbit track. Physical size uses NASA’s estimated diameter range.</div>',
+      '<div class="bpNeoModelBadgeV2">Solid faceted proxy body · selected model enlarged · cyan arrows show nominal motion · gold rod marks closest-approach gap.</div>',
       '<div class="bpNeoFactsV2" data-neo-details></div>',
-      '<div class="bpNeoDetailNoteV2">The selected body and space distances are enlarged or compressed for viewing. Paths and positions are nominal orbit visualizations, not impact predictions; this feed supplies no Earth impact point, measured 3D shape, or reliable spin period for every object.</div>',
+      '<div class="bpNeoDetailNoteV2">Gold rods are miss-distance guides, not impact paths. Paths use nominal orbital elements; object shape and spin are only modeled proxies where measurements are unavailable.</div>',
       '</aside>',
     ].join('');
     root.addEventListener('click', onPanelClick);
@@ -307,7 +317,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       closeDetails();
       state.viewYaw = 0.10;
       state.viewPitch = 0.08;
-      state.cameraDistance = 5.7;
+      state.cameraDistance = 8.6;
+      focusGlobalMap();
       render();
       return;
     }
@@ -580,8 +591,36 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   }
 
   function asteroidGeometry(id) {
-    const geometry = new THREE.IcosahedronGeometry(1, 2);
-    const positions = geometry.attributes.position;
+    const phi = (1 + Math.sqrt(5)) / 2;
+    const vertices = [
+      [-1, phi, 0], [1, phi, 0], [-1, -phi, 0], [1, -phi, 0],
+      [0, -1, phi], [0, 1, phi], [0, -1, -phi], [0, 1, -phi],
+      [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1],
+    ].map(values => new THREE.Vector3(...values).normalize());
+    let faces = [
+      [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+      [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+      [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+      [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
+    ];
+    for (let level = 0; level < 2; level += 1) {
+      const cache = new Map();
+      const midpoint = (a, b) => {
+        const key = a < b ? a + ':' + b : b + ':' + a;
+        if (cache.has(key)) return cache.get(key);
+        const point = vertices[a].clone().add(vertices[b]).normalize();
+        const index = vertices.length;
+        vertices.push(point);
+        cache.set(key, index);
+        return index;
+      };
+      const subdivided = [];
+      for (const [a, b, c] of faces) {
+        const ab = midpoint(a, b), bc = midpoint(b, c), ca = midpoint(c, a);
+        subdivided.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]);
+      }
+      faces = subdivided;
+    }
     const seed = hash(id) || 1;
     const rand = index => {
       let value = (seed ^ Math.imul(index + 1, 0x45d9f3b)) >>> 0;
@@ -589,12 +628,15 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       value = Math.imul(value ^ (value >>> 16), 0x45d9f3b) >>> 0;
       return (value ^ (value >>> 16)) / 4294967295;
     };
-    for (let i = 0; i < positions.count; i += 1) {
-      const vertex = new THREE.Vector3().fromBufferAttribute(positions, i);
-      const wobble = 0.78 + rand(i) * 0.45;
-      vertex.normalize().multiplyScalar(wobble);
-      positions.setXYZ(i, vertex.x, vertex.y, vertex.z);
+    const positions = [];
+    for (let i = 0; i < vertices.length; i += 1) {
+      const vertex = vertices[i];
+      const radius = 0.90 + rand(i) * 0.20;
+      positions.push(vertex.x * radius, vertex.y * radius, vertex.z * radius);
     }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(faces.flat());
     geometry.computeVertexNormals();
     return geometry;
   }
@@ -713,32 +755,80 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const icons = $('[data-neo-icons]');
     if (icons) icons.replaceChildren();
     let plotted = 0;
+    const now = Date.now();
     for (const item of state.items) {
       item.orbit = orbitFromRecord(item._orbitRecord);
       if (!item.orbit) continue;
       plotted += 1;
       const group = new THREE.Group();
-      const pathStart = Math.min(Date.now() - 3 * DAY_MS, item.epochMs - 3 * DAY_MS);
-      const pathEnd = Math.max(Date.now() + DAY_MS, item.epochMs + 2 * DAY_MS);
-      const points = [];
-      const samples = 40;
-      for (let i = 0; i <= samples; i += 1) {
-        const time = pathStart + (pathEnd - pathStart) * i / samples;
-        points.push(displayPosition(rawRelativePositionAU(item, time)));
+      const closestAt = item.epochMs ?? now + DAY_MS;
+      const pathStart = Math.min(now - 2 * DAY_MS, closestAt - DAY_MS);
+      const pathEnd = Math.max(now + DAY_MS, closestAt + DAY_MS);
+      const pathPoints = [];
+      const pathSamples = 56;
+      for (let i = 0; i <= pathSamples; i += 1) {
+        const time = pathStart + (pathEnd - pathStart) * i / pathSamples;
+        pathPoints.push(displayPosition(rawRelativePositionAU(item, time)));
       }
-      const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 0.42);
+      const orbitCurve = new THREE.CatmullRomCurve3(pathPoints, false, 'centripetal', 0.38);
       const color = item.hazardous ? 0xffb45e : 0x67eaff;
-      const glow = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 120, 0.035, 6, false),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, depthWrite: false })
+      const orbitGlow = new THREE.Mesh(
+        new THREE.TubeGeometry(orbitCurve, 160, 0.025, 6, false),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false })
       );
-      glow.renderOrder = 1;
-      const line = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 120, 0.009, 5, false),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.92, depthWrite: false })
+      orbitGlow.renderOrder = 1;
+      const orbitLine = new THREE.Mesh(
+        new THREE.TubeGeometry(orbitCurve, 160, 0.008, 5, false),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.64, depthWrite: false })
       );
-      line.renderOrder = 2;
-      group.add(glow, line);
+      orbitLine.renderOrder = 2;
+
+      const approachStart = closestAt > now ? now : closestAt - DAY_MS;
+      const approachEnd = closestAt > now ? closestAt : closestAt + DAY_MS;
+      const approachPoints = [];
+      const approachSamples = 48;
+      for (let i = 0; i <= approachSamples; i += 1) {
+        const time = approachStart + (approachEnd - approachStart) * i / approachSamples;
+        approachPoints.push(displayPosition(rawRelativePositionAU(item, time)));
+      }
+      const approachCurve = new THREE.CatmullRomCurve3(approachPoints, false, 'centripetal', 0.32);
+      const approachGlow = new THREE.Mesh(
+        new THREE.TubeGeometry(approachCurve, 112, 0.050, 7, false),
+        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffbd70 : 0x65efff, transparent: true, opacity: 0.26, depthWrite: false })
+      );
+      approachGlow.renderOrder = 4;
+      const approachLine = new THREE.Mesh(
+        new THREE.TubeGeometry(approachCurve, 112, 0.016, 6, false),
+        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffd197 : 0xbafaff, transparent: true, opacity: 0.98, depthWrite: false })
+      );
+      approachLine.renderOrder = 5;
+
+      const closestPoint = displayPosition(rawRelativePositionAU(item, closestAt));
+      const earthEdge = closestPoint.clone().normalize().multiplyScalar(1.465);
+      const missCurve = new THREE.CatmullRomCurve3([earthEdge, closestPoint], false, 'centripetal', 0);
+      const missRod = new THREE.Mesh(
+        new THREE.TubeGeometry(missCurve, 18, 0.010, 5, false),
+        new THREE.MeshBasicMaterial({ color: 0xffd477, transparent: true, opacity: 0.84, depthWrite: false })
+      );
+      missRod.renderOrder = 6;
+      const closestPin = new THREE.Mesh(
+        new THREE.SphereGeometry(0.031, 12, 8),
+        new THREE.MeshBasicMaterial({ color: 0xfff1c7 })
+      );
+      closestPin.position.copy(closestPoint);
+      closestPin.renderOrder = 7;
+
+      const tracer = new THREE.Mesh(
+        new THREE.SphereGeometry(0.031, 10, 8),
+        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffe0aa : 0xf0ffff })
+      );
+      tracer.renderOrder = 8;
+      const arrow = new THREE.Mesh(
+        new THREE.ConeGeometry(0.038, 0.14, 7),
+        new THREE.MeshBasicMaterial({ color: item.hazardous ? 0xffbc69 : 0x9af7ff })
+      );
+      arrow.renderOrder = 8;
+      group.add(orbitGlow, orbitLine, approachGlow, approachLine, missRod, closestPin, tracer, arrow);
 
       const radiusKm = item.diameterMinKm !== null && item.diameterMaxKm !== null
         ? (item.diameterMinKm + item.diameterMaxKm) * 0.25
@@ -748,14 +838,15 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         asteroidGeometry(item.id),
         new THREE.MeshStandardMaterial({
           color: 0x99948b,
-          roughness: 0.92,
-          metalness: 0.04,
+          roughness: 0.80,
+          metalness: 0.06,
           emissive: 0x182126,
-          emissiveIntensity: 0.22,
+          emissiveIntensity: 0.18,
+          flatShading: true,
         })
       );
       body.scale.setScalar(physicalRadius);
-      body.renderOrder = 3;
+      body.renderOrder = 9;
       group.add(body);
       scene3d.root.add(group);
 
@@ -767,7 +858,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       marker.setAttribute('aria-label', 'Focus ' + item.name + ', closest approach ' + formatDistance(item.distanceKm));
       marker.setAttribute('aria-pressed', String(item.id === state.selectedId));
       icons?.appendChild(marker);
-      scene3d.objects.set(item.id, { item, group, body, marker, physicalRadius, pos: new THREE.Vector3(), curve });
+      scene3d.objects.set(item.id, {
+        item, group, body, marker, physicalRadius, pos: new THREE.Vector3(),
+        curve: orbitCurve, approachCurve, approachStart, approachEnd, tracer, arrow,
+      });
     }
     state.unmatched = Math.max(0, state.items.length - plotted);
     const label = state.items.length.toLocaleString() + ' tracked · ' + plotted.toLocaleString() + ' plotted';
@@ -951,16 +1045,24 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       obj.pos.copy(displayPosition(relative));
       obj.body.position.copy(obj.pos);
       const selected = obj.item.id === state.selectedId;
-      const targetRadius = selected ? 0.18 : obj.physicalRadius;
+      const targetRadius = selected ? 0.11 : obj.physicalRadius;
       obj.body.scale.setScalar(THREE.MathUtils.damp(obj.body.scale.x, targetRadius, 7, Math.max(0.001, delta / 1000)));
       const rotationRate = obj.item.orbit?.spinHours ? Math.PI * 2 / (obj.item.orbit.spinHours * 3600) : 0.035;
       obj.body.rotation.set(now / 1000 * rotationRate * 0.5, now / 1000 * rotationRate, now / 1000 * rotationRate * 0.3);
+      if (obj.approachCurve) {
+        const progress = clamp((state.simulationTime - obj.approachStart) / Math.max(1, obj.approachEnd - obj.approachStart), 0, 1);
+        const approachPoint = obj.approachCurve.getPointAt(progress);
+        const tangent = obj.approachCurve.getTangentAt(Math.min(0.9999, progress)).normalize();
+        obj.tracer.position.copy(approachPoint);
+        obj.arrow.position.copy(approachPoint);
+        obj.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+      }
     }
     const selected = scene3d.objects.get(state.selectedId);
     if (selected) {
       const direction = selected.pos.clone().normalize();
       const target = selected.pos;
-      const desiredCamera = target.clone().addScaledVector(direction, 0.72);
+      const desiredCamera = target.clone().addScaledVector(direction, 1.0);
       scene3d.camera.position.lerp(desiredCamera, 0.09);
       scene3d.camera.lookAt(target);
     } else {
