@@ -209,9 +209,19 @@ jobs:
                       html=re.sub(r'</body>',app_script+'\n</body>',html,flags=re.I,count=1)
               html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
               if html.count(script)!=1: raise SystemExit(rel+' must load exactly one near-Earth object overlay')
-              cloud_count=html.count('cloudsv=6400-fortnite-atmosphere')
-              if cloud_count<1: raise SystemExit(rel+' does not contain the expected cloud cache key')
-              html=html.replace('cloudsv=6400-fortnite-atmosphere','cloudsv=6511-no-procedural-3d-clouds')
+              cloud_key='cloudsv=6511-no-procedural-3d-clouds'
+              html=re.sub(r'cloudsv=[^&"\']+',cloud_key,html)
+              entry_asset='landing.js' if rel=='index.html' else 'app.js'
+              entry_pattern=re.compile(r'(\bsrc=["\'][^"\']*?'+re.escape(entry_asset)+r')(?:\?([^"\']*))?(["\'])',re.I)
+              def add_entry_cache(match):
+                  query=match.group(2) or ''
+                  query=re.sub(r'(^|&)cloudsv=[^&]*','',query)
+                  query=re.sub(r'&&+','&',query).strip('&')
+                  query=(query+'&' if query else '')+cloud_key
+                  return match.group(1)+'?'+query+match.group(3)
+              html,entry_count=entry_pattern.subn(add_entry_cache,html)
+              if entry_count!=1: raise SystemExit(rel+' must have exactly one '+entry_asset+' entry script')
+              if cloud_key not in html: raise SystemExit(rel+' did not receive the procedural-cloud cache bust')
               path.write_text(html,encoding='utf-8')
           print('NEAR_EARTH_OBJECT_OVERLAY_ADDED_AND_SIGNED_IN_SPACE_LOADER_PRESERVED')
           PY
@@ -252,13 +262,15 @@ jobs:
                   s=re.sub(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-welcome-space-v6260\.js[^"\']*["\'][^>]*>\s*</script>\s*','',s,flags=re.I)
                   s=re.sub(r'<script\b[^>]*\bsrc=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js[^"\']*["\'][^>]*>\s*</script>\s*','',s,flags=re.I)
                   s=re.sub(r'(data-bp-deferred-src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?APP\2',s,flags=re.I)
-                  s=re.sub(r'cloudsv=(?:6400-fortnite-atmosphere|6511-no-procedural-3d-clouds)','cloudsv=CLOUD',s)
+                  s=re.sub(r'([?&])cloudsv=[^&"\']*','',s)
+                  s=s.replace('?&','?').replace('&&','&')
+                  s=re.sub(r'\?([\'"])',r'\1',s)
                   return s
               if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the NEO, shared-space and cloud-cache references')
               if current.count('bridgepoint-neo-watch-v1.js?v=1.5.2')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
               if 'bridgepoint-app-space-explorer-v1.js?v=v6310-physical-heliocentric-scale-cloud-off' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
               if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6410-physical-heliocentric-scale-cloud-off' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
-              if current.count('cloudsv=6511-no-procedural-3d-clouds')!=prior.count('cloudsv=6400-fortnite-atmosphere'): raise SystemExit(rel+' did not update every cloud cache key')
+              if 'cloudsv=6511-no-procedural-3d-clouds' not in current: raise SystemExit(rel+' did not update the entrypoint cache key')
           for name,expected in (('landing.js',2),('app.js',1)):
               prior=(tmp/('bp-'+name.replace('.js','.before.js'))).read_text(encoding='utf-8')
               current=(site/name).read_text(encoding='utf-8')
