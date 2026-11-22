@@ -1,0 +1,219 @@
+name: Publish BridgePoint Public Scan Library over preserved production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-bridgepoint-public-scans-v1.yml'
+      - 'rebuild-v5000/bridgepoint-public-scans-v1.js'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-public-scans-v1-preserved-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the latest successful production Pages snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          for run_id in $RUNS; do
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
+
+      - name: Restore production and fingerprint all non-target files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          test -s "$SITE/index.html"
+          test -s "$SITE/app/index.html"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          targets={'index.html','app/index.html','bridgepoint-public-scans-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          for path in sorted(site.rglob('*')):
+              if path.is_file():
+                  rel=path.relative_to(site).as_posix()
+                  if rel not in targets: before[rel]=digest(path)
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          (tmp/'bp-public-scans-preservation-before.json').write_text(json.dumps(before,sort_keys=True))
+          for rel in ('index.html','app/index.html'):
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              if '</body>' not in html.lower(): raise SystemExit(rel+' has no closing body tag')
+              (tmp/(rel.replace('/','-')+'.before.html')).write_text(html,encoding='utf-8')
+          print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
+          PY
+
+      - name: Add only the public scan import map and script tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          cp rebuild-v5000/bridgepoint-public-scans-v1.js "$SITE/bridgepoint-public-scans-v1.js"
+          python3 - <<'PY'
+          import re,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          script='<script defer src="/bridgepoint-public-scans-v1.js?v=1.0.0"></script>'
+          import_map='<script type="importmap" id="bpPublicScansImportMapV1">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>'
+          required=('PUBLIC 3D SCAN LIBRARY','bpPublicScansLaunchV1','PUBLISH THIS SCAN TO BRIDGEPOINT','X-BP-Public-Consent','preflightZip','OpenScanCloud','https://openscan.eu/pages/openscancloud-uploader')
+          module=Path('rebuild-v5000/bridgepoint-public-scans-v1.js').read_text(encoding='utf-8')
+          if not all(token in module for token in required):
+              raise SystemExit('Scan module is missing the public gallery, explicit-consent upload, archive safety, or OpenScan handoff')
+          if 'new maplibregl.Map(' in module or '.setStyle(' in module:
+              raise SystemExit('Public scan overlay must not replace or reconfigure the existing globe')
+          for rel in ('index.html','app/index.html'):
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              html=re.sub(r'<script type="importmap" id="bpPublicScansImportMapV1">.*?</script>\s*','',html,flags=re.I|re.S)
+              html=re.sub(r'<script defer src="/bridgepoint-public-scans-v1\.js[^"]*"></script>\s*','',html,flags=re.I)
+              first_module=re.search(r"<script\b(?=[^>]*\btype=[\"']module[\"'])[^>]*>",html,flags=re.I)
+              if not first_module: raise SystemExit(rel+' has no module script before which the 3D viewer import map can be installed')
+              html=html[:first_module.start()]+import_map+'\n'+html[first_module.start():]
+              html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
+              if html.count('id="bpPublicScansImportMapV1"')!=1: raise SystemExit(rel+' must contain exactly one public scan import map')
+              if html.count(script)!=1: raise SystemExit(rel+' must load exactly one Public Scan module')
+              for marker in ('bridgepoint-view-v5917.js','bridgepoint-bottom-card-categories-v1.js','bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js','bridgepoint-power-outages-v1.js','bridgepoint-maps-v1.js'):
+                  if marker not in html: raise SystemExit(rel+' is missing a preserved app feature loader: '+marker)
+              path.write_text(html,encoding='utf-8')
+          print('PUBLIC_SCAN_OVERLAY_ADDED_WITH_CURRENT_MAP_AND_FEATURE_LOADERS_RETAINED')
+          PY
+          node --check rebuild-v5000/bridgepoint-public-scans-v1.js
+
+      - name: Prove the original production files and page content are preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          tmp=Path(os.environ['RUNNER_TEMP']); site=tmp/'bp-site'
+          before=json.loads((tmp/'bridgepoint-public-scans-preservation-before.json').read_text())
+          targets={'index.html','app/index.html','bridgepoint-public-scans-v1.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          for path in site.rglob('*'):
+              if path.is_file():
+                  rel=path.relative_to(site).as_posix()
+                  if rel not in targets: after[rel]=digest(path)
+          if before!=after:
+              raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGE '+json.dumps({'missing':sorted(set(before)-set(after))[:20],'added':sorted(set(after)-set(before))[:20],'changed':sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:20]}))
+          for rel in ('index.html','app/index.html'):
+              prior=(tmp/(rel.replace('/','-')+'.before.html')).read_text(encoding='utf-8')
+              current=(site/rel).read_text(encoding='utf-8')
+              normalize=lambda s: re.sub(r'<script defer src="/bridgepoint-public-scans-v1\.js[^"]*"></script>\s*','',re.sub(r'<script type="importmap" id="bpPublicScansImportMapV1">.*?</script>\s*','',s,flags=re.I|re.S),flags=re.I)
+              if normalize(prior)!=normalize(current):
+                  raise SystemExit(rel+' changed outside the new public-scan import map and script tag')
+              module_at=current.find('id="bpPublicScansImportMapV1"')
+              first_module=re.search(r"<script\b(?=[^>]*\btype=[\"']module[\"'])[^>]*>",current,flags=re.I)
+              if not first_module or module_at > first_module.start(): raise SystemExit(rel+' public-scan import map is too late for the 3D viewer')
+          if not (site/'bridgepoint-public-scans-v1.js').is_file(): raise SystemExit('Public Scan module was not copied')
+          print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
+          print('ENTRYPOINT_CHANGE_LIMITED_TO_PUBLIC_SCAN_IMPORT_MAP_AND_SCRIPT_TAG')
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved production with the Public Scan Library
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify the public library overlay on root and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          DIR="$RUNNER_TEMP/bp-public-scans-live"
+          mkdir -p "$DIR"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-public-scans" -o "$DIR/root.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-public-scans" -o "$DIR/app.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-public-scans-v1.js?verify=$GITHUB_SHA-public-scans" -o "$DIR/scans.js"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 20 -fsSL 'https://bridgepoint-scan-library-api.olekingkole28.chatgpt.site/api/v1/scans?limit=1&offset=0' -o "$DIR/api.json"
+          cmp -s "$DIR/scans.js" rebuild-v5000/bridgepoint-public-scans-v1.js
+          python3 - "$DIR/api.json" <<'PY'
+          import json,sys
+          payload=json.load(open(sys.argv[1],encoding='utf-8'))
+          if not isinstance(payload.get('items'),list) or not isinstance(payload.get('total'),int):
+              raise SystemExit('Public library API did not return a usable scan collection')
+          print('PUBLIC_SCAN_API_READY',payload['total'],'public scans')
+          PY
+          for route in root app; do
+            grep -Fq 'bridgepoint-public-scans-v1.js?v=1.0.0' "$DIR/$route.html"
+            grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-view-v5917.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-bottom-card-categories-v1.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-iconic-wonders-v1.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-water-flow-buoys-v1.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-power-outages-v1.js' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-maps-v1.js' "$DIR/$route.html"
+          done
+          grep -Fq 'PUBLISH THIS SCAN TO BRIDGEPOINT' "$DIR/scans.js"
+          grep -Fq 'preflightZip' "$DIR/scans.js"
+          grep -Fq 'OpenScanCloud' "$DIR/scans.js"
+          echo 'PUBLIC_SCAN_LIBRARY_LIVE_AND_EXISTING_FEATURE_LOADERS_PRESENT'
