@@ -1,7 +1,7 @@
 (function(){
  'use strict';
 
- const VERSION='6527-global-power-outages-v3';
+ const VERSION='6528-global-power-outages-v4';
  const BUTTON_ACTION='poweroutages';
  const BUTTON_ID='bp-power-outages-v1-button';
  const STATUS_ID='bp-power-outages-v1-status';
@@ -12,7 +12,7 @@
  const ORNL_URL='https://ornl.opendatasoft.com/explore/assets/odin-real-time-outages-county/';
  const POWERCUT_API='https://powercut.io/api/now.json';
  const POWERCUT_URL='https://powercut.io/';
- const SEED_URL='/bp-power-outages-seed-v1.json?v=6527-global-power-outages-v3';
+ const SEED_URL='/bp-power-outages-seed-v1.json?v=6528-global-power-outages-v4';
  const SEED_CACHE_KEY='bp-power-outages-seed-v2';
  const ORNL_SELECT='cause,communitydescriptor,metersaffected,reportedstarttime,statuskind,estimatedrestorationtime,causekind,incident_cause,name,utility_id,county,state,geom,geo_point_2d,centroid';
  const IDS={
@@ -150,8 +150,15 @@
   observer.observe(document.documentElement,{childList:true,subtree:true});
  }
  function getMap(){
-  const world=window.__bpWorldV2300||window.__BP_V5000_WORLD||window.__BP_V5000_WORLD__;
-  return world&&world.map?world.map:null;
+  const worlds=[window.__BP_LANDING_WORLD__,window.__bpLandingWorldV5420,
+   window.__BP_V5000_WORLD__,window.__BP_V5000_WORLD,window.__bpWorldV2300,
+   window.__BP_WORLD_V2300__,window.__BP_WORLD__,window.__BP_MAP_WORLD__];
+  for(const world of worlds){
+   const candidate=world?.map;
+   if(candidate&&typeof candidate.getSource==='function'&&typeof candidate.addSource==='function'&&
+    typeof candidate.getLayer==='function'&&typeof candidate.isStyleLoaded==='function')return candidate;
+  }
+  return null;
  }
  function severity(value){
   const n=Number(value)||0;
@@ -446,17 +453,17 @@
   if(!map){
    statusText('waiting for globe map');
    if(!mapWaitStartedAt)mapWaitStartedAt=Date.now();
-   if(Date.now()-mapWaitStartedAt>45000){statusText('map not ready · press again to retry');mapWaitStartedAt=0;return false}
+   if(Date.now()-mapWaitStartedAt>45000){statusText('globe renderer is still starting · outage markers will attach automatically');mapWaitStartedAt=Date.now()}
    clearTimeout(mapWaitTimer);
-   mapWaitTimer=setTimeout(loadMap,500);
+   mapWaitTimer=setTimeout(loadMap,250);
    return false;
   }
   if(!map.isStyleLoaded?.()){
    statusText('waiting for map style');
    if(!mapWaitStartedAt)mapWaitStartedAt=Date.now();
-   if(Date.now()-mapWaitStartedAt>45000){statusText('map style not ready · press again to retry');mapWaitStartedAt=0;return false}
+   if(Date.now()-mapWaitStartedAt>45000){statusText('globe map is still drawing · outage markers will attach automatically');mapWaitStartedAt=Date.now()}
    clearTimeout(mapWaitTimer);
-   mapWaitTimer=setTimeout(loadMap,350);
+   mapWaitTimer=setTimeout(loadMap,250);
    return false;
   }
   if(!ensureMapLayers()){
