@@ -184,8 +184,8 @@ jobs:
           tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1.js?v=6525-global-power-outages-v1" data-bp-deferred-kind="classic"></script>'
           priority="  'bridgepoint-power-outages-v1.js',\n"
           view_priority="  'bridgepoint-view-v5917.js',\n"
-          pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1\\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
-          view_pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-view-v5917\\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
+          pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
+          view_pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-view-v5917\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
           for rel in ('index.html','app/index.html'):
               path=site/rel
               html=path.read_text(encoding='utf-8')
