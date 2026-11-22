@@ -788,7 +788,7 @@ export function initWorld(options={}){
   map.on('zoomend',()=>keepSatelliteRasterLayersVisible('zoomend'));
   map.on('pitchend',()=>keepSatelliteRasterLayersVisible('pitchend'));
   // Keep the satellite underlay authoritative if a late startup controller hides it.
-  // Reconcile satellite visibility after settled map changes instead of every render.
+  map.on('render',()=>keepSatelliteRasterLayersVisible('render'));
  function metersLon(lat){return 111320*Math.max(.12,Math.cos(lat*Math.PI/180))}
  function circlePoly(coord,r,n=10){const out=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;out.push([coord[0]+Math.cos(a)*r/metersLon(coord[1]),coord[1]+Math.sin(a)*r/110540])}out.push(out[0]);return[out]}
  function treeHash(v){let h=2166136261>>>0;for(const ch of String(v||'tree')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h>>>0}
