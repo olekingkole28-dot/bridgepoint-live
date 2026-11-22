@@ -1,0 +1,223 @@
+# Publish public HUD Listings on the preserved BridgePoint production snapshot.
+name: Publish BridgePoint Public HUD Listings v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-public-hud-listings-v1.yml'
+      - 'rebuild-v5000/bridgepoint-view-v5917.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-public-hud-listings-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for a same-commit full-site build
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          sleep 8
+          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100" --jq '.workflow_runs[] | select(.path == ".github/workflows/deploy-intelligence-rebuild-v5000.yml") | .id' | head -n 1 || true)"
+          if [ -z "$RUN_ID" ]; then
+            echo "No same-commit full-site build is registered; using the latest successful production snapshot."
+            exit 0
+          fi
+          echo "Waiting for full-site build run $RUN_ID."
+          while true; do
+            STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')"
+            CONCLUSION="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion // ""')"
+            if [ "$STATUS" = "completed" ]; then
+              echo "FULL_SITE_BUILD_FINISHED run=$RUN_ID conclusion=$CONCLUSION"
+              exit 0
+            fi
+            sleep 15
+          done
+
+      - name: Resolve the latest successful prior production snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id,.head_sha] | @tsv')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          while IFS=$'\t' read -r run_id head_sha; do
+            [ -n "$run_id" ] || continue
+            [ "$head_sha" = "$GITHUB_SHA" ] && continue
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done <<< "$RUNS"
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "PRESERVED_PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
+
+      - name: Restore production and fingerprint non-target files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          test -s "$SITE/index.html"
+          test -s "$SITE/app/index.html"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          targets={'index.html','app/index.html','bridgepoint-view-v5917.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel not in targets: before[rel]=digest(path)
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          (tmp/'bp-listings-preservation-before.json').write_text(json.dumps(before,sort_keys=True))
+          print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
+          PY
+
+      - name: Overlay the Listings module and refresh its cache key
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          cp rebuild-v5000/bridgepoint-view-v5917.js "$SITE/bridgepoint-view-v5917.js"
+          python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          cache='hud-reo-20261122-v1'
+          pattern=re.compile(r'(data-bp-deferred-src="(/bridgepoint-view-v5917\.js\?[^"]*)")',re.I)
+          for rel in ('index.html','app/index.html'):
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              def bump(match):
+                  url=re.sub(r'[&?]listings=[^&"]*','',match.group(2))
+                  sep='&' if '?' in url else '?'
+                  return 'data-bp-deferred-src="'+url+sep+'listings='+cache+'"'
+              html,count=pattern.subn(bump,html)
+              if count!=1:
+                  raise SystemExit(rel+' must have exactly one deferred BridgePoint view module; found '+str(count))
+              path.write_text(html,encoding='utf-8')
+          source_root=Path('rebuild-v5000/index.html').read_text(encoding='utf-8')
+          source_app=Path('rebuild-v5000/app-index.html').read_text(encoding='utf-8')
+          for rel,source in [('index.html',source_root),('app/index.html',source_app)]:
+              found=list(pattern.finditer(source))
+              if len(found)!=1:
+                  raise SystemExit('Source '+rel+' must load exactly one BridgePoint view module')
+              queue=source.find('const priority=[')
+              if queue<0 or found[0].start()>queue or "'bridgepoint-view-v5917.js'," not in source:
+                  raise SystemExit('Source '+rel+' does not prioritize the BridgePoint view module')
+          module=Path('rebuild-v5000/bridgepoint-view-v5917.js').read_text(encoding='utf-8')
+          for marker in ('HUD_REO_QUERY','HUD_REO_CATALOG','fetchHudReoListings','BP_LISTINGS_POINTS_V5927'):
+              if marker not in module:
+                  raise SystemExit('Listings module missing source-backed HUD feature marker: '+marker)
+          print('HUD_LISTINGS_MODULE_AND_BOTH_ENTRYPOINTS_READY')
+          PY
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+
+      - name: Verify no non-target production files changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          before=json.loads((tmp/'bp-listings-preservation-before.json').read_text())
+          targets={'index.html','app/index.html','bridgepoint-view-v5917.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel not in targets: after[rel]=digest(path)
+          if before != after:
+              raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGE '+json.dumps({
+                'missing':sorted(set(before)-set(after))[:20],
+                'added':sorted(set(after)-set(before))[:20],
+                'changed':sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:20]}))
+          print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved production snapshot with HUD Listings
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify the Listings module on root and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          DIR="$RUNNER_TEMP/bp-listings-live"
+          mkdir -p "$DIR"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-hud-listings" -o "$DIR/root.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-hud-listings" -o "$DIR/app.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-view-v5917.js?verify=$GITHUB_SHA-hud-listings" -o "$DIR/view.js"
+          grep -Fq 'listings=hud-reo-20261122-v1' "$DIR/root.html"
+          grep -Fq 'listings=hud-reo-20261122-v1' "$DIR/app.html"
+          cmp -s "$DIR/view.js" rebuild-v5000/bridgepoint-view-v5917.js
+          grep -Fq 'HUD_REO_QUERY' "$DIR/view.js"
+          grep -Fq 'fetchHudReoListings' "$DIR/view.js"
+          echo 'HUD_LISTINGS_MODULE_LIVE_ON_ROOT_AND_APP'
