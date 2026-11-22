@@ -19,12 +19,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const AU_KM = 149597870.7;
   const EARTH_RADIUS_KM = 6371.0;
   const AU_TO_EARTH_RADII = AU_KM / EARTH_RADIUS_KM;
+  const SIDEREAL_DAY_MS = 86164090.5;
   const SIM_MS_PER_REAL_MS = 3600;
   const state = {
     items: [], selectedId: '', checkedAt: 0, loading: false, open: false,
     simulationPaused: false, simulationTime: Date.now(), simulationLastAt: 0,
     orbitCatalog: null, orbitEpoch: null, unmatched: 0, mapCamera: null, mapInteractions: null,
     dataLoading: false, dockVisualState: null,
+    mapSpinStartTime: 0, mapSpinStartBearing: 0,
   };
   const scene3d = {
     scene: null, camera: null, root: null, spaceApi: null, solarFrame: null,
@@ -124,8 +126,21 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   }
 
   function getBridgePointMap() {
-    const world = window.__bpWorldV2300 || window.__BP_LANDING_WORLD__ || window.__BP_WORLD__;
-    const map = world && world.map;
+    const activeElement = document.getElementById('liveMap') || document.getElementById('previewMap');
+    const candidates = [
+      window.__BP_V5000_WORLD__?.map,
+      window.__bpWorldV2300?.map,
+      window.__BP_LANDING_WORLD__?.map,
+      window.__BP_WORLD__?.map,
+    ].filter((candidate, index, list) => candidate && list.indexOf(candidate) === index);
+    if (activeElement) {
+      const activeMap = candidates.find(candidate => {
+        const container = candidate.getContainer?.();
+        return container && (container === activeElement || activeElement.contains(container) || container.contains(activeElement));
+      });
+      if (activeMap && typeof activeMap.flyTo === 'function') return activeMap;
+    }
+    const map = candidates[0];
     return map && typeof map.flyTo === 'function' ? map : null;
   }
 
@@ -262,7 +277,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       '<div class="bpNeoHudCardV2">',
       '<div class="bpNeoHudTitleV2"><span class="bpNeoLiveDotV2"></span>SPACE OBJECT TRACKING</div>',
       '<div class="bpNeoHudMetaV2"><strong data-neo-stat="total">—</strong><span>objects in the next 7 days</span></div>',
-      '<div class="bpNeoHudHintV2">Tap an icon · long 3D rods trace each nominal orbit · full space view</div>',
+      '<div class="bpNeoHudHintV2">Tap an icon · Sun-centered view · Earth spins on its orbit · full 3D nominal paths</div>',
       '</div>',
       '<div class="bpNeoHudControlsV2">',
       '<button type="button" data-neo-action="playpause" aria-pressed="false">PAUSE</button>',
@@ -300,6 +315,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     state.selectedId = '';
     state.simulationPaused = false;
     state.simulationTime = Date.now();
+    window.__BP_NEO_SIMULATION_TIME_V1__ = state.simulationTime;
+    state.mapSpinStartTime = state.simulationTime;
+    state.mapSpinStartBearing = Number(getBridgePointMap()?.getBearing?.()) || 0;
     state.simulationLastAt = 0;
     state.lastDraw = 0;
     scene3d.lastFocusedId = null;
@@ -314,7 +332,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         if (!api || !state.open) return;
         setSpaceCloseControlHidden(true);
         scene3d.root.visible = true;
-        api.focusSpaceOverview?.(32);
+        api.setNearEarthOrbitMode?.(true);
+        api.focusHeliocentricOverview?.(32);
         await refreshSpaceData(false);
       } catch (error) {
         setStatus(String(error?.message || 'The shared 3D solar-system scene could not be opened.'), 'error');
@@ -328,6 +347,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     root.hidden = true;
     state.open = false;
     state.selectedId = '';
+    window.__BP_NEO_SIMULATION_TIME_V1__ = null;
+    scene3d.spaceApi?.setNearEarthOrbitMode?.(false);
+    scene3d.spaceApi?.focusSpaceOverview?.(32);
+    state.mapSpinStartTime = 0;
+    state.mapSpinStartBearing = 0;
     if (scene3d.root) scene3d.root.visible = false;
     scene3d.lastFocusedId = null;
     $('#' + BUTTON_ID)?.setAttribute('aria-expanded', 'false');
@@ -625,7 +649,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const earthFallback = earthPositionAU(jd);
     const earthReference = scene3d.earthReferenceAU
       || (typeof toGalactic === 'function' ? toGalactic(earthFallback) : earthFallback);
-    return objectHeliocentric.sub(earthReference);
+    return frame?.heliocentric ? objectHeliocentric : objectHeliocentric.sub(earthReference);
   }
 
   function displayPosition(relativeAU) {
@@ -727,6 +751,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     if (!state.open) return null;
     if (!api || typeof api.getScene !== 'function') throw new Error('The shared BridgePoint 3D space renderer did not become ready.');
     if (typeof api.loadSolarCosmos === 'function') await api.loadSolarCosmos();
+    api.setNearEarthOrbitMode?.(true);
+    window.__BP_NEO_SIMULATION_TIME_V1__ = state.simulationTime;
     let solar = window.__BP_SOLAR_COSMOS_V6280__;
     while (Date.now() < deadline && state.open && (!solar?.getFrame || !solar.getFrame()?.orientation)) {
       await new Promise(resolve => window.setTimeout(resolve, 100));
@@ -735,7 +761,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     if (!state.open) return null;
     if (!solar?.getFrame) throw new Error('The planetary orbital frame did not become ready.');
     init3DScene(api);
-    api.focusSpaceOverview?.(32);
+    api.focusHeliocentricOverview?.(32);
     return api;
   }
 
@@ -993,9 +1019,18 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const delta = scene3d.lastDraw ? Math.min(100, Math.max(0, now - scene3d.lastDraw)) : 16;
     scene3d.lastDraw = now;
     if (!state.simulationPaused) state.simulationTime += delta * SIM_MS_PER_REAL_MS;
+    window.__BP_NEO_SIMULATION_TIME_V1__ = state.simulationTime;
+    const currentFrame = window.__BP_SOLAR_COSMOS_V6280__?.getFrame?.();
+    if (currentFrame?.heliocentric && currentFrame.orientation && Number.isFinite(currentFrame.auScale)) scene3d.solarFrame = currentFrame;
     const loopStart = Date.now() - 3 * DAY_MS;
     const loopEnd = Date.now() + 9 * DAY_MS;
     if (state.simulationTime > loopEnd) state.simulationTime = loopStart;
+    const map = getBridgePointMap();
+    if (map && state.mapSpinStartTime) {
+      const rotation = ((state.simulationTime - state.mapSpinStartTime) / SIDEREAL_DAY_MS * 360) % 360;
+      const bearing = ((state.mapSpinStartBearing + rotation) % 360 + 360) % 360;
+      if (Math.abs((((bearing - (Number(map.getBearing?.()) || 0)) + 540) % 360) - 180) > 0.04) map.setBearing?.(bearing);
+    }
     for (const obj of scene3d.objects.values()) {
       obj.pos.copy(displayPosition(rawRelativePositionAU(obj.item, state.simulationTime)));
       obj.body.position.copy(obj.pos);
@@ -1021,7 +1056,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       scene3d.lastFocusedId = state.selectedId;
       const selected = scene3d.objects.get(state.selectedId);
       if (selected) scene3d.spaceApi.focusSpacePoint?.(selected.pos, THREE.MathUtils.clamp(selected.pos.length() * 0.28, 0.8, 4.5));
-      else scene3d.spaceApi.focusSpaceOverview?.(32);
+      else scene3d.spaceApi.focusHeliocentricOverview?.(32);
     }
     scene3d.camera.updateMatrixWorld();
     renderMarkers();
@@ -1073,7 +1108,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
           scene3d.earthReferenceAU = frame.sun.clone().negate().applyQuaternion(frame.orientation.clone().invert()).divideScalar(frame.auScale);
           buildSpaceObjects();
         }
-        scene3d.spaceApi?.focusSpaceOverview?.(32);
+        scene3d.spaceApi?.focusHeliocentricOverview?.(32);
         renderMarkers();
       }, 180);
     }, { passive: true });

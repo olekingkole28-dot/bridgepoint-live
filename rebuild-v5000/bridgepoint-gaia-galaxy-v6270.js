@@ -101,13 +101,16 @@ function labelSprite(THREE,text){
 }
 export function initBridgePointSolarCosmos(o){
  const {THREE,scene,camera,host,controls,starsGroup,getSunPosition,getMoonPosition,focusBody,clickables=[],bodyRefs={},isMobile=false}=o;
+ const earthAnchor=bodyRefs.earth?.parent||null;
+ const moonAnchor=bodyRefs.moon?.parent||null;
+ let heliocentricAuScale=0;
  if(!THREE||!scene||!camera||!starsGroup)throw new Error('Unified celestial scene requires the existing welcome Three.js objects');
  const state={version:BUILD,status:'loading',source:'ESA Gaia DR3 + Hipparcos bright-star supplement',
   starCount:0,loadedChunks:0,epoch:2026,distanceUnit:'parsec',stellarCoordinateFrame:'Galactic Cartesian, Sun-centred',
   planetCount:8,planetModels:'five locally textured 3D planets plus dedicated NASA-based Mars and Saturn systems; existing Earth/Moon/Sun preserved',
   planetTexturesLoaded:0,planetTextureStatus:'loading',stellarStatus:'loading',
   controls:'single-scene-camera; eight planets, Sun, Earth, Moon and named planetary moons are selectable',
-  externalDataRequests:0,errors:[],distanceRangePc:null};
+  externalDataRequests:0,errors:[],distanceRangePc:null,nearEarthTrackingMode:false};
  starsGroup.name='BridgePoint unified Gaia DR3 stellar and deep-space context';
  starsGroup.visible=true;
  const starSpace=new THREE.Group();starSpace.name='Gaia DR3 measured star positions and Milky Way-scale context';starsGroup.add(starSpace);
@@ -195,7 +198,7 @@ for(const p of planetRefs){
  const label=labelSprite(THREE,p.name.toUpperCase());labelsGroup.add(label);labelMap.set(key,label);
  labelOffsets.set(key,radius);
 }
-for(const p of PLANETS.filter(p=>p.name!=='Earth')){
+for(const p of PLANETS){
   const points=[];
   for(let i=0;i<300;i++){
    const sample={...p,M:i*360/300};
@@ -243,23 +246,45 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  const values=eclToGal(position.x,position.y,position.z,23.439291*DEG);
  return new THREE.Vector3(values[0],values[1],values[2]);
 }
+ function eclipticToGalacticRotation(){
+  const x=eclipticJ2000ToGalactic(new THREE.Vector3(1,0,0));
+  const y=eclipticJ2000ToGalactic(new THREE.Vector3(0,1,0));
+  const z=eclipticJ2000ToGalactic(new THREE.Vector3(0,0,1));
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+ }
  function applyFrame(){
-  const sun=nowSun();
-  if(starState.frame&&starState.frame.sun.distanceToSquared(sun)<1e-12)return starState.frame;
-  starsGroup.position.copy(sun);
-  const date=new Date(),days=julian(date)-planetDayZero,ob=obliquity(date);
+  const nearEarthTracking=state.nearEarthTrackingMode;
+  const simTime=Number(window.__BP_NEO_SIMULATION_TIME_V1__);
+  const date=nearEarthTracking&&Number.isFinite(simTime)?new Date(simTime):new Date();
+  const sun=nearEarthTracking?new THREE.Vector3(0,0,0):nowSun();
+  if(!nearEarthTracking&&starState.frame&&starState.frame.sun.distanceToSquared(sun)<1e-12)return starState.frame;
+  const days=julian(date)-planetDayZero,ob=obliquity(date);
   const earthHelio=planetPos(THREE,PLANETS.find(p=>p.name==='Earth'),days,ob);
-  // Align Earth's ephemeris to the existing welcome Earth at the origin.
-  const auScale=sun.length()/Math.max(1e-12,earthHelio.length()),pcScale=auScale/AU_PC;
-  const desiredSunToEarth=sun.clone().normalize().negate();
-  const orientation=new THREE.Quaternion().setFromUnitVectors(earthHelio.clone().normalize(),desiredSunToEarth);
+  const auScale=nearEarthTracking
+   ?(heliocentricAuScale||(heliocentricAuScale=state.auToScene||nowSun().length()/Math.max(1e-12,earthHelio.length())))
+   :sun.length()/Math.max(1e-12,earthHelio.length());
+  if(!nearEarthTracking)heliocentricAuScale=auScale;
+  const pcScale=auScale/AU_PC;
+  const orientation=nearEarthTracking?new THREE.Quaternion():new THREE.Quaternion().setFromUnitVectors(earthHelio.clone().normalize(),sun.clone().normalize().negate());
+  const earthPositionAU=earthHelio;
+  starsGroup.position.copy(sun);
   starState.orientation.copy(orientation);starState.parsecScale=pcScale;
   starSpace.quaternion.copy(orientation);starSpace.scale.setScalar(pcScale);
   solarRoot.quaternion.copy(orientation);solarRoot.position.set(0,0,0);
   orbitScaleRoot.scale.setScalar(auScale);
+  orbitScaleRoot.quaternion.identity();
+  if(earthAnchor){
+   if(nearEarthTracking)earthAnchor.position.copy(earthPositionAU).multiplyScalar(auScale);
+   else earthAnchor.position.set(0,0,0);
+  }
+  if(moonAnchor){
+   if(nearEarthTracking&&earthAnchor)moonAnchor.position.copy(earthAnchor.position);
+   else moonAnchor.position.set(0,0,0);
+  }
   planetRefs.forEach(p=>{
    const mesh=planetMeshes.get(p.name.toLowerCase());
-   mesh.position.copy(planetPos(THREE,p,days,ob).multiplyScalar(auScale));
+   const position=planetPos(THREE,p,days,ob);
+   mesh.position.copy(position).multiplyScalar(auScale);
    labelOffsets.set(p.name.toLowerCase(),p.r/EARTH_RADIUS_KM);
   });
   starState.planetDays=days;
@@ -268,7 +293,7 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   if(camera.far<maxFar){camera.far=maxFar;camera.updateProjectionMatrix();}
   if(starState.points?.material?.uniforms?.uAUScale)starState.points.material.uniforms.uAUScale.value=auScale;
   if(starState.points?.material?.uniforms?.uViewportHeight)starState.points.material.uniforms.uViewportHeight.value=Math.max(1,host.clientHeight||innerHeight);
-  starState.frame={sun,auScale,pcScale,orientation,days,ob,eclipticJ2000ToGalactic};
+  starState.frame={sun,auScale,pcScale,orientation,days,ob,earthPositionAU,heliocentric:nearEarthTracking,eclipticJ2000ToGalactic};
   return starState.frame;
  }
  function addGaiaPoints(rows){
@@ -297,8 +322,9 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  }
  function updateLabels(sun,pcScale,orientation,distance){
   const moon=getMoonPosition?getMoonPosition():new THREE.Vector3(8,.7,-1.4);
+  const earthWorld=bodyMap.get('earth')?.mesh.getWorldPosition(new THREE.Vector3())||new THREE.Vector3(0,0,0);
   const specs=[
-   ['earth',new THREE.Vector3(0,1.34,0),1.34],
+   ['earth',earthWorld.clone().add(new THREE.Vector3(0,1.34,0)),1.34],
    ['moon',moon.clone().add(new THREE.Vector3(0,.45,0)),.45],
    ['sun',sun.clone().add(new THREE.Vector3(0,1.46,0)),1.46]
   ];
@@ -331,11 +357,13 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   }
  }
  function update(){
-  if(state.status==='disposed'||!starState.frame)return;
-   const {sun,auScale,pcScale,orientation,days,ob}=starState.frame;
+  if(state.status==='disposed')return;
+  const frame=applyFrame();
+  if(!frame)return;
+   const {sun,auScale,pcScale,orientation,days,ob}=frame;
   const distance=camera.position.distanceTo(new THREE.Vector3(0,0,0));
   const focusedPlanet=selectedBody&&planetMeshes.has(selectedBody);
-  const progress=focusedPlanet?1:clamp((distance-solarRevealLimit)/10,0,1);
+  const progress=state.nearEarthTrackingMode?1:focusedPlanet?1:clamp((distance-solarRevealLimit)/10,0,1);
   solarRoot.visible=progress>.001||!!focusedPlanet;
   planetMaterials.forEach(m=>{m.opacity=Math.max(.001,progress);});
   orbitMaterials.forEach(m=>{m.opacity=.24*progress;});
@@ -361,13 +389,13 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
  function getBody(name){return bodyMap.get(String(name||'').toLowerCase())||null}
  const saturnController=initBridgePointSaturnSystem({
   THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
-  getSaturnPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Saturn'),f.days,f.ob).applyQuaternion(f.orientation.clone().invert()).multiplyScalar(f.auScale):null},
+  getSaturnPosition:()=>{const f=starState.frame;if(!f)return null;const p=planetPos(THREE,PLANETS.find(p=>p.name==='Saturn'),f.days,f.ob);return (f.heliocentric?eclipticJ2000ToGalactic(p):p.applyQuaternion(f.orientation.clone().invert())).multiplyScalar(f.auScale)},
   getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3(),
   getSelectedBody:()=>selectedBody,isMobile
  });
  const marsController=initBridgePointMarsSystem({
   THREE,solarRoot,host,camera,bodyMap,planetMeshes,clickables,labelsGroup,labelMap,
-  getMarsPosition:()=>{const f=starState.frame;return f?planetPos(THREE,PLANETS.find(p=>p.name==='Mars'),f.days,f.ob).applyQuaternion(f.orientation.clone().invert()).multiplyScalar(f.auScale):null},
+  getMarsPosition:()=>{const f=starState.frame;if(!f)return null;const p=planetPos(THREE,PLANETS.find(p=>p.name==='Mars'),f.days,f.ob);return (f.heliocentric?eclipticJ2000ToGalactic(p):p.applyQuaternion(f.orientation.clone().invert())).multiplyScalar(f.auScale)},
   getSunPosition:()=>getSunPosition?getSunPosition():new THREE.Vector3(),
   getSelectedBody:()=>selectedBody,isMobile
  });
@@ -404,6 +432,13 @@ for(const p of PLANETS.filter(p=>p.name!=='Earth')){
   version:BUILD,state,
   update,
   getFrame(){return applyFrame()},
+  setNearEarthTrackingMode(enabled){
+   state.nearEarthTrackingMode=Boolean(enabled);
+   starState.frame=null;
+   applyFrame();update();
+   return state.nearEarthTrackingMode;
+  },
+  getEarthPosition(){return bodyMap.get('earth')?.mesh.getWorldPosition(new THREE.Vector3())||new THREE.Vector3(0,0,0)},
   getBody,
   setSelection,
   clearSelection,

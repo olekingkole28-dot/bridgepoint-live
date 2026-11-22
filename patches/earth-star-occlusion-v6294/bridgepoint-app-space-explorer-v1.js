@@ -4,7 +4,7 @@
  */
 (() => {
   'use strict';
-  const BUILD = 'v6308-neo-galactic-space';
+  const BUILD = 'v6309-heliocentric-earth';
   if (window.__BP_APP_SPACE_EXPLORER_V1__?.build === BUILD) return;
 
   const STYLE_ID = 'bpAppSpaceExplorerStylesV1';
@@ -88,20 +88,65 @@
       return api && typeof api === 'object' && typeof api.mountTo === 'function' ? api : null;
     }
 
-    function syncMapCanvas(distanceRatio) {
-      const mapCanvas = window.__BP_LANDING_WORLD__?.map?.getCanvas?.()
-        || window.__BP_V5000_WORLD__?.map?.getCanvas?.()
-        || map.querySelector('canvas.maplibregl-canvas');
+    function getMapInstance() {
+      const activeElement = document.getElementById('liveMap') || document.getElementById('previewMap');
+      const candidates = [
+        window.__BP_V5000_WORLD__?.map,
+        window.__bpWorldV2300?.map,
+        window.__BP_LANDING_WORLD__?.map,
+        window.__BP_WORLD__?.map,
+      ].filter((candidate, index, list) => candidate && list.indexOf(candidate) === index);
+      if (activeElement) {
+        const active = candidates.find(candidate => {
+          const container = candidate.getContainer?.();
+          return container && (container === activeElement || activeElement.contains(container) || container.contains(activeElement));
+        });
+        if (active) return active;
+      }
+      return candidates[0] || null;
+    }
+
+    function syncMapCanvas(distanceRatio, earthProjection) {
+      const mapInstance = getMapInstance();
+      const mapCanvas = mapInstance?.getCanvas?.() || map.querySelector('canvas.maplibregl-canvas');
       if (!mapCanvas) return null;
-      const ratio = Number(distanceRatio);
-      const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
-      const scale = Math.max(0.000001, Math.min(1, 1 / safeRatio));
-      const previous = Number(mapCanvas.dataset.bpSpaceScale || 1);
-      if (!Number.isFinite(previous) || Math.abs(scale - previous) > Math.max(0.0000001, previous * 0.001)) {
+      if (mapCanvas.dataset.bpSpaceVisibilitySaved !== '1') {
+        mapCanvas.dataset.bpSpacePriorVisibility = mapCanvas.style.visibility || '';
+        mapCanvas.dataset.bpSpaceVisibilitySaved = '1';
+      }
+      const host = overlay?.querySelector('.bpw-celestial-system');
+      const hostRect = host?.getBoundingClientRect?.();
+      const mapRect = mapInstance?.getContainer?.()?.getBoundingClientRect?.();
+      let scale;
+      let transform;
+      if (earthProjection && Number.isFinite(earthProjection.x) && Number.isFinite(earthProjection.y) && Number.isFinite(earthProjection.radiusPx)) {
+        if (earthProjection.visible === false) {
+          mapCanvas.style.visibility = 'hidden';
+          return 0;
+        }
+        mapCanvas.style.visibility = mapCanvas.dataset.bpSpacePriorVisibility;
+        const originX = hostRect && mapRect ? hostRect.left - mapRect.left : 0;
+        const originY = hostRect && mapRect ? hostRect.top - mapRect.top : 0;
+        const targetX = originX + earthProjection.x;
+        const targetY = originY + earthProjection.y;
+        const baseRadius = Math.max(1, 512 * Math.pow(2, Number(mapInstance?.getZoom?.()) || 0) / (Math.PI * 2));
+        scale = Math.max(0.000001, Math.min(8, earthProjection.radiusPx / baseRadius));
+        const dx = targetX - (mapRect?.width || window.innerWidth) / 2;
+        const dy = targetY - (mapRect?.height || window.innerHeight) / 2;
+        transform = 'translate3d(' + dx.toFixed(2) + 'px,' + dy.toFixed(2) + 'px,0) scale(' + scale.toFixed(8) + ')';
+      } else {
+        mapCanvas.style.visibility = mapCanvas.dataset.bpSpacePriorVisibility;
+        const ratio = Number(distanceRatio);
+        const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+        scale = Math.max(0.000001, Math.min(1, 1 / safeRatio));
+        transform = scale < 0.999999 ? 'scale(' + scale.toFixed(8) + ')' : '';
+      }
+      if (mapCanvas.dataset.bpSpaceTransform !== transform) {
         mapCanvas.style.transformOrigin = '50% 50%';
-        mapCanvas.style.transform = scale < 0.999999 ? 'scale(' + scale.toFixed(8) + ')' : '';
-        mapCanvas.style.willChange = scale < 0.999999 ? 'transform' : '';
+        mapCanvas.style.transform = transform;
+        mapCanvas.style.willChange = transform ? 'transform' : '';
         mapCanvas.dataset.bpSpaceScale = String(scale);
+        mapCanvas.dataset.bpSpaceTransform = transform;
       }
       return scale;
     }
@@ -110,8 +155,7 @@
       const deadline = Date.now() + 15000;
       let mapInstance = null;
       while (Date.now() < deadline) {
-        const world = window.__bpWorldV2300 || window.__BP_LANDING_WORLD__ || window.__BP_WORLD__ || window.__BP_V5000_WORLD__;
-        const candidate = world?.map;
+        const candidate = getMapInstance();
         if (candidate && (typeof candidate.jumpTo === 'function' || typeof candidate.flyTo === 'function')) { mapInstance = candidate; break; }
         await new Promise(resolve => window.setTimeout(resolve, 100));
       }
@@ -141,7 +185,8 @@
         host.setAttribute('aria-hidden', 'true');
         overlay.appendChild(host);
       }
-      map.appendChild(overlay);
+      const activeMapElement = document.getElementById('liveMap') || document.getElementById('previewMap') || map;
+      activeMapElement.appendChild(overlay);
       return overlay;
     }
 
@@ -173,7 +218,7 @@
       const current = getRenderer();
       if (current) return current;
       if (!loading) {
-        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6402-neo-galactic-frame&space=app-explorer-v1')
+        loading = import('/bridgepoint-welcome-space-v6260.js?v=v6403-heliocentric-earth&space=app-explorer-v1')
           .then(() => {
             const api = getRenderer();
             if (!api) throw new Error('The 3D celestial scene did not register its renderer');

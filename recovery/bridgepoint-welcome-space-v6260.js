@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6402-neo-galactic-frame';
+  const VERSION = 'v6403-heliocentric-earth';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -234,6 +234,8 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   moonPivot.add(moonMesh);
 
   let sunPosition = new THREE.Vector3(2.05,4.6,3.4);
+  let nearEarthOrbitMode = false;
+  let savedNearEarthSunPosition = null;
   // Cinematic overview compresses inter-body distance and disk scale; ground sky uses apparent angular diameter.
   const sunRadiusVisual = 1.22;
   const solarReliefScale = 0.0065;
@@ -2057,6 +2059,48 @@ function createMoonTerrainController() {
     overviewBaseDistance=Math.hypot(4.2,distance);lastSpaceZoomDistance=NaN;
     animateCamera(new THREE.Vector3(0,4.2,distance),new THREE.Vector3(0,0,0),1.25);
   }
+  function setNearEarthOrbitMode(enabled){
+    const next=Boolean(enabled);
+    if(next===nearEarthOrbitMode)return next;
+    if(next){
+      savedNearEarthSunPosition=sunPosition.clone();
+      nearEarthOrbitMode=true;
+      solarCosmos?.setNearEarthTrackingMode?.(true);
+      sunPosition.set(0,0,0);
+      sunGroup.position.set(0,0,0);
+      sunLight.position.set(0,0,0);
+      keyLight.visible=false;
+      stars.position.set(0,0,0);
+    }else{
+      nearEarthOrbitMode=false;
+      if(savedNearEarthSunPosition)sunPosition.copy(savedNearEarthSunPosition);
+      else setResponsiveSunPosition();
+      savedNearEarthSunPosition=null;
+      sunGroup.position.copy(sunPosition);
+      sunLight.position.copy(sunPosition);
+      keyLight.visible=true;
+      keyLight.position.copy(sunPosition).normalize().multiplyScalar(100);
+      stars.position.copy(sunPosition);
+      solarCosmos?.setNearEarthTrackingMode?.(false);
+    }
+    lastSpaceZoomDistance=NaN;lastSpaceZoomSyncAt=0;
+    solarCosmos?.update?.();
+    return nearEarthOrbitMode;
+  }
+  function focusHeliocentricOverview(distance=32){
+    setNearEarthOrbitMode(true);
+    focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;saturnFocusMesh=null;saturnFocusLocalTarget=null;focusedPlanetRadius=0;
+    solarCosmos?.clearSelection?.();if(bodyPicker)bodyPicker.value='';
+    viewState='overview';scene.background=null;moonTerrainController?.setActive(false);
+    camera.near=.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
+    earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
+    const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
+    const baseline=aspect<.72?20.5:aspect<1?18.5:16.5;
+    overviewBaseDistance=Math.hypot(4.2,baseline);lastSpaceZoomDistance=NaN;lastSpaceZoomSyncAt=0;
+    const direction=new THREE.Vector3(0,4.2,baseline).normalize();
+    animateCamera(direction.multiplyScalar(THREE.MathUtils.clamp(Number(distance)||32,22,240)),new THREE.Vector3(0,0,0),1.2);
+    return true;
+  }
   function focusSpaceOverview(distance=32){
     resetView();
     const aspect=canvas.clientWidth/Math.max(1,canvas.clientHeight);
@@ -2084,7 +2128,7 @@ function createMoonTerrainController() {
   function ensureSolarCosmos(){
     if(solarCosmos)return Promise.resolve(solarCosmos);
     if(!solarCosmosPromise){
-      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6402-neo-galactic-frame').then(module=>{
+      solarCosmosPromise=import('./bridgepoint-gaia-galaxy-v6270.js?v=6403-heliocentric-earth').then(module=>{
         if(!solarCosmos)solarCosmos=module.initBridgePointSolarCosmos({
           THREE,scene,camera,canvas,host,controls,starsGroup:stars,
           getSunPosition:()=>sunPosition.clone(),
@@ -2649,8 +2693,13 @@ function createMoonTerrainController() {
     const orbitCompression=aspect<.72?.055:aspect<1?.085:.14;
     const orbitRadius=MOON_ORBIT_KM/EARTH_RADIUS_KM*orbitCompression;
     if(viewState!=='moon'){
-      moonPivot.position.set(0,0,0);
+      if(nearEarthOrbitMode)moonPivot.position.copy(earth.position);
+      else moonPivot.position.set(0,0,0);
       moonMesh.position.set(orbitRadius*Math.cos(trueAnomaly),Math.sin(trueAnomaly)*Math.sin(inclination)*orbitRadius,orbitRadius*Math.sin(trueAnomaly));
+      if(nearEarthOrbitMode){
+        const transform=solarCosmos?.getFrame?.()?.eclipticJ2000ToGalactic;
+        if(typeof transform==='function')moonMesh.position.copy(transform(moonMesh.position.clone()));
+      }
       moonMesh.lookAt(earth.position);
       moonMesh.quaternion.multiply(moonUserRotation);
     }
@@ -2666,7 +2715,22 @@ function createMoonTerrainController() {
       if(!Number.isFinite(lastSpaceZoomDistance)
         ||Math.abs(spaceDistance-lastSpaceZoomDistance)>Math.max(.001,spaceDistance*.002)
         ||t-lastSpaceZoomSyncAt>.12){
-        window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__?.(spaceZoomRatio);
+        const earthProjection=nearEarthOrbitMode?(()=>{
+          camera.updateMatrixWorld(true);
+          const hostRect=canvas.getBoundingClientRect();
+          const center=earth.getWorldPosition(new THREE.Vector3());
+          const ndc=center.clone().project(camera);
+          if(ndc.z<-1||ndc.z>1)return {visible:false,x:0,y:0,radiusPx:0};
+          const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+          const edge=center.clone().addScaledVector(right,1).project(camera);
+          return {
+            visible:true,
+            x:(ndc.x+1)*.5*hostRect.width,
+            y:(1-ndc.y)*.5*hostRect.height,
+            radiusPx:Math.max(0.5,Math.abs(edge.x-ndc.x)*.5*hostRect.width)
+          };
+        })():null;
+        window.__BP_WELCOME_SYNC_SPACE_ZOOM_V1__?.(spaceZoomRatio,earthProjection);
         lastSpaceZoomDistance=spaceDistance;lastSpaceZoomSyncAt=t;
       }
     }else if(lastSpaceZoomDistance!==0){
@@ -2731,6 +2795,8 @@ function createMoonTerrainController() {
     getCamera(){return camera},
     loadSolarCosmos(){return ensureSolarCosmos()},
     focusSpaceOverview,
+    focusHeliocentricOverview,
+    setNearEarthOrbitMode,
     focusSpacePoint,
     mountTo(target){if(!target?.appendChild)return false;if(host.parentElement!==target)target.appendChild(host);resize();return true},
     pause(){renderActive=false},
