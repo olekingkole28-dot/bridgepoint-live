@@ -344,7 +344,7 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1.js?v=6526-global-power-outages-v2" data-bp-deferred-kind="classic"></script>'
+          tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1.js?v=6527-global-power-outages-v3" data-bp-deferred-kind="classic"></script>'
           priority="  'bridgepoint-power-outages-v1.js',\n"
           view_priority="  'bridgepoint-view-v5917.js',\n"
           pattern=re.compile(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-power-outages-v1\.js[^"]*" data-bp-deferred-kind="classic"></script>',re.I)
@@ -421,7 +421,7 @@ jobs:
           ORIGIN='https://bridgepointintelligence.online'
           DIR="$RUNNER_TEMP/bp-power-outages-live"
           mkdir -p "$DIR"
-          TAG='bridgepoint-power-outages-v1.js?v=6526-global-power-outages-v2'
+          TAG='bridgepoint-power-outages-v1.js?v=6527-global-power-outages-v3'
           for attempt in $(seq 1 18); do
             nonce="$GITHUB_SHA-power-outages-$attempt"
             curl --max-time 30 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$nonce" -o "$DIR/root.html" || true
@@ -436,10 +436,13 @@ jobs:
             fi
             sleep 5
           done
-          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-power-outages-v1.js?v=6526-global-power-outages-v2&verify=$GITHUB_SHA" -o "$DIR/power.js"
-          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bp-power-outages-seed-v1.json?v=6526-global-power-outages-v2&verify=$GITHUB_SHA" -o "$DIR/seed.json"
+          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-power-outages-v1.js?v=6527-global-power-outages-v3&verify=$GITHUB_SHA" -o "$DIR/power.js"
+          curl --retry 5 --retry-all-errors --retry-delay 2 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bp-power-outages-seed-v1.json?v=6527-global-power-outages-v3&verify=$GITHUB_SHA" -o "$DIR/seed.json"
           python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["countyMarkers"]["features"]; print("LIVE_INSTANT_OUTAGE_MARKERS",len(d["countyMarkers"]["features"]))' "$DIR/seed.json"
           grep -Fq 'bp-global-outage-counties-v1' "$DIR/power.js"
+          grep -Fq 'bp-global-outage-county-markers-v3' "$DIR/power.js"
+          grep -Fq 'bp-global-outage-county-dots-v3' "$DIR/power.js"
+          grep -Fq 'bp-global-outage-report-dots-v3' "$DIR/power.js"
           grep -Fq 'https://ornl.opendatasoft.com/api/explore/v2.1/catalog/datasets/odin-real-time-outages-county/records' "$DIR/power.js"
           grep -Fq 'https://powercut.io/api/now.json' "$DIR/power.js"
           grep -Fq 'Coverage follows participating public reporting feeds' "$DIR/power.js"
