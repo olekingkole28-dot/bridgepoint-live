@@ -42,16 +42,48 @@ jobs:
           RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100" --jq '.workflow_runs[] | select(.path == ".github/workflows/deploy-intelligence-rebuild-v5000.yml") | .id' | head -n 1 || true)"
           if [ -z "$RUN_ID" ]; then
             echo "No same-commit full-site build is registered; using the latest successful production snapshot."
-            exit 0
+          else
+            echo "Waiting for full-site build run $RUN_ID."
+            while true; do
+              STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')"
+              CONCLUSION="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion // ""')"
+              if [ "$STATUS" = "completed" ]; then
+                echo "FULL_SITE_BUILD_FINISHED run=$RUN_ID conclusion=$CONCLUSION"
+                break
+              fi
+              sleep 15
+            done
           fi
-          echo "Waiting for full-site build run $RUN_ID."
+
+          echo "Waiting for other main-branch production publishers to finish."
+          shopt -s nocasematch
           while true; do
-            STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')"
-            CONCLUSION="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion // ""')"
-            if [ "$STATUS" = "completed" ]; then
-              echo "FULL_SITE_BUILD_FINISHED run=$RUN_ID conclusion=$CONCLUSION"
-              exit 0
+            ACTIVE_RUNS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&status=in_progress&per_page=100" --jq '.workflow_runs[] | [.id,.name,.path] | @tsv')"
+            QUEUED_RUNS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&status=queued&per_page=100" --jq '.workflow_runs[] | [.id,.name,.path] | @tsv')"
+            WAITING_ID=""
+            WAITING_NAME=""
+            while IFS=$'\t' read -r other_id other_name other_path; do
+              [ -n "$other_id" ] || continue
+              [ "$other_id" = "$GITHUB_RUN_ID" ] && continue
+              if [[ "$other_name $other_path" == *publish* || "$other_name $other_path" == *deploy* ]]; then
+                WAITING_ID="$other_id"
+                WAITING_NAME="$other_name"
+                break
+              fi
+            done <<< "$ACTIVE_RUNS"
+            if [ -z "$WAITING_ID" ]; then
+              while IFS=$'\t' read -r other_id other_name other_path; do
+                [ -n "$other_id" ] || continue
+                [ "$other_id" = "$GITHUB_RUN_ID" ] && continue
+                if [[ "$other_name $other_path" == *publish* || "$other_name $other_path" == *deploy* ]]; then
+                  WAITING_ID="$other_id"
+                  WAITING_NAME="$other_name"
+                  break
+                fi
+              done <<< "$QUEUED_RUNS"
             fi
+            [ -z "$WAITING_ID" ] && break
+            echo "WAITING_FOR_PRODUCTION_PUBLISH run=$WAITING_ID name=$WAITING_NAME"
             sleep 15
           done
 
@@ -62,14 +94,14 @@ jobs:
           GH_TOKEN: "${{ github.token }}"
         run: |
           set -euo pipefail
-          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&per_page=100" --jq '.workflow_runs[] | [.id,.head_sha,(.conclusion // "")] | @tsv')"
+          RUNS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&per_page=100" --jq '.workflow_runs[] | [.id,.head_sha,(.conclusion // "")] | @tsv')"
           BASELINE_ID=""
           ARTIFACT=""
           while IFS=$'\t' read -r run_id head_sha conclusion; do
             [ -n "$run_id" ] || continue
             [ "$head_sha" = "$GITHUB_SHA" ] && continue
             if [ "$conclusion" != "success" ]; then
-              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" --jq '[.jobs[] | select(.name == "publish") | .steps[]? | select(.name == "Publish the preserved production snapshot" and .conclusion == "success")] | length' 2>/dev/null || echo 0)"
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" --jq '[.jobs[] | .steps[]? | select(.name == "Publish the preserved production snapshot" and .conclusion == "success")] | length' 2>/dev/null || echo 0)"
               [ "${deployed:-0}" -gt 0 ] || continue
             fi
             candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
