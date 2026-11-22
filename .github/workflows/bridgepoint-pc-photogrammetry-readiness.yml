@@ -1,0 +1,43 @@
+name: BridgePoint PC Photogrammetry Readiness
+on:
+  push:
+    branches:
+      - codex/pc-photogrammetry-readiness
+    paths:
+      - .github/workflows/bridgepoint-pc-photogrammetry-readiness.yml
+permissions:
+  contents: read
+concurrency:
+  group: bridgepoint-pc-photogrammetry-readiness
+  cancel-in-progress: false
+jobs:
+  inspect-pc:
+    runs-on: [self-hosted, windows, x64, horizon-ue58, gpu]
+    timeout-minutes: 5
+    steps:
+      - name: Read local compute availability without exposing credentials
+        shell: pwsh
+        run: |
+          $os = Get-CimInstance Win32_OperatingSystem
+          Write-Output ("OS=" + $os.Caption)
+          Write-Output ("ARCH=" + $os.OSArchitecture)
+          Write-Output ("CPU_THREADS=" + [Environment]::ProcessorCount)
+          Write-Output ("RAM_GB=" + [math]::Round($os.TotalVisibleMemorySize / 1MB, 1))
+          foreach ($tool in @("nvidia-smi", "docker", "cloudflared", "python", "colmap", "odm", "nodeodm")) {
+            if (Get-Command $tool -ErrorAction SilentlyContinue) {
+              Write-Output ("AVAILABLE=" + $tool)
+            }
+          }
+          if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
+            nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
+          }
+          if (Get-Command docker -ErrorAction SilentlyContinue) {
+            docker info --format "DOCKER_SERVER={{.ServerVersion}}" 2>$null
+          }
+          $ports = @(8765, 3000, 8000)
+          foreach ($port in $ports) {
+            $listener = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($listener) { Write-Output ("LISTENING_PORT=" + $port) }
+          }
+          $processes = Get-Process -Name "cloudflared", "python", "docker" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique
+          foreach ($process in $processes) { Write-Output ("PROCESS=" + $process) }
