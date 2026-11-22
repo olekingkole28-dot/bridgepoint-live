@@ -23,7 +23,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
   const state = {
     items: [], selectedId: '', checkedAt: 0, loading: false, open: false,
     simulationPaused: false, simulationTime: Date.now(), simulationLastAt: 0,
-    orbitCatalog: null, orbitEpoch: null, unmatched: 0, mapCamera: null,
+    orbitCatalog: null, orbitEpoch: null, unmatched: 0, mapCamera: null, mapInteractions: null,
     viewYaw: 0.10, viewPitch: 0.08, cameraDistance: 8.6, dataLoading: false, dockVisualState: null,
   };
   const scene3d = {
@@ -158,6 +158,35 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     state.dockVisualState = null;
   }
 
+  const MAP_INTERACTIONS = ['scrollZoom', 'boxZoom', 'dragRotate', 'dragPan', 'keyboard', 'doubleClickZoom', 'touchZoomRotate', 'touchPitch'];
+
+  function lockMapInteractions(map) {
+    if (state.mapInteractions) return;
+    state.mapInteractions = {};
+    for (const name of MAP_INTERACTIONS) {
+      const handler = map[name];
+      if (!handler || typeof handler.disable !== 'function') {
+        state.mapInteractions[name] = null;
+        continue;
+      }
+      const wasEnabled = typeof handler.isEnabled === 'function' ? handler.isEnabled() : true;
+      state.mapInteractions[name] = wasEnabled;
+      if (wasEnabled) handler.disable();
+    }
+  }
+
+  function restoreMapInteractions(map) {
+    const saved = state.mapInteractions;
+    state.mapInteractions = null;
+    if (!map || !saved) return;
+    for (const [name, wasEnabled] of Object.entries(saved)) {
+      const handler = map[name];
+      if (!handler) continue;
+      if (wasEnabled === true) handler.enable?.();
+      else if (wasEnabled === false) handler.disable?.();
+    }
+  }
+
   function fullGlobeZoom() {
     const shortestSide = Math.min(window.innerWidth || 390, window.innerHeight || 780);
     const fittedZoom = Math.max(0.75, Math.min(2.7, Math.log2((shortestSide * 0.80) / (512 / Math.PI))));
@@ -178,18 +207,17 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         maxZoom: map.getMaxZoom?.(),
       } : null;
     }
-    const targetZoom = Math.min(Number(map.getZoom?.() ?? fullGlobeZoom()), fullGlobeZoom());
-    const minZoom = Number(map.getMinZoom?.() ?? 0);
-    if (minZoom > targetZoom) map.setMinZoom?.(targetZoom);
+    const fittedZoom = fullGlobeZoom();
+    const currentZoom = Number(map.getZoom?.());
+    const targetZoom = Number.isFinite(currentZoom) ? Math.min(currentZoom, fittedZoom) : fittedZoom;
+    map.stop?.();
+    map.resize?.();
+    lockMapInteractions(map);
+    map.setMinZoom?.(targetZoom);
     map.setMaxZoom?.(targetZoom);
-    map.flyTo({
-      center: [0, 18],
-      zoom: targetZoom,
-      pitch: 0,
-      bearing: 0,
-      duration: Math.abs(Number(map.getZoom?.() ?? targetZoom) - targetZoom) < 0.04 ? 450 : 1850,
-      essential: true,
-    });
+    const view = { center: [0, 18], zoom: targetZoom, pitch: 0, bearing: 0, essential: true };
+    if (typeof map.jumpTo === 'function') map.jumpTo(view);
+    else map.flyTo({ ...view, duration: 0 });
     return true;
   }
 
@@ -197,9 +225,15 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const map = getBridgePointMap();
     const camera = state.mapCamera;
     state.mapCamera = null;
-    if (!map || !camera?.center || !Number.isFinite(camera.zoom)) return;
-    if (Number.isFinite(camera.maxZoom)) map.setMaxZoom?.(camera.maxZoom);
-    if (Number.isFinite(camera.minZoom)) map.setMinZoom?.(camera.minZoom);
+    if (!map) {
+      state.mapInteractions = null;
+      return;
+    }
+    map.stop?.();
+    if (Number.isFinite(camera?.maxZoom)) map.setMaxZoom?.(camera.maxZoom);
+    if (Number.isFinite(camera?.minZoom)) map.setMinZoom?.(camera.minZoom);
+    restoreMapInteractions(map);
+    if (!camera?.center || !Number.isFinite(camera.zoom)) return;
     map.flyTo({
       center: camera.center,
       zoom: camera.zoom,
@@ -1117,7 +1151,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     installButton();
     window.setInterval(installButton, 1200);
     window.addEventListener('resize', () => {
-      if (state.open) renderMarkers();
+      if (state.open) {
+        focusGlobalMap();
+        renderMarkers();
+      }
     }, { passive: true });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && scene3d.frame) {
