@@ -102,7 +102,7 @@ jobs:
           import hashlib,json,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          targets={'index.html','app/index.html','bridgepoint-iconic-wonders-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -123,21 +123,30 @@ jobs:
           print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
           PY
 
-      - name: Overlay the World Wonders module on both live entrypoints
+      - name: Restore World Wonders and Water + Flow loaders on both entrypoints
         shell: bash
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-site"
           cp rebuild-v5000/bridgepoint-iconic-wonders-v1.js "$SITE/bridgepoint-iconic-wonders-v1.js"
+          cp rebuild-v5000/bridgepoint-water-flow-buoys-v1.js "$SITE/bridgepoint-water-flow-buoys-v1.js"
           python3 - <<'PY'
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
           app_tag='<script defer src="/bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders"></script>'
           root_tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders" data-bp-deferred-kind="classic"></script>'
+          water_tag='<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-water-flow-buoys-v1.js?v=6524-globe-boundary-clip" data-bp-deferred-kind="classic"></script>'
+          water_priority="  'bridgepoint-water-flow-buoys-v1.js',\n"
+          drone_priority="  'bridgepoint-drone-awareness-v1.js',\n"
           for rel,tag in [('index.html',root_tag),('app/index.html',app_tag)]:
               path=site/rel
               html=path.read_text(encoding='utf-8')
+              html=re.sub(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-water-flow-buoys-v1\.js[^"]*" data-bp-deferred-kind="classic"></script>','',html,flags=re.I)
+              if water_priority not in html:
+                  if drone_priority not in html:
+                      raise SystemExit(rel+' deferred queue is missing the Aircraft priority anchor')
+                  html=html.replace(drone_priority,drone_priority+water_priority,1)
               if rel=='index.html':
                   html=re.sub(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-iconic-wonders-v1\.js[^"]*" data-bp-deferred-kind="classic"></script>','',html,flags=re.I)
                   marker="  'bridgepoint-map-key-v5920.js',\n"
@@ -152,7 +161,7 @@ jobs:
                   script_start=html.rfind('<script',0,queue) if queue>=0 else -1
                   if queue<0 or script_start<0:
                       raise SystemExit('Root deferred feature queue script was not found')
-                  html=html[:script_start]+tag+'\n'+html[script_start:]
+                  html=html[:script_start]+tag+'\n'+water_tag+'\n'+html[script_start:]
                   if html.count('data-bp-deferred-src="/bridgepoint-iconic-wonders-v1.js') != 1:
                       raise SystemExit('Root entrypoint must queue exactly one World Wonders module')
               else:
@@ -164,6 +173,16 @@ jobs:
                       html=re.sub(r'</body>',tag+'\n</body>',html,flags=re.I,count=1)
                   if html.count('bridgepoint-iconic-wonders-v1.js') != 1:
                       raise SystemExit(rel+' must load exactly one World Wonders module')
+                  drone=re.search(r'<script type="application/x-bridgepoint-deferred" data-bp-deferred-src="/bridgepoint-drone-awareness-v1\.js[^"]*" data-bp-deferred-kind="classic"></script>',html,re.I)
+                  if not drone:
+                      raise SystemExit(rel+' deferred loader is missing the Aircraft anchor')
+                  html=html[:drone.end()]+'\n'+water_tag+html[drone.end():]
+              if html.count('bridgepoint-water-flow-buoys-v1.js') != 2:
+                  raise SystemExit(rel+' must contain one Water + Flow loader and one queue-priority entry')
+              if 'bridgepoint-power-outages-v1.js' not in html:
+                  raise SystemExit(rel+' lost its existing Power Outages loader')
+              if 'bridgepoint-view-v5917.js' not in html:
+                  raise SystemExit(rel+' lost its existing map/application loader')
               path.write_text(html,encoding='utf-8')
           source=Path('rebuild-v5000/app-index.html').read_text(encoding='utf-8')
           if app_tag not in source:
@@ -171,14 +190,21 @@ jobs:
           root_source=Path('rebuild-v5000/index.html').read_text(encoding='utf-8')
           if root_tag not in root_source or "'bridgepoint-iconic-wonders-v1.js'," not in root_source or root_source.index(root_tag)>root_source.index('const priority=['):
               raise SystemExit('Source root entrypoint is missing the deferred World Wonders loader')
+          for rel,html in [('root source',root_source),('app source',source)]:
+              if 'bridgepoint-water-flow-buoys-v1.js' not in html or "'bridgepoint-water-flow-buoys-v1.js'," not in html:
+                  raise SystemExit(rel+' is missing the Water + Flow loader/priority')
           module=Path('rebuild-v5000/bridgepoint-iconic-wonders-v1.js').read_text(encoding='utf-8')
           if module.count('modelId:') != 27 or 'total: 27' not in module or 'additional: 20' not in module:
-              raise SystemExit('Expected seven requested + twenty additional source records')
+              raise SystemExit('Expected seven requested + twenty additional World Wonders source records')
           if 'bpv-world-wonders-button-v1' not in module or 'Sketchfab' not in module:
               raise SystemExit('World Wonders button or embedded viewer contract missing')
-          print('WORLD_WONDERS_27_SOURCE_RECORDS_AND_BOTH_ENTRYPOINT_LOADERS_PASS')
+          water=Path('rebuild-v5000/bridgepoint-water-flow-buoys-v1.js').read_text(encoding='utf-8')
+          if 'window.__BP_WATER_FLOW_BUOYS_V1__' not in water:
+              raise SystemExit('Water + Flow module state contract missing')
+          print('WORLD_WONDERS_AND_WATER_FLOW_LOADERS_PASS_OUTAGE_LOADER_RETAINED')
           PY
           node --check rebuild-v5000/bridgepoint-iconic-wonders-v1.js
+          node --check rebuild-v5000/bridgepoint-water-flow-buoys-v1.js
 
       - name: Prove no non-target production files changed
         shell: bash
@@ -191,7 +217,7 @@ jobs:
           tmp=Path(os.environ['RUNNER_TEMP'])
           before=json.loads((tmp/'bp-wonders-preservation-before.json').read_text())
           target_before=json.loads((tmp/'bp-wonders-target-before.json').read_text())
-          targets={'index.html','app/index.html','bridgepoint-iconic-wonders-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
@@ -242,6 +268,13 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-wonders" -o "$DIR/app.html"
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-iconic-wonders-v1.js?verify=$GITHUB_SHA-wonders" -o "$DIR/module.js"
           cmp -s "$DIR/module.js" rebuild-v5000/bridgepoint-iconic-wonders-v1.js
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/bridgepoint-water-flow-buoys-v1.js?verify=$GITHUB_SHA-water-flow" -o "$DIR/water.js"
+          cmp -s "$DIR/water.js" rebuild-v5000/bridgepoint-water-flow-buoys-v1.js
+          grep -Fq 'bridgepoint-water-flow-buoys-v1.js?v=6524-globe-boundary-clip' "$DIR/root.html"
+          grep -Fq 'bridgepoint-water-flow-buoys-v1.js?v=6524-globe-boundary-clip' "$DIR/app.html"
+          grep -Fq 'bridgepoint-power-outages-v1.js' "$DIR/root.html"
+          grep -Fq 'bridgepoint-power-outages-v1.js' "$DIR/app.html"
+          grep -Fq '__BP_WATER_FLOW_BUOYS_V1__' "$DIR/water.js"
           grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders' "$DIR/root.html"
           grep -Fq 'bridgepoint-iconic-wonders-v1.js?v=6514-global-world-wonders' "$DIR/app.html"
           python3 - "$DIR/root.html" <<'PY'
