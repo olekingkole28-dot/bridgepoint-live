@@ -7,9 +7,6 @@ on:
       - .github/workflows/bridgepoint-pc-photogrammetry-readiness.yml
 permissions:
   contents: read
-concurrency:
-  group: bridgepoint-pc-photogrammetry-readiness
-  cancel-in-progress: false
 jobs:
   inspect-pc:
     runs-on: [self-hosted, windows, x64, horizon-ue58, gpu]
