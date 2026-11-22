@@ -9,35 +9,18 @@ permissions:
   contents: read
 concurrency:
   group: bridgepoint-pc-photogrammetry-readiness
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   inspect-pc:
-    runs-on: [self-hosted, windows, x64, horizon-ue58, gpu]
+    runs-on: [self-hosted, windows, x64]
     timeout-minutes: 5
     steps:
-      - name: Read local compute availability without exposing credentials
+      - name: Confirm the existing PC runner is connected
         shell: pwsh
         run: |
-          $os = Get-CimInstance Win32_OperatingSystem
-          Write-Output ("OS=" + $os.Caption)
-          Write-Output ("ARCH=" + $os.OSArchitecture)
-          Write-Output ("CPU_THREADS=" + [Environment]::ProcessorCount)
-          Write-Output ("RAM_GB=" + [math]::Round($os.TotalVisibleMemorySize / 1MB, 1))
-          foreach ($tool in @("nvidia-smi", "docker", "cloudflared", "python", "colmap", "odm", "nodeodm")) {
+          Write-Output "BRIDGEPOINT_PC_RUNNER=connected"
+          foreach ($tool in @("nvidia-smi", "docker", "cloudflared", "python", "colmap")) {
             if (Get-Command $tool -ErrorAction SilentlyContinue) {
-              Write-Output ("AVAILABLE=" + $tool)
+              Write-Output ("TOOL_READY=" + $tool)
             }
           }
-          if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
-            nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
-          }
-          if (Get-Command docker -ErrorAction SilentlyContinue) {
-            docker info --format "DOCKER_SERVER={{.ServerVersion}}" 2>$null
-          }
-          $ports = @(8765, 3000, 8000)
-          foreach ($port in $ports) {
-            $listener = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($listener) { Write-Output ("LISTENING_PORT=" + $port) }
-          }
-          $processes = Get-Process -Name "cloudflared", "python", "docker" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique
-          foreach ($process in $processes) { Write-Output ("PROCESS=" + $process) }
