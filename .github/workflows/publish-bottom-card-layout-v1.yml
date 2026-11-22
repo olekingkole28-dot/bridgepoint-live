@@ -129,6 +129,7 @@ jobs:
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/bp-site"
+          cp rebuild-v5000/bridgepoint-bottom-card-categories-v1.js "$SITE/bridgepoint-bottom-card-categories-v1.js"
           python3 - <<'PY'
           import re,os
           from pathlib import Path
