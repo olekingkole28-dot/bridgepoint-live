@@ -16,7 +16,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
 (() => {
   'use strict';
-  const VERSION = 'v6411-earth-centered-visible-planets';
+  const VERSION = 'v6412-small-asteroid-markers-earth-backdrop';
   if (window.__BP_WELCOME_SPACE_V6257__?.version) return;
   const host = document.querySelector('#bpWelcomeGateV1 .bpw-celestial-system');
   if (!host) return;
@@ -2124,14 +2124,14 @@ function createMoonTerrainController() {
     const direction=new THREE.Vector3(0,4.2,baseline).normalize();
     animateCamera(direction.multiplyScalar(THREE.MathUtils.clamp(Number(distance)||32,22,240)),new THREE.Vector3(0,0,0),1.2);
   }
-  function focusSpacePoint(position,distance=1.65){
+  function focusSpacePoint(position,distance=1.65,viewDirection=null){
     if(!position?.isVector3)return false;
     focusedObject=null;focusLocalTarget=null;sunFocusLocalTarget=null;saturnFocusMesh=null;saturnFocusLocalTarget=null;focusedPlanetRadius=0;
     solarCosmos?.clearSelection?.();if(bodyPicker)bodyPicker.value='';
     viewState='overview';scene.background=null;moonTerrainController?.setActive(false);
     camera.near=.001;camera.up.set(0,1,0);camera.fov=48;camera.updateProjectionMatrix();
     earth.visible=true;moonPivot.visible=true;sunGroup.visible=true;stars.visible=true;haze.visible=true;
-    const point=position.clone(),direction=point.clone().normalize();
+    const point=position.clone(),direction=viewDirection?.isVector3?viewDirection.clone().normalize():point.clone().normalize();
     if(direction.lengthSq()<1e-12)direction.set(0,0,1);
     target.copy(point);
     const offset=THREE.MathUtils.clamp(Number(distance)||1.65,.45,20);

@@ -151,7 +151,7 @@ jobs:
           import re,os
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
-          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.4"></script>'
+          script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.5"></script>'
           module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
           welcome=Path('patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js').read_text(encoding='utf-8')
           app=Path('patches/earth-star-occlusion-v6294/bridgepoint-app-space-explorer-v1.js').read_text(encoding='utf-8')
@@ -169,7 +169,7 @@ jobs:
               if count not in (0,expected): raise SystemExit(name+' expected either no remaining cloud starts or '+str(expected)+' original starts; found '+str(count))
               if cloud_call.search(after): raise SystemExit(name+' still auto-starts procedural 3D clouds')
               path.write_text(after,encoding='utf-8')
-          required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function ensureSharedSpace()','function buildSpaceObjects()','function rawRelativePositionAU','function displayPosition','new THREE.CatmullRomCurve3(pathPoints, true','full 3D nominal orbits','heliocentric ? objectHeliocentric','window.__BP_NEO_SIMULATION_TIME_V1__','setBearing?.(bearing)','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','Earth centered · true orbital positions · planet models enlarged for visibility','const orbitPathGeometry = new THREE.BufferGeometry().setFromPoints(orbitCurve.getPoints(640))','const orbitGlow = new THREE.LineLoop(','selectedOrbitCoreColor','obj.orbitLine.material.color.copy','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','import * as THREE from')
+          required=('#bpv-dock-actions','bpv-v2-tool-button','function openPanel()','function ensureSharedSpace()','function buildSpaceObjects()','function rawRelativePositionAU','function displayPosition','new THREE.CatmullRomCurve3(pathPoints, true','full 3D nominal orbits','heliocentric ? objectHeliocentric','window.__BP_NEO_SIMULATION_TIME_V1__','setBearing?.(bearing)','DecompressionStream','MPC_FILE','Principal_desig','Other_desigs','SPACE OBJECT TRACKING','Earth centered · true orbital positions · planet models enlarged for visibility','const orbitPathGeometry = new THREE.BufferGeometry().setFromPoints(orbitCurve.getPoints(640))','const orbitGlow = new THREE.LineLoop(','selectedOrbitCoreColor','new THREE.SphereGeometry(0.0012, 12, 8)','new THREE.ConeGeometry(0.0022, 0.012, 8)','const worldPerPixel = ','selected ? Math.max(0.009, worldPerPixel * 8)','vertexColors: true','backdropDirection','obj.orbitLine.material.color.copy','data-neo-icons','data-neo-action="playpause"','NASA_FEED','nea_extended.json.gz','import * as THREE from')
           if not all(token in module for token in required):
               raise SystemExit('Overlay is missing its NASA feed, shared-space orbit paths, or object controls')
           if 'gold rods' in module.lower() or 'missRod' in module or 'approachCurve' in module or 'new THREE.WebGLRenderer' in module or 'new THREE.TubeGeometry(orbitCurve' in module:
@@ -184,7 +184,7 @@ jobs:
           if 'function setHeliocentricDisplayScale' not in gaia or 'Planet name callout rods' not in gaia or 'earthDepthMesh.userData.bpDisplayRadiusWorld=displayEarthRadius' not in gaia: raise SystemExit('The tracking view is missing visible 3D planet models or anchored labels')
           if 'const orbitCompression=nearEarthOrbitMode?1:' not in welcome: raise SystemExit('The Moon is not at its true Earth-relative distance in heliocentric view')
           if 'const toGalactic = frame?.eclipticJ2000ToGalactic' not in module or 'frame?.heliocentric ? objectHeliocentric' not in module: raise SystemExit('MPC heliocentric positions are not converted into BridgePoint galactic coordinates')
-          if 'v6311-earth-centered-visible-planets' not in app or 'focusGlobalMapForSpace' not in app or 'earthProjection.radiusPx' not in app:
+          if 'v6312-small-asteroid-markers-earth-backdrop' not in app or 'focusGlobalMapForSpace' not in app or 'earthProjection.radiusPx' not in app:
               raise SystemExit('Signed-in space persistence is missing')
           for rel in ('index.html','app/index.html'):
               path=site/rel
@@ -192,11 +192,11 @@ jobs:
               html=re.sub(r'<script type="module" src="/bridgepoint-neo-watch-v1\.js[^\"]*"></script>\s*','',html,flags=re.I)
               if html.count('id="bpPublicScansImportMapV1"')!=1: raise SystemExit(rel+' must preserve one Three.js import map')
               welcome_pattern=r'(src=["\'][^"\']*bridgepoint-welcome-space-v6260\.js)(?:\?[^"\']*)?(["\'])'
-              html,welcome_n=re.subn(welcome_pattern,r'\1?v=v6411-earth-centered-visible-planets\2',html,flags=re.I)
+              html,welcome_n=re.subn(welcome_pattern,r'\1?v=v6412-small-asteroid-markers-earth-backdrop\2',html,flags=re.I)
               if welcome_n>1: raise SystemExit(rel+' has duplicate shared-space renderer references')
               if rel=='index.html' and welcome_n!=1: raise SystemExit('index.html must keep its welcome space renderer')
               app_deferred_pattern=r'(data-bp-deferred-src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])'
-              html,app_deferred_n=re.subn(app_deferred_pattern,r'\1?v=v6311-earth-centered-visible-planets\2',html,flags=re.I)
+              html,app_deferred_n=re.subn(app_deferred_pattern,r'\1?v=v6312-small-asteroid-markers-earth-backdrop\2',html,flags=re.I)
               if app_deferred_n>1: raise SystemExit(rel+' has duplicate deferred signed-in space loaders')
               if app_deferred_n==0:
                   app_script_pattern=re.compile(r'<script\b(?=[^>]*\bsrc=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)[^>]*>.*?</script>',re.I|re.S)
@@ -204,10 +204,10 @@ jobs:
                   if len(app_scripts)>1: raise SystemExit(rel+' has duplicate signed-in space scripts')
                   if app_scripts:
                       tag=app_scripts[0].group(0)
-                      updated=re.sub(r'(src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?v=v6311-earth-centered-visible-planets\2',tag,flags=re.I)
+                      updated=re.sub(r'(src=["\'][^"\']*bridgepoint-app-space-explorer-v1\.js)(?:\?[^"\']*)?(["\'])',r'\1?v=v6312-small-asteroid-markers-earth-backdrop\2',tag,flags=re.I)
                       html=html[:app_scripts[0].start()]+updated+html[app_scripts[0].end():]
                   else:
-                      app_script='<script src="/bridgepoint-app-space-explorer-v1.js?v=v6311-earth-centered-visible-planets"></script>'
+                      app_script='<script src="/bridgepoint-app-space-explorer-v1.js?v=v6312-small-asteroid-markers-earth-backdrop"></script>'
                       html=re.sub(r'</body>',app_script+'\n</body>',html,flags=re.I,count=1)
               html=re.sub(r'</body>',script+'\n</body>',html,flags=re.I,count=1)
               if html.count(script)!=1: raise SystemExit(rel+' must load exactly one near-Earth object overlay')
@@ -269,9 +269,9 @@ jobs:
                   s=re.sub(r'\?([\'"])',r'\1',s)
                   return s
               if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the NEO, shared-space and cloud-cache references')
-              if current.count('bridgepoint-neo-watch-v1.js?v=1.5.4')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
-              if 'bridgepoint-app-space-explorer-v1.js?v=v6311-earth-centered-visible-planets' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
-              if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6411-earth-centered-visible-planets' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
+              if current.count('bridgepoint-neo-watch-v1.js?v=1.5.5')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
+              if 'bridgepoint-app-space-explorer-v1.js?v=v6312-small-asteroid-markers-earth-backdrop' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
+              if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6412-small-asteroid-markers-earth-backdrop' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
               if 'cloudsv=6511-no-procedural-3d-clouds' not in current: raise SystemExit(rel+' did not update the entrypoint cache key')
           for name,expected in (('landing.js',2),('app.js',1)):
               prior=(tmp/('bp-'+name.replace('.js','.before.js'))).read_text(encoding='utf-8')
@@ -331,12 +331,12 @@ jobs:
           print('AUTOMATIC_PROCEDURAL_3D_CLOUD_STARTS_DISABLED')
           PY
           for route in root app; do
-            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.4' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6311-earth-centered-visible-planets' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.5' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6312-small-asteroid-markers-earth-backdrop' "$DIR/$route.html"
             grep -Fq 'cloudsv=6511-no-procedural-3d-clouds' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
           done
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6411-earth-centered-visible-planets' "$DIR/root.html"
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6412-small-asteroid-markers-earth-backdrop' "$DIR/root.html"
           grep -Fq 'bridgepoint-gaia-galaxy-v6270.js?v=6312-earth-centered-visible-planets' "$DIR/welcome.js"
           grep -Fq 'const displayAUScale=aspect<.72?.18:aspect<1?.30:.40' "$DIR/gaia.js"
           grep -Fq 'earthAnchor.scale.setScalar(auScale*EARTH_RADIUS_KM/KM_AU)' "$DIR/gaia.js"
@@ -352,6 +352,6 @@ jobs:
           grep -Fq 'const toGalactic = frame?.eclipticJ2000ToGalactic' "$DIR/neo.js"
           grep -Fq 'getScene(){return scene}' "$DIR/welcome.js"
           grep -Fq 'eclipticJ2000ToGalactic' "$DIR/gaia.js"
-          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6411-earth-centered-visible-planets' "$DIR/app-space.js"
+          grep -Fq 'bridgepoint-welcome-space-v6260.js?v=v6412-small-asteroid-markers-earth-backdrop' "$DIR/app-space.js"
           test -s "$DIR/nea_extended.json.gz"
           echo 'NEAR_EARTH_OBJECT_SPACE_VIEW_AND_DAILY_ORBIT_CATALOGUE_LIVE'

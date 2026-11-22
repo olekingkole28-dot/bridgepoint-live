@@ -61,11 +61,12 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       '#' + ROOT_ID + ' *{box-sizing:border-box}',
       '.bpNeoStageV2{position:absolute;inset:0;pointer-events:none}',
       '.bpNeoIconLayerV2{position:absolute;inset:0;pointer-events:none}',
-      '.bpNeoMarkerV2{position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:1px solid var(--bp-neo-orbit-color,#9cf7ff);border-radius:50%;background:radial-gradient(circle at 36% 30%,#78f6ff,#167aa0 62%,#062235);color:#fff;font:950 12px/1 system-ui;box-shadow:0 0 9px var(--bp-neo-orbit-color,#52e7ff),0 0 22px var(--bp-neo-orbit-color,#32d8ff88);transform:translate(-50%,-50%);cursor:pointer;pointer-events:auto;touch-action:manipulation;animation:bpNeoPulseV2 2.4s ease-in-out infinite}',
-      '.bpNeoMarkerV2[data-hazard="true"]{border-color:#ffd194;background:radial-gradient(circle at 36% 30%,#ffd194,#b95c2d 62%,#351416);box-shadow:0 0 9px #ffc675,0 0 22px #ff794f88}',
-      '.bpNeoMarkerV2[aria-pressed="true"]{width:42px;height:42px;border:2px solid #fff;box-shadow:0 0 0 7px #53eaff44,0 0 24px #51f1ff}',
-      '.bpNeoMarkerV2:focus-visible,#' + ROOT_ID + ' button:focus-visible{outline:3px solid #fff;outline-offset:4px}',
-      '@keyframes bpNeoPulseV2{0%,100%{filter:brightness(1);box-shadow:0 0 8px #52e7ff,0 0 16px #32d8ff77}50%{filter:brightness(1.3);box-shadow:0 0 13px #52e7ff,0 0 28px #32d8ffbb}}',
+      '.bpNeoMarkerV2{position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:50%;background:transparent;color:#fff;font:950 7px/1 system-ui;text-shadow:0 0 4px #fff,0 0 7px var(--bp-neo-orbit-color,#52e7ff);transform:translate(-50%,-50%);cursor:pointer;pointer-events:auto;touch-action:manipulation}',
+      '.bpNeoMarkerV2::before{content:"";position:absolute;inset:9px;border:1px solid var(--bp-neo-orbit-color,#9cf7ff);border-radius:50%;background:radial-gradient(circle at 36% 30%,#78f6ff,#167aa0 62%,#062235);box-shadow:0 0 5px var(--bp-neo-orbit-color,#52e7ff),0 0 9px var(--bp-neo-orbit-color,#32d8ff88)}',
+      '.bpNeoMarkerV2[data-hazard="true"]::before{border-color:#ffd194;background:radial-gradient(circle at 36% 30%,#ffd194,#b95c2d 62%,#351416);box-shadow:0 0 5px #ffc675,0 0 9px #ff794f88}',
+      '.bpNeoMarkerV2[aria-pressed="true"]{width:28px;height:28px;font-size:9px;text-shadow:0 0 5px #fff,0 0 9px #51f1ff}',
+      '.bpNeoMarkerV2[aria-pressed="true"]::before{inset:8px;border:1px solid #fff;box-shadow:0 0 0 2px #53eaff33,0 0 10px #51f1ff}',
+      '.bpNeoMarkerV2:focus-visible,#' + ROOT_ID + ' button:focus-visible{outline:2px solid #fff;outline-offset:2px}',
       '.bpNeoHudV2{position:absolute;left:12px;top:max(12px,env(safe-area-inset-top));display:flex;align-items:flex-start;gap:10px;max-width:min(560px,calc(100vw - 24px));pointer-events:auto}',
       '.bpNeoHudCardV2{padding:10px 13px;border:1px solid #5ee4f677;border-radius:14px;background:linear-gradient(135deg,#071a29e8,#0b2636dc);box-shadow:0 8px 24px #0008,0 0 22px #35d8ef18;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}',
       '.bpNeoHudTitleV2{display:flex;align-items:center;gap:8px;color:#eaffff;font-weight:950;font-size:14px;letter-spacing:.07em}',
@@ -335,7 +336,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         setSpaceCloseControlHidden(true);
         scene3d.root.visible = true;
         api.setNearEarthOrbitMode?.(true);
-        api.focusHeliocentricOverview?.(32);
+        api.focusHeliocentricOverview?.(8.5);
         await refreshSpaceData(false);
       } catch (error) {
         setStatus(String(error?.message || 'The shared 3D solar-system scene could not be opened.'), 'error');
@@ -698,14 +699,17 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       value = Math.imul(value ^ (value >>> 16), 0x45d9f3b) >>> 0;
       return (value ^ (value >>> 16)) / 4294967295;
     };
-    const positions = [];
+    const positions = [], colors = [];
     for (let i = 0; i < vertices.length; i += 1) {
       const vertex = vertices[i];
       const radius = 0.90 + rand(i) * 0.20;
+      const tone = 0.72 + rand(i + vertices.length) * 0.25;
       positions.push(vertex.x * radius, vertex.y * radius, vertex.z * radius);
+      colors.push(tone, tone * 0.95, tone * 0.86);
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(faces.flat());
     geometry.computeVertexNormals();
     return geometry;
@@ -763,7 +767,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     if (!state.open) return null;
     if (!solar?.getFrame) throw new Error('The planetary orbital frame did not become ready.');
     init3DScene(api);
-    api.focusHeliocentricOverview?.(32);
+    api.focusHeliocentricOverview?.(8.5);
     return api;
   }
 
@@ -817,12 +821,12 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       );
       orbitLine.renderOrder = 2;
       const tracer = new THREE.Mesh(
-        new THREE.SphereGeometry(0.030, 10, 8),
+        new THREE.SphereGeometry(0.0012, 12, 8),
         new THREE.MeshBasicMaterial({ color: 0xf0ffff, toneMapped: false })
       );
       tracer.renderOrder = 8;
       const arrow = new THREE.Mesh(
-        new THREE.ConeGeometry(0.040, 0.18, 7),
+        new THREE.ConeGeometry(0.0022, 0.012, 8),
         new THREE.MeshBasicMaterial({ color, toneMapped: false })
       );
       arrow.renderOrder = 8;
@@ -830,16 +834,16 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       const radiusKm = item.diameterMinKm !== null && item.diameterMaxKm !== null
         ? (item.diameterMinKm + item.diameterMaxKm) * 0.25
         : 0.025;
-      const physicalRadius = Math.max(0.000004, radiusKm / EARTH_RADIUS_KM * 1.42);
+      const physicalRadius = Math.max(1e-15, radiusKm / AU_KM * scene3d.solarFrame.auScale);
       const body = new THREE.Mesh(
         asteroidGeometry(item.id),
         new THREE.MeshStandardMaterial({
-          color: 0x99948b,
-          roughness: 0.80,
-          metalness: 0.06,
-          emissive: 0x182126,
-          emissiveIntensity: 0.18,
-          flatShading: true,
+          color: 0xffffff,
+          roughness: 0.94,
+          metalness: 0.025,
+          emissive: 0x0c0805,
+          emissiveIntensity: 0.025,
+          vertexColors: true,
         })
       );
       body.scale.setScalar(physicalRadius);
@@ -1039,7 +1043,10 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       obj.pos.copy(displayPosition(rawRelativePositionAU(obj.item, state.simulationTime)));
       obj.body.position.copy(obj.pos);
       const selected = obj.item.id === state.selectedId;
-      const targetRadius = selected ? 0.11 : obj.physicalRadius;
+      const cameraDistance = Math.max(1e-9, scene3d.camera.position.distanceTo(obj.pos));
+      const viewportHeight = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+      const worldPerPixel = 2 * cameraDistance * Math.tan(THREE.MathUtils.degToRad(scene3d.camera.fov * 0.5)) / viewportHeight;
+      const targetRadius = Math.max(obj.physicalRadius, selected ? Math.max(0.009, worldPerPixel * 8) : worldPerPixel * 3.5);
       obj.body.scale.setScalar(THREE.MathUtils.damp(obj.body.scale.x, targetRadius, 7, Math.max(0.001, delta / 1000)));
       const spinSeconds = now / 1000;
       const rotationRate = obj.item.orbit?.spinHours ? Math.PI * 2 / (obj.item.orbit.spinHours * 3600) : 0.035;
@@ -1062,8 +1069,14 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     if (scene3d.lastFocusedId !== state.selectedId) {
       scene3d.lastFocusedId = state.selectedId;
       const selected = scene3d.objects.get(state.selectedId);
-      if (selected) scene3d.spaceApi.focusSpacePoint?.(selected.pos, THREE.MathUtils.clamp(selected.pos.length() * 0.28, 0.8, 4.5));
-      else scene3d.spaceApi.focusHeliocentricOverview?.(32);
+      if (selected) {
+        const earthCenter = window.__BP_SOLAR_COSMOS_V6280__?.getEarthPosition?.()
+          || displayPosition(scene3d.earthReferenceAU || new THREE.Vector3());
+        const backdropDirection = selected.pos.clone().sub(earthCenter);
+        if (backdropDirection.lengthSq() < 1e-12) backdropDirection.copy(selected.pos);
+        scene3d.spaceApi.focusSpacePoint?.(selected.pos, THREE.MathUtils.clamp(selected.pos.length() * 0.28, 0.8, 4.5), backdropDirection);
+      }
+      else scene3d.spaceApi.focusHeliocentricOverview?.(8.5);
     }
     scene3d.camera.updateMatrixWorld();
     renderMarkers();
@@ -1115,7 +1128,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
           scene3d.earthReferenceAU = frame.sun.clone().negate().applyQuaternion(frame.orientation.clone().invert()).divideScalar(frame.auScale);
           buildSpaceObjects();
         }
-        scene3d.spaceApi?.focusHeliocentricOverview?.(32);
+        scene3d.spaceApi?.focusHeliocentricOverview?.(8.5);
         renderMarkers();
       }, 180);
     }, { passive: true });
