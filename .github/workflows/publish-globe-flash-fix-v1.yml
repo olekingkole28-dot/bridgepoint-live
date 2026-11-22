@@ -1,0 +1,238 @@
+# Publish only the globe flash fix over the last successful production snapshot.
+name: Publish BridgePoint Globe Flash Fix v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-globe-flash-fix-v1.yml'
+      - 'release-v2300/world-v2300-map.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-globe-flash-fix-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for a same-commit full-site build
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          sleep 8
+          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100" --jq '.workflow_runs[] | select(.path == ".github/workflows/deploy-intelligence-rebuild-v5000.yml") | .id' | head -n 1 || true)"
+          if [ -z "$RUN_ID" ]; then
+            echo "No same-commit full-site build is registered; using the latest successful production snapshot."
+            exit 0
+          fi
+          echo "Waiting for full-site build run $RUN_ID."
+          while true; do
+            STATUS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')"
+            CONCLUSION="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion // ""')"
+            if [ "$STATUS" = "completed" ]; then
+              echo "FULL_SITE_BUILD_FINISHED run=$RUN_ID conclusion=$CONCLUSION"
+              exit 0
+            fi
+            sleep 15
+          done
+
+      - name: Resolve the latest successful prior production snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id,.head_sha] | @tsv')"
+          BASELINE_ID=""
+          ARTIFACT=""
+          while IFS=$'\t' read -r run_id head_sha; do
+            [ -n "$run_id" ] || continue
+            [ "$head_sha" = "$GITHUB_SHA" ] && continue
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              BASELINE_ID="$run_id"
+              ARTIFACT="$candidate"
+              break
+            fi
+          done <<< "$RUNS"
+          test -n "$BASELINE_ID"
+          test -n "$ARTIFACT"
+          echo "run_id=$BASELINE_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "PRESERVED_PRODUCTION_BASELINE run=$BASELINE_ID artifact=$ARTIFACT"
+
+      - name: Download the production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-pages-baseline"
+
+      - name: Restore production and fingerprint non-target files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find "$RUNNER_TEMP/bp-pages-baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          test -s "$SITE/index.html"
+          test -s "$SITE/app/index.html"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          targets={'index.html','app/index.html','app.js','landing.js','world-v2300-map.js','app/world-v2300-map.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          before={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel not in targets: before[rel]=digest(path)
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          (tmp/'bp-globe-flash-preservation-before.json').write_text(json.dumps(before,sort_keys=True))
+          print('NON_TARGET_PRODUCTION_FILES_FINGERPRINTED',len(before))
+          PY
+
+      - name: Overlay the globe renderer and refresh its cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-site"
+          mkdir -p "$SITE/app"
+          cp release-v2300/world-v2300-map.js "$SITE/world-v2300-map.js"
+          cp release-v2300/world-v2300-map.js "$SITE/app/world-v2300-map.js"
+          cp rebuild-v5000/landing.js "$SITE/landing.js"
+          cp rebuild-v5000/app.js "$SITE/app.js"
+          python3 - <<'PY'
+          import re,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          cache='6239-globe-flash-fix-v1'
+          for rel in ('index.html','app/index.html'):
+              p=site/rel
+              html=p.read_text(encoding='utf-8')
+              html,n=re.subn(r'(<link\s+rel="modulepreload"\s+href="/world-v2300-map\.js\?v=)[^&"]+',r'\g<1>'+cache,html,count=1)
+              if n!=1: raise SystemExit(rel+' must have exactly one globe map preload; found '+str(n))
+              stem='landing.js' if rel=='index.html' else 'app.js'
+              html,n=re.subn(r'((?:\./|\.\./)?'+re.escape(stem)+r'\?v=)[^&"\'<>\s]+',r'\g<1>6313-globe-flash-fix-v1',html,count=1)
+              if n!=1: raise SystemExit(rel+' must have exactly one '+stem+' entry; found '+str(n))
+              p.write_text(html,encoding='utf-8')
+          for rel in ('landing.js','app.js'):
+              source=(site/rel).read_text(encoding='utf-8')
+              if 'world-v2300-map.js?v='+cache not in source:
+                  raise SystemExit(rel+' does not import the cache-busted globe renderer')
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+              source=(site/rel).read_text(encoding='utf-8')
+              if 'window.__BP_COAST_FOAM_TIMER__=0' not in source or 'window.__BP_COAST_FOAM_TIMER__=setInterval' in source:
+                  raise SystemExit(rel+' still contains the periodic coast-foam paint loop')
+              if 'waterTimer=setInterval' in source:
+                  raise SystemExit(rel+' still contains the periodic water-flow paint loop')
+              if 'refreshExpiredTiles:true' not in source or "'raster-fade-duration':0" not in source:
+                  raise SystemExit(rel+' lost the existing satellite imagery refresh/fade configuration')
+          if (site/'world-v2300-map.js').read_bytes()!=(site/'app/world-v2300-map.js').read_bytes():
+              raise SystemExit('Root/app globe renderer copies differ')
+          print('GLOBE_FLASH_RENDERER_AND_ENTRYPOINTS_READY')
+          PY
+          node --check "$SITE/landing.js"
+          node --check "$SITE/app.js"
+          node --input-type=module --check < "$SITE/world-v2300-map.js"
+      - name: Verify no non-target production files changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          tmp=Path(os.environ['RUNNER_TEMP'])
+          before=json.loads((tmp/'bp-globe-flash-preservation-before.json').read_text())
+          targets={'index.html','app/index.html','app.js','landing.js','world-v2300-map.js','app/world-v2300-map.js'}
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''): h.update(chunk)
+              return h.hexdigest()
+          after={}
+          for path in sorted(site.rglob('*')):
+              if not path.is_file(): continue
+              rel=path.relative_to(site).as_posix()
+              if rel not in targets: after[rel]=digest(path)
+          if before != after:
+              raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGE '+json.dumps({
+                'missing':sorted(set(before)-set(after))[:20],
+                'added':sorted(set(after)-set(before))[:20],
+                'changed':sorted(k for k in before.keys() & after.keys() if before[k]!=after[k])[:20]}))
+          print('NON_TARGET_PRODUCTION_FILES_BYTE_FOR_BYTE_PRESERVED',len(before))
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload preserved production snapshot with globe flash fix
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish the preserved production snapshot
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify the stable globe renderer on root and app
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          DIR="$RUNNER_TEMP/bp-globe-flash-live"
+          mkdir -p "$DIR"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/?verify=$GITHUB_SHA-globe-flash-fix" -o "$DIR/root.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/app/?verify=$GITHUB_SHA-globe-flash-fix" -o "$DIR/app.html"
+          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/root.html"
+          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/app.html"
+          grep -Fq 'landing.js?v=6313-globe-flash-fix-v1' "$DIR/root.html"
+          grep -Fq 'app.js?v=6313-globe-flash-fix-v1' "$DIR/app.html"
+          for spec in 'landing.js?v=6313-globe-flash-fix-v1' 'app.js?v=6313-globe-flash-fix-v1' 'world-v2300-map.js?v=6239-globe-flash-fix-v1' 'app/world-v2300-map.js'; do
+            name="$(printf '%s' "$spec" | tr '/?.=' '_____')"
+            curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 35 -fsSL -H 'Cache-Control: no-cache' "$ORIGIN/$spec?verify=$GITHUB_SHA" -o "$DIR/$name"
+          done
+          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/landing_js_v6313-globe-flash-fix-v1"
+          grep -Fq 'world-v2300-map.js?v=6239-globe-flash-fix-v1' "$DIR/app_js_v6313-globe-flash-fix-v1"
+          grep -Fq 'window.__BP_COAST_FOAM_TIMER__=0' "$DIR/world-v2300-map_js_v6239-globe-flash-fix-v1"
+          if grep -Fq 'waterTimer=setInterval' "$DIR/world-v2300-map_js_v6239-globe-flash-fix-v1"; then
+            echo 'Periodic water paint loop is still live' >&2
+            exit 1
+          fi
+          cmp -s "$DIR/world-v2300-map_js_v6239-globe-flash-fix-v1" "$DIR/app_world-v2300-map_js"
+          echo 'GLOBE_FLASH_FIX_LIVE_ROOT_AND_APP'

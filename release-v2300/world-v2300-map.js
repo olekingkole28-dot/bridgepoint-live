@@ -717,7 +717,7 @@ export function initWorld(options={}){
    window.__BP_WORLD_LIGHT__={version:6227,sunAltitude:alt,sunAzimuth:sun.az,subsolarLongitude:subsolar.lng,subsolarLatitude:subsolar.lat,earthFixed:true,nightShadeVisible:true,daylight:day,night:night>0.55,twilight,moonlight:night>0.45,updatedAt:Date.now()};
   }catch(e){console.warn('BridgePoint world light',e)}
  }
- function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,300000);map.off?.('moveend',updateWorldLight);map.on?.('moveend',updateWorldLight);clearInterval(window.__BP_COAST_FOAM_TIMER__);window.__BP_COAST_FOAM_TIMER__=setInterval(()=>{if(document.hidden||!map.getLayer?.('gta-coast-foam'))return;const phase=Date.now()/1900,pulse=.5+.5*Math.sin(phase);paint(map,'gta-coast-foam','line-opacity',.10+.20*pulse);paint(map,'gta-coast-foam','line-dasharray',pulse>.5?[2.15,3.05]:[1.55,3.8])},1100)}
+ function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,300000);map.off?.('moveend',updateWorldLight);map.on?.('moveend',updateWorldLight);clearInterval(window.__BP_COAST_FOAM_TIMER__);window.__BP_COAST_FOAM_TIMER__=0}
  function terrain(){const z=map.getZoom(),should=z>=2,ex=LOW?.82:TIER==='HIGH'?1.08:1,src=String(window.__BP_TERRAIN_SOURCE_OVERRIDE__||'dem'),terrainEx=src==='dem'?ex:1,signature=src+':'+terrainEx;try{if(should){if(!terrainOn||window.__BP_TERRAIN_APPLIED_MAP__!==map||window.__BP_TERRAIN_APPLIED_SIGNATURE__!==signature){map.setTerrain({source:src,exaggeration:terrainEx});terrainOn=true;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=signature}}else if(terrainOn){map.setTerrain(null);terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}vis(map,'gta-hillshade',z>=4&&z<19.5);vis(map,'gta-landcover-texture',base!=='satellite'&&z<19.5);window.__BP_TERRAIN_VISUAL_STATE__={zoom:z,enabled:terrainOn,exaggeration:terrainOn?ex:0,streetLevelClamped:false,persistentThroughStreetLevel:true,coastRoadCliffProtection:true,demOverzoomToStreet:true,updatedAt:Date.now()}}catch(_){terrainOn=false;window.__BP_TERRAIN_APPLIED_MAP__=map;window.__BP_TERRAIN_APPLIED_SIGNATURE__=''}}
  function applyAutoCamera(){window.__BP_AUTO_CAMERA__={enabled:false,singleView:true,mode:'FREE_FLY',maxPitch:110,zoom:map.getZoom(),pitch:map.getPitch(),updatedAt:Date.now()};return false}
   function isUnderwaterDiveActive(){return window.__BP_UNDERWATER_DIVE_ACTIVE__===true||window.__BP_UNDERWATER_DIVE_TRANSITION__===true}
@@ -1769,7 +1769,7 @@ function bridgeLineCoveredByPolygons(line,polygons){
   },500)
  }
  function startWaterMotion(){
-  clearInterval(waterTimer);waterTimer=0;paint(map,'gta-coast-foam','line-opacity',MOBILE||LOW?.18:.21);paint(map,'gta-waterway-flow','line-opacity',MOBILE||LOW?.3:.34);if(MOBILE||LOW)return;let phase=0;waterTimer=setInterval(()=>{if(document.hidden||moving)return;phase=(phase+1)%12;const s=(Math.sin(phase/12*Math.PI*2)+1)/2;paint(map,'gta-coast-foam','line-opacity',.12+.18*s);paint(map,'gta-coast-foam','line-width',['interpolate',['linear'],['zoom'],13,.22+.06*s,18,.72+.3*s,20,1.15+.35*s]);paint(map,'gta-waterway-flow','line-opacity',.24+.22*s)},900)
+  clearInterval(waterTimer);waterTimer=0;paint(map,'gta-coast-foam','line-opacity',MOBILE||LOW?.18:.21);paint(map,'gta-waterway-flow','line-opacity',MOBILE||LOW?.3:.34)
  }
  function refreshGlobalLodPaint(){
   if(worldMapSurfaceInactive()||moving||map.isMoving?.())return false;
