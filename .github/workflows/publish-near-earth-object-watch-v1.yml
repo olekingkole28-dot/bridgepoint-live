@@ -167,7 +167,7 @@ jobs:
           from pathlib import Path
           tmp=Path(os.environ['RUNNER_TEMP']); site=tmp/'bp-site'
           before=json.loads((tmp/'bp-neo-preservation-before.json').read_text())
-          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js'}
+          targets={'index.html','app/index.html','bridgepoint-neo-watch-v1.js','nea_extended.json.gz'}
           def digest(path):
               h=hashlib.sha256()
               with path.open('rb') as f:
