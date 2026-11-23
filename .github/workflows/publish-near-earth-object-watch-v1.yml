@@ -349,7 +349,7 @@ jobs:
           PY
           for route in root app; do
             grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.5' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-earth-protection-v1.js?v=1.0.0' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-earth-protection-v1.js?v=1.1.0' "$DIR/$route.html"
             grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6312-small-asteroid-markers-earth-backdrop' "$DIR/$route.html"
             grep -Fq 'cloudsv=6511-no-procedural-3d-clouds' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
