@@ -154,7 +154,7 @@ jobs:
           from pathlib import Path
           site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
           neo_script='<script type="module" src="/bridgepoint-neo-watch-v1.js?v=1.5.5"></script>'
-          protection_script='<script type="module" src="/bridgepoint-earth-protection-v1.js?v=1.1.0"></script>'
+          protection_script='<script type="module" src="/bridgepoint-earth-protection-v1.js?v=1.2.0"></script>'
           module=Path('rebuild-v5000/bridgepoint-neo-watch-v1.js').read_text(encoding='utf-8')
           protection=Path('rebuild-v5000/bridgepoint-earth-protection-v1.js').read_text(encoding='utf-8')
           welcome=Path('patches/near-earth-object-physical-v1/bridgepoint-welcome-space-v6260.js').read_text(encoding='utf-8')
@@ -284,7 +284,7 @@ jobs:
                   return s
               if normalize(prior)!=normalize(current): raise SystemExit(rel+' changed outside the Earth protection, NEO, shared-space and cloud-cache references')
               if current.count('bridgepoint-neo-watch-v1.js?v=1.5.5')!=1: raise SystemExit(rel+' does not load exactly one new overlay')
-              if current.count('bridgepoint-earth-protection-v1.js?v=1.1.0')!=1: raise SystemExit(rel+' does not load exactly one Earth protection module')
+              if current.count('bridgepoint-earth-protection-v1.js?v=1.2.0')!=1: raise SystemExit(rel+' does not load exactly one Earth protection module')
               if 'bridgepoint-app-space-explorer-v1.js?v=v6312-small-asteroid-markers-earth-backdrop' not in current: raise SystemExit(rel+' does not load signed-in space persistence')
               if rel=='index.html' and 'bridgepoint-welcome-space-v6260.js?v=v6412-small-asteroid-markers-earth-backdrop' not in current: raise SystemExit('index.html does not load the updated shared-space renderer')
               if 'cloudsv=6511-no-procedural-3d-clouds' not in current: raise SystemExit(rel+' did not update the entrypoint cache key')
@@ -349,7 +349,7 @@ jobs:
           PY
           for route in root app; do
             grep -Fq 'bridgepoint-neo-watch-v1.js?v=1.5.5' "$DIR/$route.html"
-            grep -Fq 'bridgepoint-earth-protection-v1.js?v=1.1.0' "$DIR/$route.html"
+            grep -Fq 'bridgepoint-earth-protection-v1.js?v=1.2.0' "$DIR/$route.html"
             grep -Fq 'bridgepoint-app-space-explorer-v1.js?v=v6312-small-asteroid-markers-earth-backdrop' "$DIR/$route.html"
             grep -Fq 'cloudsv=6511-no-procedural-3d-clouds' "$DIR/$route.html"
             grep -Fq 'id="bpPublicScansImportMapV1"' "$DIR/$route.html"
