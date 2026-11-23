@@ -24,7 +24,8 @@ permissions:
 
 concurrency:
   group: bridgepoint-neo-watch-v1-preserved-production
-  cancel-in-progress: false
+  # An Earth Shield push must supersede a stale publish, but scheduled feeds remain serial.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   publish:
@@ -117,10 +118,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/bp-neo-orbits"
-          curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 120 -fSL \
-            -H 'User-Agent: BridgePoint Intelligence NEO Watch 1.5.2 (https://bridgepointintelligence.online)' \
-            'https://minorplanetcenter.net/Extended_Files/nea_extended.json.gz' \
-            -o "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
+          # A source-only push reuses the proven production catalogue unchanged.
+          # Scheduled updates still fetch the current MPC dataset as before.
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -s "$RUNNER_TEMP/bp-site/nea_extended.json.gz" ]; then
+            cp "$RUNNER_TEMP/bp-site/nea_extended.json.gz" "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
+            echo 'REUSING_UNMODIFIED_PRODUCTION_MPC_CATALOGUE'
+          else
+            curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 120 -fSL \
+              -H 'User-Agent: BridgePoint Intelligence NEO Watch 1.5.2 (https://bridgepointintelligence.online)' \
+              'https://minorplanetcenter.net/Extended_Files/nea_extended.json.gz' \
+              -o "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
+          fi
           gzip -t "$RUNNER_TEMP/bp-neo-orbits/nea_extended.json.gz"
           python3 - <<'PY'
           import gzip,json,os
