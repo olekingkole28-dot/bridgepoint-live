@@ -1,0 +1,134 @@
+name: Publish BridgePoint Mobile Bottom Card Tabs without regressions
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/bridgepoint-bottom-card-mobile-v2.js'
+      - '.github/workflows/publish-mobile-bottom-card-v2.yml'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-mobile-bottom-card-v2-preserved-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find latest successful production snapshot
+        id: baseline
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          for run_id in $RUNS; do
+            artifact="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$artifact" ]; then
+              echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+              echo "artifact_name=$artifact" >> "$GITHUB_OUTPUT"
+              echo "LATEST_PRESERVED_PRODUCTION=$run_id $artifact"
+              exit 0
+            fi
+          done
+          echo "No successful non-expired preserved production Pages artifact" >&2
+          exit 1
+      - name: Download preserved production
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/baseline"
+      - name: Add only mobile presentation script to preserved site
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/bp-site"
+          mkdir -p "$root"
+          archive="$(find "$RUNNER_TEMP/baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$archive"
+          tar -xf "$archive" -C "$root"
+          test -s "$root/index.html"
+          test -s "$root/app/index.html"
+          test -s "$root/bridgepoint-bottom-card-categories-v1.js"
+          test -s "$root/vendor/three.module.js"
+          node --check rebuild-v5000/bridgepoint-bottom-card-mobile-v2.js
+          python3 - <<'PY'
+          import hashlib,os,re
+          from pathlib import Path
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          module='bridgepoint-bottom-card-mobile-v2.js'
+          source=Path('rebuild-v5000')/module
+          code=source.read_text(encoding='utf-8')
+          required=('Property & Scans','Live Environment','Global & Horizon','Map & Visuals','System & Tools',
+                    'bpv-v2-tabs','bpMapsLaunchV1','bpPublicScansLaunchV1','bp-world-time-slider-v5908',
+                    'grid-template-columns:repeat(2,minmax(0,1fr))')
+          if any(key not in code for key in required):raise SystemExit('MOBILE_TABS_SOURCE_INCOMPLETE')
+          excluded={'index.html','app/index.html',module}
+          before={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in excluded}
+          tag='<script defer src="/'+module+'?v=6602-two-column-sticky-mobile"></script>'
+          for rel in ('index.html','app/index.html'):
+              page=site/rel
+              html=page.read_text(encoding='utf-8')
+              for key in ('bridgepoint-bottom-card-categories-v1.js','bridgepoint-view-v5917.js',
+                          'bridgepoint-iconic-wonders-v1.js','bridgepoint-water-flow-buoys-v1.js',
+                          'bpMapsLaunchV1','bpPublicScansImportMapV1'):
+                  if key not in html:raise SystemExit('MISSING_PRESERVED_FEATURE '+rel+' '+key)
+              clean=re.sub(r'\s*<script\b[^>]*\bsrc="/'+re.escape(module)+r'[^"]*"[^>]*></script>','',html,flags=re.I)
+              updated=re.sub(r'</body>',tag+'\n</body>',clean,count=1,flags=re.I)
+              if updated.count(tag)!=1 or updated.replace(tag+'\n','')!=clean:
+                  raise SystemExit('HTML_CHANGED_OUTSIDE_NEW_SCRIPT '+rel)
+              page.write_text(updated,encoding='utf-8')
+          (site/module).write_bytes(source.read_bytes())
+          after={p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in excluded}
+          if before!=after:raise SystemExit('UNRELATED_PRODUCTION_ASSET_CHANGED')
+          print('UNCHANGED_PRODUCTION_ASSETS',len(before))
+          print('ONLY_MOBILE_LAYOUT_SCRIPT_ADDED_TO_BOTH_ENTRYPOINTS')
+          PY
+      - uses: actions/configure-pages@v5
+      - name: Upload preserved production
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+      - name: Publish preserved production with mobile tabs
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live source, original buttons and entrypoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          dir="$RUNNER_TEMP/verify-mobile-tabs"
+          mkdir -p "$dir"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$origin/?verify=$GITHUB_SHA-mobile" -o "$dir/index.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$origin/app/?verify=$GITHUB_SHA-mobile" -o "$dir/app.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 45 -fsSL -H 'Cache-Control: no-cache' "$origin/bridgepoint-bottom-card-mobile-v2.js?verify=$GITHUB_SHA" -o "$dir/card.js"
+          cmp -s "$dir/card.js" rebuild-v5000/bridgepoint-bottom-card-mobile-v2.js
+          for page in index app; do
+            grep -Fq 'bridgepoint-bottom-card-mobile-v2.js?v=6602-two-column-sticky-mobile' "$dir/$page.html"
+            grep -Fq 'bridgepoint-bottom-card-categories-v1.js' "$dir/$page.html"
+            grep -Fq 'bridgepoint-conflict-zones-v1.js' "$dir/$page.html"
+            grep -Fq 'bpMapsLaunchV1' "$dir/$page.html"
+            grep -Fq 'bpPublicScansImportMapV1' "$dir/$page.html"
+          done
+          echo 'MOBILE_TABS_ON_LIVE_SITE_AND_EXISTING_FEATURES_PRESERVED'
