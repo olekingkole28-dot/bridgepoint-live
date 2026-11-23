@@ -1,0 +1,134 @@
+name: Publish BridgePoint Conflict Zones over preserved production
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/bridgepoint-conflict-zones-v1.js'
+      - '.github/workflows/publish-conflict-zones-v1.yml'
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-conflict-preserved-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find latest successful production snapshot
+        id: baseline
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs | map(select(.conclusion == "success")) | .[].id')"
+          for run_id in $RUNS; do
+            artifact="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$artifact" ]; then
+              echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+              echo "artifact_name=$artifact" >> "$GITHUB_OUTPUT"
+              echo "PRESERVED_BASELINE=$run_id $artifact"
+              exit 0
+            fi
+          done
+          exit 1
+
+      - name: Download production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/baseline"
+
+      - name: Restore production and add only Conflict Zones
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="$RUNNER_TEMP/bp-site"
+          mkdir -p "$site"
+          archive="$(find "$RUNNER_TEMP/baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$archive"
+          tar -xf "$archive" -C "$site"
+          test -s "$site/index.html"
+          test -s "$site/app/index.html"
+          test -s "$site/vendor/three.module.js"
+          node --check rebuild-v5000/bridgepoint-conflict-zones-v1.js
+          python3 - <<'PY'
+          import hashlib,os,re
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'bp-site'
+          name='bridgepoint-conflict-zones-v1.js'
+          script='<script defer src="/'+name+'?v=1.0.0"></script>'
+          source=Path('rebuild-v5000')/name
+          code=source.read_text(encoding='utf-8')
+          required=('2026-11-22','Conflict Zones','⚠ Reported conflict regions','bp-conflict-zones-button-v1')
+          if not all(token in code for token in required):
+              raise SystemExit('CONFLICT_MODULE_MISSING_CORE_FEATURES')
+          excluded={'index.html','app/index.html',name}
+          before={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in root.rglob('*') if p.is_file() and p.relative_to(root).as_posix() not in excluded}
+          for rel in ('index.html','app/index.html'):
+              page=root/rel
+              html=page.read_text(encoding='utf-8')
+              if '</body>' not in html.lower() or 'id="bpPublicScansImportMapV1"' not in html:
+                  raise SystemExit('PRESERVED_PRODUCTION_ENTRY_MISSING '+rel)
+              clean=re.sub(r'\s*<script\b[^>]*\bsrc="/'+re.escape(name)+r'[^"]*"[^>]*></script>','',html,flags=re.I)
+              updated=re.sub(r'</body>',script+'\n</body>',clean,flags=re.I,count=1)
+              if updated.count(script)!=1 or updated.replace(script+'\n','')!=clean:
+                  raise SystemExit('HTML_CHANGED_OUTSIDE_NEW_SCRIPT '+rel)
+              page.write_text(updated,encoding='utf-8')
+          (root/name).write_bytes(source.read_bytes())
+          after={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                 for p in root.rglob('*') if p.is_file() and p.relative_to(root).as_posix() not in excluded}
+          if before!=after:raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGED')
+          print('PRESERVED_UNRELATED_PRODUCTION_FILES',len(before))
+          print('ADDED_ONLY_CONFLICT_SITES_ON_BOTH_PAGE_ENTRYPOINTS')
+          PY
+
+      - uses: actions/configure-pages@v5
+      - name: Upload preserved production
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-site"
+          include-hidden-files: true
+
+      - name: Publish preserved production
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify new button is on the live site
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          dir="$RUNNER_TEMP/verify-conflict"
+          mkdir -p "$dir"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$origin/?verify=$GITHUB_SHA-conflict" -o "$dir/index.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$origin/app/?verify=$GITHUB_SHA-conflict" -o "$dir/app.html"
+          curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$origin/bridgepoint-conflict-zones-v1.js?verify=$GITHUB_SHA" -o "$dir/conflict.js"
+          cmp -s "$dir/conflict.js" rebuild-v5000/bridgepoint-conflict-zones-v1.js
+          for html in index app; do
+            grep -Fq 'bridgepoint-conflict-zones-v1.js?v=1.0.0' "$dir/$html.html"
+            grep -Fq 'bpPublicScansImportMapV1' "$dir/$html.html"
+          done
+          grep -Fq 'Conflict Zones' "$dir/conflict.js"
+          grep -Fq '2026-11-22' "$dir/conflict.js"
+          grep -Fq '⚠ Reported conflict regions' "$dir/conflict.js"
+          echo 'CONFLICT_SITES_LIVE_SOURCE_MATCHES_AND_OTHER_ASSETS_PRESERVED'
