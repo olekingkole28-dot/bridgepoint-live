@@ -4,7 +4,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 (() => {
   'use strict';
 
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
   if (window.__BP_EARTH_PROTECTION_V1__?.version === VERSION) return;
 
   const BUTTON_ID = 'bpEarthProtectionLaunchV1';
@@ -41,6 +41,9 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     ozoneStatus: 'NASA daily ozone layer loading…',
     streamCurves: [],
     streamParticles: [],
+    windVisual: null,
+    windSeeds: [],
+    windRibbons: [],
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -400,42 +403,69 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     buildSolarWindParticles();
   }
 
-  function buildSolarWindParticles() {
-    if (!state.root) return;
-    const colors = [0x69f4ff, 0x9ef6db, 0xffd66e];
-    for (let lane = 0; lane < 3; lane += 1) {
-      const sign = lane === 1 ? -1 : 1;
-      const offset = lane === 2 ? 4 : 0;
-      const points = [
-        new THREE.Vector3(25, sign * (9 + offset), sign * (4 + offset * 0.4)),
-        new THREE.Vector3(14, sign * (8.5 + offset), sign * (3 + offset * 0.5)),
-        new THREE.Vector3(9, sign * (11 + offset), sign * (8 + offset * 0.5)),
-        new THREE.Vector3(-1, sign * (15 + offset), sign * (10 + offset * 0.4)),
-        new THREE.Vector3(-15, sign * (17 + offset), sign * (7 + offset * 0.5)),
-        new THREE.Vector3(-29, sign * (15 + offset), sign * (4 + offset * 0.3)),
-      ];
-      const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 0.35);
+  function buildSolarWindParticles(){
+    if(!state.magnetosphere)return;
+    const group=new THREE.Group();
+    group.name='Animated NOAA-driven solar wind stream field';
+    state.magnetosphere.add(group);
+    const seeds=[];
+    for(let lane=0;lane<14;lane++){
+      const angle=lane/14*Math.PI*2+(lane%2)*.11;
+      const spread=5.7+(lane%4)*.64;
+      const station=[[37,spread+1],[28,spread],[19,spread+.4],[12,spread+1.7],
+        [6,spread+4.1],[-3,spread+6.8],[-13,spread+8.4],[-27,spread+8.1],[-43,spread+7.9]];
+      const points=station.map(([x,r],index)=>{
+        const phi=angle+.036*index+Math.sin(lane+index)*.03;
+        return new THREE.Vector3(x,Math.cos(phi)*r,Math.sin(phi)*r);
+      });
+      const curve=new THREE.CatmullRomCurve3(points,false,'centripetal',.45);
       state.streamCurves.push(curve);
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(curve.getPoints(100)),
-        new THREE.LineBasicMaterial({ color: colors[lane], transparent: true, opacity: 0.17, depthTest: true, depthWrite: false, toneMapped: false })
-      );
-      line.name = 'Solar-wind deflection guide';
-      line.renderOrder = 11;
-      state.magnetosphere.add(line);
-      for (let i = 0; i < 8; i += 1) {
-        const particle = new THREE.Mesh(
-          new THREE.SphereGeometry(0.075, 8, 6),
-          new THREE.MeshBasicMaterial({ color: colors[lane], transparent: true, opacity: 0.78, depthTest: true, depthWrite: false, toneMapped: false })
-        );
-        particle.name = 'Animated solar-wind stream particle';
-        particle.userData.curveIndex = lane;
-        particle.userData.phase = (i / 8 + lane * 0.13) % 1;
-        particle.renderOrder = 16;
-        state.magnetosphere.add(particle);
-        state.streamParticles.push(particle);
-      }
+      const material=new THREE.ShaderMaterial({
+        transparent:true,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,
+        side:THREE.DoubleSide,toneMapped:false,
+        uniforms:{uTime:{value:0},uSpeed:{value:1},uTint:{value:angle}},
+        vertexShader:"varying float vAlong;varying vec3 vNormalView,vEye;void main(){vAlong=uv.x;vec4 mv=modelViewMatrix*vec4(position,1.0);vEye=-mv.xyz;vNormalView=normalize(normalMatrix*normal);gl_Position=projectionMatrix*mv;}",
+        fragmentShader:"uniform float uTime,uSpeed,uTint;varying float vAlong;varying vec3 vNormalView,vEye;void main(){float t=uTime*uSpeed;float streak=pow(.5+.5*sin(vAlong*114.-t*5.+uTint*4.),9.);float wave=pow(.5+.5*sin(vAlong*43.-t*2.8+uTint*2.),5.);float ends=smoothstep(0.,.08,vAlong)*(1.-smoothstep(.87,1.,vAlong));float rim=pow(1.-abs(dot(normalize(vNormalView),normalize(vEye))),.9);vec3 color=mix(vec3(.06,.55,.99),vec3(.21,1.,.81),.5+.5*sin(uTint+vAlong*21.-t*.7));gl_FragColor=vec4(color,clamp(ends*(.1+.38*rim)*(.24+.9*streak+.3*wave),0.,.5));}"
+      });
+      const ribbon=new THREE.Mesh(new THREE.TubeGeometry(curve,140,.14+(lane%3)*.025,5,false),material);
+      ribbon.name='Animated moving solar wind plasma ribbon';
+      ribbon.renderOrder=15;
+      group.add(ribbon);
+      state.windRibbons.push(material);
+      for(let j=0;j<11;j++)seeds.push({lane,phase:(j/11+lane*.061)%1});
     }
+    state.windSeeds=seeds;
+    const positions=new Float32Array(seeds.length*3);
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute('position',new THREE.BufferAttribute(positions,3).setUsage(THREE.DynamicDrawUsage));
+    const material=new THREE.ShaderMaterial({
+      transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:true,
+      toneMapped:false,
+      vertexShader:"varying float vFade;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(28.0/max(1.0,-mv.z),1.25,5.2);vFade=clamp(.85+mv.z*.015,.35,1.);}",
+      fragmentShader:"varying float vFade;void main(){vec2 p=gl_PointCoord-.5;float glow=exp(-dot(p,p)*18.);gl_FragColor=vec4(.32,.94,1.,glow*vFade*.78);}"
+    });
+    const cloud=new THREE.Points(geometry,material);
+    cloud.name='Animated solar-wind stream particle';
+    cloud.frustumCulled=false;cloud.renderOrder=16;group.add(cloud);
+    state.windVisual=cloud;
+    animateSolarWind(0);
+  }
+
+  function animateSolarWind(time){
+    const speed=clamp(state.feed.speed/400,.45,1.95);
+    for(const material of state.windRibbons){
+      material.uniforms.uTime.value=time;
+      material.uniforms.uSpeed.value=speed;
+    }
+    const attr=state.windVisual?.geometry.getAttribute('position');
+    if(!attr)return;
+    for(let i=0;i<state.windSeeds.length;i++){
+      const seed=state.windSeeds[i],curve=state.streamCurves[seed.lane];
+      const phase=(seed.phase+time*(.04+.058*speed))%1;
+      const point=curve.getPoint(phase);
+      attr.setXYZ(i,point.x,point.y+Math.sin(time*2+i)*.15,point.z+Math.cos(time*2+i)*.15);
+    }
+    attr.needsUpdate=true;
   }
 
   function renderOzoneImage(time) {
@@ -463,64 +493,102 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     [500,158,1,66]
   ];
 
-  function colorizeMeasuredOzone(sourceTexture) {
+  function colorizeMeasuredOzone(sourceTexture){
     const image=sourceTexture?.image;
     if(!image?.width||!image?.height)throw Error('NASA ozone image is empty');
     const canvas=document.createElement('canvas');
     canvas.width=image.width;canvas.height=image.height;
     const ctx=canvas.getContext('2d',{willReadFrequently:true});
-    if(!ctx)throw Error('Ozone image pixel conversion unavailable');
+    if(!ctx)throw Error('Ozone pixel conversion unavailable');
     ctx.drawImage(image,0,0,canvas.width,canvas.height);
     const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
-    const source=pixels.data;
-    // Precompute the public NASA palette in 2.5-DU increments. Cache
-    // matched RGBs because WMS PNG contains a small number of palette colors.
+    const source=pixels.data,w=canvas.width,h=canvas.height;
+    const values=new Float32Array(w*h);
+    values.fill(NaN);
+    const rowHasData=new Uint8Array(h);
     const palette=[];
     for(let du=100;du<=497.5;du+=2.5){
       let upper=OZONE_SOURCE_STOPS.findIndex(entry=>entry[0]>=du);
       if(upper<=0)upper=1;
-      const hi=OZONE_SOURCE_STOPS[upper];
-      const lo=OZONE_SOURCE_STOPS[upper-1];
-      const fraction=clamp((du-lo[0])/Math.max(0.001,hi[0]-lo[0]),0,1);
-      palette.push([
-        Math.round(lo[1]+(hi[1]-lo[1])*fraction),
-        Math.round(lo[2]+(hi[2]-lo[2])*fraction),
-        Math.round(lo[3]+(hi[3]-lo[3])*fraction),
-        du
-      ]);
+      const hi=OZONE_SOURCE_STOPS[upper],lo=OZONE_SOURCE_STOPS[upper-1];
+      const t=clamp((du-lo[0])/Math.max(.001,hi[0]-lo[0]),0,1);
+      palette.push([lo[1]+(hi[1]-lo[1])*t,lo[2]+(hi[2]-lo[2])*t,lo[3]+(hi[3]-lo[3])*t,du]);
     }
     palette.push([94,79,162,90],[158,1,66,500]);
     const cache=new Map();
-    let validPixels=0;
-    for(let i=0;i<source.length;i+=4){
-      if(source[i+3]<12 || (source[i]>247&&source[i+1]<15&&source[i+2]>247)){
-        source[i+3]=0;continue;
-      }
-      const r=source[i],g=source[i+1],b=source[i+2];
-      const key=(r<<16)|(g<<8)|b;
-      let result=cache.get(key);
-      if(!result){
-        let best=Infinity,bestDu=300;
+    let observed=0,estimated=0;
+    for(let p=0;p<w*h;p++){
+      const i=p*4;
+      if(source[i+3]<12||(source[i]>247&&source[i+1]<15&&source[i+2]>247))continue;
+      const key=(source[i]<<16)|(source[i+1]<<8)|source[i+2];
+      let du=cache.get(key);
+      if(du===undefined){
+        let best=Infinity;du=300;
         for(const entry of palette){
-          const dr=r-entry[0],dg=g-entry[1],db=b-entry[2];
-          const distance=dr*dr+dg*dg+db*db;
-          if(distance<best){best=distance;bestDu=entry[3]}
+          const dist=(source[i]-entry[0])**2+(source[i+1]-entry[1])**2+(source[i+2]-entry[2])**2;
+          if(dist<best){best=dist;du=entry[3]}
         }
-        // The lookup is derived from NASA's numeric RGB/DU legend; no
-        // geographic patterns are fabricated when a satellite pixel is missing.
-        result=bestDu<220?[239,51,63]:bestDu<275?[255,207,40]:[47,224,101];
-        cache.set(key,result);
+        cache.set(key,du);
       }
-      source[i]=result[0];source[i+1]=result[1];source[i+2]=result[2];
-      validPixels++;
+      values[p]=du;
+      rowHasData[Math.floor(p/w)]=1;
+      observed++;
     }
-    if(validPixels<100)throw Error('NASA ozone map contained no usable measurements');
+    if(observed<100)throw Error('NASA ozone raster has no usable readings');
+    // Interpolate gaps between real NASA swath readings for a continuous
+    // visual shell. These filled texels are estimates, not observations.
+    const hits=[];
+    for(let y=0;y<h;y++){
+      hits.length=0;const start=y*w;
+      for(let x=0;x<w;x++)if(Number.isFinite(values[start+x]))hits.push(x);
+      if(!hits.length)continue;
+      if(hits.length===1){
+        const du=values[start+hits[0]];
+        for(let x=0;x<w;x++)if(!Number.isFinite(values[start+x])){values[start+x]=du;estimated++}
+        continue;
+      }
+      for(let k=0;k<hits.length;k++){
+        const a=hits[k],b=k===hits.length-1?hits[0]+w:hits[k+1],span=b-a;
+        const left=values[start+a],right=values[start+(b%w)];
+        for(let dx=1;dx<span;dx++){
+          values[start+(a+dx)%w]=left+(right-left)*dx/span;
+          estimated++;
+        }
+      }
+    }
+    const rows=[];
+    for(let y=0;y<h;y++)if(rowHasData[y])rows.push(y);
+    for(let y=0;y<h;y++){
+      if(rowHasData[y])continue;
+      let index=0;
+      while(index<rows.length&&rows[index]<y)index++;
+      const lower=rows[Math.max(0,index-1)],upper=rows[Math.min(rows.length-1,index)];
+      const t=lower===upper?0:(y-lower)/(upper-lower);
+      for(let x=0;x<w;x++){
+        values[y*w+x]=values[lower*w+x]*(1-t)+values[upper*w+x]*t;
+        estimated++;
+      }
+    }
+    const red=[239,51,63],yellow=[255,207,40],green=[47,224,101];
+    for(let p=0;p<w*h;p++){
+      const du=values[p],i=p*4;
+      let color=du<220?red:du<275?yellow:green;
+      if(du>=216&&du<224){
+        const t=(du-216)/8;
+        color=red.map((v,c)=>v+(yellow[c]-v)*t);
+      }else if(du>=271&&du<279){
+        const t=(du-271)/8;
+        color=yellow.map((v,c)=>v+(green[c]-v)*t);
+      }
+      source[i]=color[0];source[i+1]=color[1];source[i+2]=color[2];source[i+3]=255;
+    }
     ctx.putImageData(pixels,0,0);
     const texture=new THREE.CanvasTexture(canvas);
     texture.colorSpace=THREE.SRGBColorSpace;
     texture.wrapS=THREE.RepeatWrapping;
-    texture.anisotropy=4;
-    texture.needsUpdate=true;
+    texture.anisotropy=4;texture.needsUpdate=true;
+    texture.userData.ozoneEstimatedPixelCount=estimated;
+    texture.userData.ozoneObservedPixelCount=observed;
     return texture;
   }
 
@@ -558,7 +626,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
           depthMesh.material.uniforms.uOzoneMap.value=colored;
           depthMesh.visible=true;
         }
-        state.ozoneStatus='NASA OMI · '+date+' UTC · green ≥275 DU / yellow 220–274 / red <220';
+        state.ozoneStatus='NASA OMI · '+date+' UTC · green ≥275 DU / yellow 220–274 / red <220 · gaps filled visually';
         updateReadout();
         return;
       } catch (error) { lastError = error; }
@@ -634,7 +702,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       f.density.toFixed(1)+' cm⁻³ · '+Math.round(f.speed)+' km/s · '+
       f.pressure.toFixed(2)+' nPa · nose ~'+state.smoothR0.toFixed(1)+' R⊕'+
       '<span style="display:block;margin-top:5px"><strong>OZONE ACTIVE</strong> · '+state.ozoneStatus+'</span>';
-    n.textContent='Magnetosphere and ozone are both on. NASA OMI: green ≥275 DU, yellow 220–274 DU, red <220 DU (Antarctic ozone-hole threshold). The 3D shell depth is enlarged for visibility; it is not a measured vertical profile.';
+    n.textContent='Both shields remain on. NOAA-speed-driven solar wind flows around the magnetic field. NASA ozone gaps are interpolated estimates, not additional observations. Ozone colors show total-column ranges; 3D layer depth is exaggerated.';
   }
 
   function setMode(){
@@ -665,12 +733,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       }
       const field=state.magnetosphere.children.find(x=>x.name==='Modeled geomagnetic field lines');
       for(const strand of field?.children||[])strand.material.opacity=.24+.10*Math.sin(state.time*1.8+strand.userData.phase);
-      for(const particle of state.streamParticles){
-        const curve=state.streamCurves[particle.userData.curveIndex];if(!curve)continue;
-        const phase=(particle.userData.phase+state.time*(.045+state.feed.speed/25000))%1;
-        particle.position.copy(curve.getPoint(phase));
-        particle.material.opacity=.55+.25*Math.sin(state.time*2.5+particle.userData.phase*20);
-      }
+      animateSolarWind(state.time);
       for(const obj of state.ozoneGroup.children)if(obj.material?.uniforms?.uTime)obj.material.uniforms.uTime.value=state.time;
       const d=state.orbitDistance,y=state.orbitYaw,p=state.orbitPitch;
       state.camera.position.set(Math.sin(y)*Math.cos(p)*d,Math.sin(p)*d,Math.cos(y)*Math.cos(p)*d);
@@ -716,7 +779,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     state.earthTexture?.dispose?.();state.ozoneTexture?.dispose?.();
     state.renderer=null;state.earthTexture=null;state.ozoneTexture=null;state.earthMesh=null;
     state.scene=null;state.camera=null;state.root=null;state.magnetosphere=null;state.ozoneGroup=null;
-    state.plasmaShells=[];state.streamCurves=[];state.streamParticles=[];state.pointers.clear();
+    state.plasmaShells=[];state.streamCurves=[];state.streamParticles=[];state.windVisual=null;state.windSeeds=[];state.windRibbons=[];state.pointers.clear();
     state.ozoneStatus='NASA daily ozone layer loading…';
   }
 
