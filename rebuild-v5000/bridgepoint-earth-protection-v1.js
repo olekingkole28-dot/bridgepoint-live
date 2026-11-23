@@ -4,7 +4,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 (() => {
   'use strict';
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
   if (window.__BP_EARTH_PROTECTION_V1__?.version === VERSION) return;
 
   const BUTTON_ID = 'bpEarthProtectionLaunchV1';
@@ -260,7 +260,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     const shellMaterial = new THREE.ShaderMaterial({
       transparent:true,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,
       side:THREE.DoubleSide,toneMapped:false,
-      uniforms:{uTime:{value:0},uStress:{value:.22},uOpacity:{value:.58},uPhase:{value:0}},
+      uniforms:{uTime:{value:0},uStress:{value:.22},uOpacity:{value:.19},uPhase:{value:0}},
       vertexShader:"varying vec3 vLocal,vN,vEye;uniform float uTime,uStress,uPhase;\nvoid main(){\n vec3 p=position;\n float a=sin(p.y*1.35+uTime*2.4+uPhase)*cos(p.z*.89-uTime*1.8);\n float b=sin(p.z*2.3-p.x*.22+uTime*1.55+uPhase);\n p+=normal*(.55+uStress*.38)*(a*.65+b*.35);\n vLocal=p;vec4 mv=modelViewMatrix*vec4(p,1.);vEye=-mv.xyz;vN=normalize(normalMatrix*normal);\n gl_Position=projectionMatrix*mv;\n}",fragmentShader:"precision highp float;\nuniform float uTime,uStress,uOpacity,uPhase;varying vec3 vLocal,vN,vEye;\nfloat hs(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}\nfloat nz(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n return mix(mix(mix(hs(i),hs(i+vec3(1,0,0)),f.x),mix(hs(i+vec3(0,1,0)),hs(i+vec3(1,1,0)),f.x),f.y),\n mix(mix(hs(i+vec3(0,0,1)),hs(i+vec3(1,0,1)),f.x),mix(hs(i+vec3(0,1,1)),hs(i+vec3(1,1,1)),f.x),f.y),f.z);}\nvoid main(){\n float t=uTime;vec3 flow=vec3(vLocal.x*.39+t*.41,vLocal.y*.69-t*.65,vLocal.z*.72+t*.53);\n float n=nz(flow)+.5*nz(flow*2.6+uPhase);\n float ribbon=pow(max(0.,.5+.5*sin(vLocal.y*2.5+vLocal.z*1.6-vLocal.x*.4+n*7.-t*3.9+uPhase)),9.);\n float filament=pow(max(0.,.5+.5*sin(vLocal.z*3.3-vLocal.y+n*9.+t*4.2)),14.);\n float rim=pow(1.-abs(dot(normalize(vN),normalize(vEye))),1.6);\n float billow=smoothstep(.3,.9,n),flare=max(ribbon,filament);\n vec3 color=mix(vec3(.06,.29,1.),vec3(.06,.94,1.),clamp(billow+flare*.5,0.,1.));\n color=mix(color,vec3(.46,.16,1.),(1.-n)*.27+uStress*.2);\n color=mix(color,vec3(.1,1.,.7),flare*.62);\n float alpha=clamp(uOpacity*(.07+rim*.5+flare*.75+billow*.23),0.,.72);\n gl_FragColor=vec4(color*(.75+flare*.55),alpha);\n}"
     });
     const shell = new THREE.Mesh(shellGeometry, shellMaterial);
@@ -286,7 +286,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         const line=new THREE.Mesh(
           new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),96,.032,4,false),
           new THREE.MeshBasicMaterial({color:side?0x53c8ff:0x54ffd2,transparent:true,
-             opacity:.68,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,toneMapped:false})
+             opacity:.32,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,toneMapped:false})
         );
         line.name='Magnetic flux tube';line.userData.phase=phi;line.renderOrder=14;
         fieldGroup.add(line);
@@ -301,7 +301,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       const curtain=new THREE.Mesh(shellGeometry.clone(),shellMaterial.clone());
       curtain.name='Secondary waving magnetic plasma curtain';
       curtain.material.uniforms.uPhase.value=i*2.35;
-      curtain.material.uniforms.uOpacity.value=.47-i*.05;
+      curtain.material.uniforms.uOpacity.value=.18-i*.035;
       curtain.scale.setScalar(1+i*.095);curtain.renderOrder=12+i;
       state.magnetosphere.add(curtain);state.plasmaShells.push(curtain);
     }
@@ -310,11 +310,11 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
 
     const ozoneGroup = new THREE.Group();
     ozoneGroup.name = 'Daily total-column ozone layer';
-    const ozoneGeometry = new THREE.SphereGeometry(1.105, 96, 64);
+    const ozoneGeometry = new THREE.SphereGeometry(1.055, 96, 64);
     const ozoneMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.78,
+      opacity: 0.46,
       side: THREE.DoubleSide,
       depthTest: true,
       depthWrite: false,
@@ -322,15 +322,61 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     });
     const ozone = new THREE.Mesh(ozoneGeometry, ozoneMaterial);
     ozone.name = 'NASA OMI daily ozone raster on a thin visible shell';
-    ozone.renderOrder=17;ozone.visible=false;
+    ozone.renderOrder=18;ozone.visible=false;
     ozoneGroup.add(ozone);
+    // Reuse the same measured NASA ozone map on concentric shells to convey
+    // vertical depth. These are visualization shells, not measured vertical profiles.
+    const ozoneVertexShader = `
+      varying vec2 vUvMap;
+      varying vec3 vNormalView;
+      varying vec3 vViewPosition;
+      void main(){
+        vUvMap=uv;
+        vec4 mvPosition=modelViewMatrix*vec4(position,1.0);
+        vViewPosition=-mvPosition.xyz;
+        vNormalView=normalize(normalMatrix*normal);
+        gl_Position=projectionMatrix*mvPosition;
+      }
+    `;
+    const ozoneFragmentShader = `
+      uniform sampler2D uOzoneMap;
+      uniform float uOpacity;
+      uniform float uTime;
+      varying vec2 vUvMap;
+      varying vec3 vNormalView;
+      varying vec3 vViewPosition;
+      void main(){
+        vec4 measurement=texture2D(uOzoneMap,vUvMap);
+        if(measurement.a<.025) discard;
+        float rim=pow(1.0-abs(dot(normalize(vNormalView),normalize(vViewPosition))),2.0);
+        float shimmer=.965+.035*sin(uTime*.8+vUvMap.x*31.0+vUvMap.y*18.0);
+        float alpha=measurement.a*uOpacity*(.74+.44*rim)*shimmer;
+        gl_FragColor=vec4(measurement.rgb*(.92+.22*rim),clamp(alpha,0.,.8));
+      }
+    `;
+    for(const [index, radius, opacity] of [[0,1.078,.31],[1,1.102,.23],[2,1.126,.14]]){
+      const depthMesh=new THREE.Mesh(
+        new THREE.SphereGeometry(radius,96,64),
+        new THREE.ShaderMaterial({
+          transparent:true,depthTest:true,depthWrite:false,
+          side:THREE.FrontSide,toneMapped:false,
+          uniforms:{uOzoneMap:{value:null},uTime:{value:0},uOpacity:{value:opacity}},
+          vertexShader:ozoneVertexShader,
+          fragmentShader:ozoneFragmentShader,
+        })
+      );
+      depthMesh.name='Measured ozone volumetric depth '+index;
+      depthMesh.renderOrder=19+index;
+      depthMesh.visible=false;
+      ozoneGroup.add(depthMesh);
+    }
     const ozoneGlow=new THREE.Mesh(
-      new THREE.SphereGeometry(1.115,96,64),
+      new THREE.SphereGeometry(1.135,96,64),
       new THREE.ShaderMaterial({
         transparent:true,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,
         side:THREE.DoubleSide,toneMapped:false,uniforms:{uTime:{value:0}},
         vertexShader:"varying vec3 vN,vEye,vP;void main(){vP=position;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vEye=-mv.xyz;gl_Position=projectionMatrix*mv;}",
-        fragmentShader:"uniform float uTime;varying vec3 vN,vEye,vP;void main(){float rim=pow(1.-abs(dot(normalize(vN),normalize(vEye))),1.65);float band=.5+.5*sin(vP.y*17.+vP.z*8.+uTime*.88);float swirl=.5+.5*sin(vP.x*9.-vP.y*7.-uTime*.34);vec3 col=mix(vec3(.08,.55,1.),vec3(.42,.22,1.),band);col=mix(col,vec3(.12,1.,.73),swirl*.23);gl_FragColor=vec4(col,.08+rim*.37+band*.09);}",
+        fragmentShader:"uniform float uTime;varying vec3 vN,vEye,vP;void main(){float rim=pow(1.-abs(dot(normalize(vN),normalize(vEye))),1.65);float band=.5+.5*sin(vP.y*17.+vP.z*8.+uTime*.88);vec3 col=vec3(.1,.64,.61);gl_FragColor=vec4(col,.016+rim*.075+band*.018);}",
       })
     );
     ozoneGlow.name='Continuously visible ozone flow';ozoneGlow.renderOrder=16;
@@ -341,7 +387,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         transparent: true, depthTest: true, depthWrite: false, side: THREE.BackSide, toneMapped: false,
         uniforms: { uTime: { value: 0 } },
         vertexShader: 'varying vec3 vNormalView; varying vec3 vViewPosition; void main(){vec4 mvPosition=modelViewMatrix*vec4(position,1.0);vViewPosition=-mvPosition.xyz;vNormalView=normalize(normalMatrix*normal);gl_Position=projectionMatrix*mvPosition;}',
-        fragmentShader: 'uniform float uTime; varying vec3 vNormalView; varying vec3 vViewPosition; void main(){float edge=pow(1.0-abs(dot(normalize(vNormalView),normalize(vViewPosition))),2.2);float sweep=.5+.5*sin(uTime*.7);vec3 c=mix(vec3(.10,.78,.95),vec3(.22,1.0,.68),sweep);gl_FragColor=vec4(c,edge*.34);}',
+        fragmentShader: 'uniform float uTime; varying vec3 vNormalView; varying vec3 vViewPosition; void main(){float edge=pow(1.0-abs(dot(normalize(vNormalView),normalize(vViewPosition))),2.2);float sweep=.5+.5*sin(uTime*.7);vec3 c=mix(vec3(.10,.78,.95),vec3(.22,1.0,.68),sweep);gl_FragColor=vec4(c,edge*.085);}',
       })
     );
     ozoneRim.renderOrder = 15;
@@ -403,6 +449,81 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
     return url.toString();
   }
 
+
+  // NASA GIBS OMI Total Column legend is in Dobson Units (DU).
+  // Source palette: https://gibs.earthdata.nasa.gov/colormaps/v1.3/OMI_Ozone_DOAS_Total_Column.xml
+  // <220 DU is NASA's historical Antarctic ozone-hole threshold. Yellow
+  // 220-275 DU and green >=275 DU are illustrative column-value bands,
+  // NOT universal health/safety classifications or measured vertical profiles.
+  const OZONE_SOURCE_STOPS = [
+    [99.9,94,79,162],[100,50,136,189],[150,93,184,169],[200,147,211,164],
+    [220,171,221,164],[250,197,232,158],[275,225,243,153],[300,238,238,147],
+    [325,247,229,142],[350,253,215,131],[375,253,194,114],[400,253,174,97],
+    [425,249,149,85],[450,245,119,72],[475,237,99,69],[497.5,224,80,74],
+    [500,158,1,66]
+  ];
+
+  function colorizeMeasuredOzone(sourceTexture) {
+    const image=sourceTexture?.image;
+    if(!image?.width||!image?.height)throw Error('NASA ozone image is empty');
+    const canvas=document.createElement('canvas');
+    canvas.width=image.width;canvas.height=image.height;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)throw Error('Ozone image pixel conversion unavailable');
+    ctx.drawImage(image,0,0,canvas.width,canvas.height);
+    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const source=pixels.data;
+    // Precompute the public NASA palette in 2.5-DU increments. Cache
+    // matched RGBs because WMS PNG contains a small number of palette colors.
+    const palette=[];
+    for(let du=100;du<=497.5;du+=2.5){
+      let upper=OZONE_SOURCE_STOPS.findIndex(entry=>entry[0]>=du);
+      if(upper<=0)upper=1;
+      const hi=OZONE_SOURCE_STOPS[upper];
+      const lo=OZONE_SOURCE_STOPS[upper-1];
+      const fraction=clamp((du-lo[0])/Math.max(0.001,hi[0]-lo[0]),0,1);
+      palette.push([
+        Math.round(lo[1]+(hi[1]-lo[1])*fraction),
+        Math.round(lo[2]+(hi[2]-lo[2])*fraction),
+        Math.round(lo[3]+(hi[3]-lo[3])*fraction),
+        du
+      ]);
+    }
+    palette.push([94,79,162,90],[158,1,66,500]);
+    const cache=new Map();
+    let validPixels=0;
+    for(let i=0;i<source.length;i+=4){
+      if(source[i+3]<12 || (source[i]>247&&source[i+1]<15&&source[i+2]>247)){
+        source[i+3]=0;continue;
+      }
+      const r=source[i],g=source[i+1],b=source[i+2];
+      const key=(r<<16)|(g<<8)|b;
+      let result=cache.get(key);
+      if(!result){
+        let best=Infinity,bestDu=300;
+        for(const entry of palette){
+          const dr=r-entry[0],dg=g-entry[1],db=b-entry[2];
+          const distance=dr*dr+dg*dg+db*db;
+          if(distance<best){best=distance;bestDu=entry[3]}
+        }
+        // The lookup is derived from NASA's numeric RGB/DU legend; no
+        // geographic patterns are fabricated when a satellite pixel is missing.
+        result=bestDu<220?[239,51,63]:bestDu<275?[255,207,40]:[47,224,101];
+        cache.set(key,result);
+      }
+      source[i]=result[0];source[i+1]=result[1];source[i+2]=result[2];
+      validPixels++;
+    }
+    if(validPixels<100)throw Error('NASA ozone map contained no usable measurements');
+    ctx.putImageData(pixels,0,0);
+    const texture=new THREE.CanvasTexture(canvas);
+    texture.colorSpace=THREE.SRGBColorSpace;
+    texture.wrapS=THREE.RepeatWrapping;
+    texture.anisotropy=4;
+    texture.needsUpdate=true;
+    return texture;
+  }
+
   async function loadOzoneTexture() {
     if (!state.open || !state.ozoneGroup || state.ozoneTexture) return;
     state.ozoneStatus = 'Loading NASA OMI total-column ozone…';
@@ -417,14 +538,27 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       try {
         const texture = await new Promise((resolve, reject) => loader.load(renderOzoneImage(date), resolve, undefined, reject));
         if (!state.open) { texture.dispose(); return; }
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.anisotropy = 4;
-        texture.needsUpdate = true;
-        state.ozoneTexture = texture;
-        const mesh = state.ozoneGroup.children.find(child => child.isMesh && child.name.startsWith('NASA OMI'));
-        if(mesh?.material){mesh.material.map=texture;mesh.material.needsUpdate=true;mesh.visible=true;}
-        state.ozoneStatus = 'NASA OMI daily ozone raster · ' + date + ' UTC';
+        let colored;
+        try{
+          colored=colorizeMeasuredOzone(texture);
+        }catch(error){
+          texture.dispose();
+          throw error;
+        }
+        texture.dispose();
+        if(!state.open||!state.ozoneGroup){colored.dispose();return}
+        state.ozoneTexture=colored;
+        const mesh=state.ozoneGroup.children.find(child=>child.isMesh&&child.name.startsWith('NASA OMI'));
+        if(mesh?.material){
+          mesh.material.map=colored;
+          mesh.material.needsUpdate=true;
+          mesh.visible=true;
+        }
+        for(const depthMesh of state.ozoneGroup.children.filter(child=>child.name.startsWith('Measured ozone volumetric depth'))){
+          depthMesh.material.uniforms.uOzoneMap.value=colored;
+          depthMesh.visible=true;
+        }
+        state.ozoneStatus='NASA OMI · '+date+' UTC · green ≥275 DU / yellow 220–274 / red <220';
         updateReadout();
         return;
       } catch (error) { lastError = error; }
@@ -500,7 +634,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       f.density.toFixed(1)+' cm⁻³ · '+Math.round(f.speed)+' km/s · '+
       f.pressure.toFixed(2)+' nPa · nose ~'+state.smoothR0.toFixed(1)+' R⊕'+
       '<span style="display:block;margin-top:5px"><strong>OZONE ACTIVE</strong> · '+state.ozoneStatus+'</span>';
-    n.textContent='Both Earth shields are automatically on. NOAA powers the modeled magnetic response; NASA daily ozone imagery overlays the shimmering ozone shell when available. Turbulence and altitude are exaggerated for visibility.';
+    n.textContent='Magnetosphere and ozone are both on. NASA OMI: green ≥275 DU, yellow 220–274 DU, red <220 DU (Antarctic ozone-hole threshold). The 3D shell depth is enlarged for visibility; it is not a measured vertical profile.';
   }
 
   function setMode(){
@@ -522,6 +656,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
       state.earthMesh.rotation.y+=delta*.014;
       state.magnetosphere.scale.setScalar(.23*(state.smoothR0/10)*(1+Math.sin(state.time*.7)*.015));
       state.ozoneGroup.scale.setScalar(1);
+      state.ozoneGroup.rotation.y=state.earthMesh.rotation.y;
       state.root.rotation.y=Math.sin(state.time*.09)*.12;
       const stress=clamp((12.5-state.smoothR0)/6.5,0,1);
       for(const plasma of state.plasmaShells){
@@ -529,7 +664,7 @@ import * as THREE from '/vendor/three.module.js?v=169-local';
         plasma.material.uniforms.uStress.value=stress;
       }
       const field=state.magnetosphere.children.find(x=>x.name==='Modeled geomagnetic field lines');
-      for(const strand of field?.children||[])strand.material.opacity=.54+.2*Math.sin(state.time*1.8+strand.userData.phase);
+      for(const strand of field?.children||[])strand.material.opacity=.24+.10*Math.sin(state.time*1.8+strand.userData.phase);
       for(const particle of state.streamParticles){
         const curve=state.streamCurves[particle.userData.curveIndex];if(!curve)continue;
         const phase=(particle.userData.phase+state.time*(.045+state.feed.speed/25000))%1;
