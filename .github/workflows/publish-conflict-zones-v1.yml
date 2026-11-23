@@ -72,10 +72,10 @@ jobs:
           from pathlib import Path
           root=Path(os.environ['RUNNER_TEMP'])/'bp-site'
           name='bridgepoint-conflict-zones-v1.js'
-          script='<script defer src="/'+name+'?v=1.0.0"></script>'
+          script='<script defer src="/'+name+'?v=1.1.0"></script>'
           source=Path('rebuild-v5000')/name
           code=source.read_text(encoding='utf-8')
-          required=('2026-11-22','Conflict Zones','⚠ Reported conflict regions','bp-conflict-zones-button-v1')
+          required=('2026-11-22','Hostile Zones','⚠ Reported conflict regions','bp-conflict-zones-button-v1','bp-hostile-fx-v1','SCORCH_SOURCE')
           if not all(token in code for token in required):
               raise SystemExit('CONFLICT_MODULE_MISSING_CORE_FEATURES')
           excluded={'index.html','app/index.html',name}
@@ -125,10 +125,10 @@ jobs:
           curl --retry 7 --retry-all-errors --retry-delay 3 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$origin/bridgepoint-conflict-zones-v1.js?verify=$GITHUB_SHA" -o "$dir/conflict.js"
           cmp -s "$dir/conflict.js" rebuild-v5000/bridgepoint-conflict-zones-v1.js
           for html in index app; do
-            grep -Fq 'bridgepoint-conflict-zones-v1.js?v=1.0.0' "$dir/$html.html"
+            grep -Fq 'bridgepoint-conflict-zones-v1.js?v=1.1.0' "$dir/$html.html"
             grep -Fq 'bpPublicScansImportMapV1' "$dir/$html.html"
           done
-          grep -Fq 'Conflict Zones' "$dir/conflict.js"
+          grep -Fq 'Hostile Zones' "$dir/conflict.js"
           grep -Fq '2026-11-22' "$dir/conflict.js"
           grep -Fq '⚠ Reported conflict regions' "$dir/conflict.js"
-          echo 'CONFLICT_SITES_LIVE_SOURCE_MATCHES_AND_OTHER_ASSETS_PRESERVED'
+          echo 'HOSTILE_ZONES_3D_LIVE_SOURCE_MATCHES_AND_OTHER_ASSETS_PRESERVED'

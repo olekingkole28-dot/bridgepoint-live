@@ -9,7 +9,7 @@
   'use strict';
   const KEY='__BP_CONFLICT_ZONES_V1__';
   if(window[KEY])return;
-  const VERSION='1.0.0';
+  const VERSION='1.1.0';
   const REVIEWED='2026-11-22';
   const SOURCE='bp-conflict-zones-regions-v1';
   const PINS='bp-conflict-zones-pin-source-v1';
@@ -25,6 +25,10 @@
   const CONTROL='bp-conflict-zones-controls-v1';
   const STYLE='bp-conflict-zones-style-v1';
   const LEGEND='bp-conflict-zones-legend-v1';
+  const FX_LAYER='bp-hostile-fx-v1';
+  const SCORCH_SOURCE='bp-hostile-scorch-source-v1';
+  const SCORCH_LAYER='bp-hostile-scorch-fill-v1';
+  const SCORCH_EDGE='bp-hostile-scorch-edge-v1';
   const ACLED='https://acleddata.com/conflict-index-2026-watchlist';
   const CFR='https://www.cfr.org/global-conflict-tracker';
   const IRC='https://www.rescue.org/uk/article/emergency-watchlist-2026';
@@ -60,7 +64,8 @@
     ['haiti','Port-au-Prince region','Haiti',-72.32,18.55,.50,.29,'Severe gang-related armed violence and humanitarian insecurity; not an interstate war.','active','IRC'],
     ['colombia-pacific','Colombia southwest / Pacific','Colombia',-77.0,3.0,1.8,2.3,'Armed-group conflict and displacement in western and southwestern Colombia.','active','CFR'],
     ['afghanistan-east','Eastern Afghanistan','Afghanistan',70.2,34.5,1.75,2.05,'Cross-border and armed-group violence affecting parts of eastern Afghanistan.','active','CFR'],
-    ['iraq-north','Northern Iraq','Iraq',43.6,36.4,1.7,.85,'Periodic armed clashes and strikes in parts of northern Iraq; not continuous active fighting throughout the area.','monitor','CFR']
+    ['iraq-north','Northern Iraq','Iraq',43.6,36.4,1.7,.85,'Periodic armed clashes and strikes in parts of northern Iraq; not continuous active fighting throughout the area.','monitor','CFR'],
+    ['iran-regional','Iran / Regional Conflict','Iran',52,32.4,6.6,4.3,'CFR tracks a worsening interstate conflict involving Iran. This broad country-level indicator is NOT a map of attacks or hostilities at exact locations.','major','CFR']
   ];
   const BY_ID=new Map();
   const urls={ACLED,CFR,IRC};
@@ -126,12 +131,12 @@
     ensureCss();
     const section=document.createElement('section');section.id=CONTROL;
     section.className='bpv-command-group';section.dataset.bpvCommandSection='explore';
-    section.setAttribute('aria-label','Conflict Zones');
+    section.setAttribute('aria-label','Hostile Zones');
     button=document.createElement('button');button.type='button';button.id=BUTTON;
     button.className='bpv-command-btn bpv-v2-tool-button';
     button.setAttribute('aria-pressed',String(state.enabled));
-    button.title='Red-shaded approximate areas of reported armed conflict worldwide';
-    button.innerHTML='<span class="bpv-command-icon" aria-hidden="true">⚠</span><span class="bpv-command-label">Conflict Zones</span>';
+    button.title='Hostile Zones: approximate reported armed conflicts with illustrative 3D fire and smoke';
+    button.innerHTML='<span class="bpv-command-icon" aria-hidden="true">⚠</span><span class="bpv-command-label">Hostile Zones</span>';
     section.appendChild(button);dock.appendChild(section);
     button.addEventListener('click',()=>setEnabled(state,!state.enabled));
     // Existing categories wrapper scans buttons on DOM mutations.
@@ -141,11 +146,11 @@
     let el=document.getElementById(LEGEND);
     if(el)return el;
     el=document.createElement('div');el.id=LEGEND;el.hidden=true;
-    el.textContent='⚠ Reported conflict regions · red areas are broad estimates, NOT front lines or a live safety map';
+    el.textContent='⚠ Reported conflict regions · red shading is approximate, NOT front lines · 3D smoke, explosions, fire and scorches are illustrative, NOT real events';
     document.body.appendChild(el);return el;
   }
   function setVisibility(state){
-    const names=[GLOW,FILL,BORDER,RING,DOT,ICON_LAYER,LABEL_LAYER];
+    const names=[GLOW,FILL,BORDER,RING,DOT,ICON_LAYER,LABEL_LAYER,SCORCH_LAYER,SCORCH_EDGE,FX_LAYER];
     for(const id of names){
       if(state.map.getLayer?.(id))state.map.setLayoutProperty(id,'visibility',state.enabled?'visible':'none');
     }
@@ -189,9 +194,173 @@
           'text-color':'#ffe1e3','text-halo-color':'rgba(47,4,11,.98)','text-halo-width':1.7}}
       ];
       for(const layer of layers)if(!map.getLayer(layer.id))map.addLayer(layer);
-      setVisibility(state);return true;
+      ensureScorch(state);
+      setVisibility(state);
+      if(state.enabled){ensureFx(state);startFxTicker(state);}
+      return true;
     }catch(e){state.error=String(e?.message||e);console.warn('[BridgePoint Conflict Zones]',e);return false;}
   }
+
+  // Regional centers are representative *icons*, NEVER recorded strike locations.
+  // Burn marks are reversible overlay paint, not modifications to real basemap data.
+  function scorchFeature(item,i){
+    const lon=item[3],lat=item[4],radius=260+(i%4)*80;
+    const ring=[];
+    for(let j=0;j<28;j++){
+      const a=j*Math.PI*2/28,wave=1+.17*Math.sin(a*5+i)+.12*Math.cos(a*9+i);
+      ring.push([lon+Math.cos(a)*radius*wave/(111320*Math.max(.18,Math.cos(lat*Math.PI/180))),lat+Math.sin(a)*radius*wave/110540]);
+    }
+    ring.push(ring[0]);
+    return {type:'Feature',properties:{id:item[0],simulated:true},geometry:{type:'Polygon',coordinates:[ring]}};
+  }
+  const scorchCollection={type:'FeatureCollection',features:AREAS.map(scorchFeature)};
+  function ensureScorch(state){
+    const map=state.map;
+    if(!map.getSource(SCORCH_SOURCE))map.addSource(SCORCH_SOURCE,{type:'geojson',data:scorchCollection,maxzoom:18});
+    if(!map.getLayer(SCORCH_LAYER))map.addLayer({id:SCORCH_LAYER,type:'fill',source:SCORCH_SOURCE,minzoom:8.7,
+      paint:{'fill-color':'#1e1010','fill-opacity':['interpolate',['linear'],['zoom'],8.7,.14,11,.34,16,.44]}});
+    if(!map.getLayer(SCORCH_EDGE))map.addLayer({id:SCORCH_EDGE,type:'line',source:SCORCH_SOURCE,minzoom:8.7,
+      paint:{'line-color':'#bc4930','line-opacity':.24,'line-width':1.6,'line-blur':2}});
+  }
+  function fxMatrix(map,T,point,altitude){
+    try{
+      const raw=map.transform?.getMatrixForModel?.(point,altitude);
+      if(raw?.length>=16)return new T.Matrix4().fromArray(raw);
+      const mc=window.maplibregl?.MercatorCoordinate?.fromLngLat?.(point,altitude);
+      if(!mc)return null;
+      const k=mc.meterInMercatorCoordinateUnits();
+      if(!Number.isFinite(k)||k<=0)return null;
+      return new T.Matrix4().set(k,0,0,mc.x,0,0,k,mc.y,0,k,0,mc.z,0,0,0,1);
+    }catch(_){return null;}
+  }
+  function fxRig(T){
+    const scene=new T.Scene(),rig=new T.Group();scene.add(rig);
+    const material=(color,opacity,add=false)=>new T.MeshBasicMaterial({
+      color,opacity,transparent:true,depthWrite:false,side:T.DoubleSide,blending:add?T.AdditiveBlending:T.NormalBlending
+    });
+    const ground=new T.Mesh(new T.CircleGeometry(210,36),material(0x190d0c,.58));
+    ground.rotation.x=-Math.PI/2;ground.position.y=3;rig.add(ground);
+    const rim=new T.Mesh(new T.RingGeometry(115,230,36),material(0xa4412a,.29));
+    rim.rotation.x=-Math.PI/2;rim.position.y=5;rig.add(rim);
+    const blast=new T.Mesh(new T.IcosahedronGeometry(55,1),material(0xffc05b,.8,true));
+    blast.position.y=65;rig.add(blast);
+    const flames=[];
+    for(let j=0;j<4;j++){
+      const o=new T.Mesh(new T.ConeGeometry(30-j*4,135+j*23,9),material(j%2?0xffb329:0xff4b1e,.62,true));
+      o.position.set(Math.sin(j*2.8)*35,66+j*13,Math.cos(j*2.8)*32);
+      o.rotation.z=(j-1.5)*.13;rig.add(o);flames.push(o);
+    }
+    const shock=new T.Mesh(new T.TorusGeometry(85,7,6,40),material(0xffb86a,.56,true));
+    shock.rotation.x=-Math.PI/2;shock.position.y=9;rig.add(shock);
+    const smoke=[];
+    for(let j=0;j<9;j++){
+      const o=new T.Mesh(new T.SphereGeometry(1,10,8),material(j%3===0?0x605551:0x2f2a2a,.28));
+      rig.add(o);smoke.push(o);
+    }
+    const embers=[];
+    for(let j=0;j<7;j++){
+      const o=new T.Mesh(new T.IcosahedronGeometry(5,0),material(0xffa638,.7,true));
+      rig.add(o);embers.push(o);
+    }
+    return {scene,rig,ground,rim,blast,flames,shock,smoke,embers};
+  }
+  function animateFx(obj,clock,index,reduced){
+    const t=reduced?0:clock+index*1.33,phase=((t/5.1)%1+1)%1;
+    obj.blast.visible=!reduced&&phase<.23;
+    obj.blast.scale.setScalar(.5+phase*9);
+    obj.blast.material.opacity=Math.max(0,1-phase/.21)*.88;
+    obj.shock.visible=!reduced&&phase<.36;
+    obj.shock.scale.setScalar(.4+phase*7.5);
+    obj.shock.material.opacity=Math.max(0,.60-phase*1.8);
+    obj.flames.forEach((o,j)=>{
+      o.scale.set(.85+.14*Math.sin(t*7+j),.65+.25*Math.sin(t*5+j*1.7),.9);
+      o.material.opacity=(.43+.15*Math.sin(t*8+j))*(reduced?.6:1);
+    });
+    obj.smoke.forEach((o,j)=>{
+      const age=((t*.15+j/9)%1+1)%1;
+      o.position.set(Math.sin(j*2.8+age*4+index)*59,55+age*500,Math.cos(j*2.1+age*3)*55);
+      o.scale.setScalar((42+age*94)*(j%3===0?1.24:1));
+      o.material.opacity=.32*(1-age);
+    });
+    obj.embers.forEach((o,j)=>{
+      const age=((t*.26+j/7)%1+1)%1;
+      o.position.set(Math.sin(j*3+age*7)*age*112,18+age*350,Math.cos(j*2+age*7)*age*100);
+      o.material.opacity=(1-age)*.8;
+    });
+  }
+  function startFxTicker(state){
+    if(state.fxTicker)return;
+    state.fxTicker=setInterval(()=>{
+      if(!state.enabled||document.hidden||(Number(state.map.getZoom?.())||0)<3)return;
+      try{state.map.triggerRepaint?.();}catch(_){}
+    },150);
+  }
+  function stopFxTicker(state){
+    if(state.fxTicker){clearInterval(state.fxTicker);state.fxTicker=null;}
+  }
+  function ensureFx(state){
+    if(!state.enabled||state.fxInstalling||state.map.getLayer(FX_LAYER))return;
+    state.fxInstalling=true;
+    import('/vendor/three.module.js?v=169-local').then(mod=>{
+      if(!state.enabled)return;
+      const T=mod.default||mod,map=state.map;
+      if(map.getLayer(FX_LAYER)||!map.getStyle?.())return;
+      const layer={
+        id:FX_LAYER,type:'custom',renderingMode:'3d',
+        onAdd(m,gl){
+          const renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true,powerPreference:'low-power'});
+          renderer.autoClear=false;
+          state.fx3d={renderer,camera:new T.Camera(),objects:fxRig(T),T};
+        },
+        render(_gl,args){
+          const fx=state.fx3d;
+          if(!fx||!state.enabled)return;
+          const zoom=Number(map.getZoom?.())||0;
+          if(zoom<3)return;
+          const raw=args?.defaultProjectionData?.mainMatrix||args?.modelViewProjectionMatrix;
+          if(!raw||raw.length<16)return;
+          const reduced=!!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+          const clock=performance.now()/1000,center=map.getCenter?.(),bounds=map.getBounds?.();
+          const visible=AREAS.map((a,i)=>({a,i}))
+            .filter(x=>!bounds||bounds.contains([x.a[3],x.a[4]]))
+            .sort((a,b)=>{
+              const da=(a.a[3]-(center?.lng||0))**2+(a.a[4]-(center?.lat||0))**2;
+              const db=(b.a[3]-(center?.lng||0))**2+(b.a[4]-(center?.lat||0))**2;
+              return da-db;
+            }).slice(0,window.innerWidth<700?2:4);
+          if(!visible.length)return;
+          const projection=new T.Matrix4().fromArray(raw);
+          for(const {a,i} of visible){
+            const point=[a[3],a[4]];
+            let height=0;
+            try{const h=map.queryTerrainElevation?.(point,{exaggerated:false});if(Number.isFinite(h))height=h;}catch(_){}
+            const model=fxMatrix(map,T,point,height+2);
+            if(!model)continue;
+            // Exaggerate effects at regional zoom; these are NOT measured damage dimensions.
+            const scale=Math.max(1,Math.min(90,Math.pow(2,10-zoom)*.8));
+            fx.objects.rig.scale.setScalar(scale);
+            animateFx(fx.objects,clock,i,reduced);
+            fx.camera.projectionMatrix.copy(projection).multiply(model);
+            try{fx.renderer.resetState();fx.renderer.render(fx.objects.scene,fx.camera);}
+            catch(e){if(!state.fxError)state.fxError=String(e?.message||e);break;}
+          }
+        },
+        onRemove(){
+          const fx=state.fx3d;
+          if(fx){
+            fx.objects.scene.traverse(o=>{try{o.geometry?.dispose?.();}catch(_){}try{o.material?.dispose?.();}catch(_){}});
+            try{fx.renderer.dispose();}catch(_){}
+          }
+          state.fx3d=null;
+        }
+      };
+      map.addLayer(layer);
+      state.fxError=null;
+      map.triggerRepaint?.();
+    }).catch(err=>{state.fxError=String(err?.message||err);console.warn('[BridgePoint Hostile Zones 3D]',err);})
+      .finally(()=>{state.fxInstalling=false;});
+  }
+
   function card(item){
     const provider=item.provider;
     const sourceUrl=urls[provider]||ACLED;
@@ -202,7 +371,7 @@
       '<dt>Map date</dt><dd>'+REVIEWED+' (curated reference)</dd>'+
       '<dt>Region</dt><dd>Approximate broad affected area</dd>'+
       '<dt>Reporting</dt><dd><a href="'+htmlEscape(sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+htmlEscape(provider)+' conflict information</a></dd></dl>'+
-      '<p class="bp-conflict-warning">This red boundary is a simplified overview, NOT a verified front line, territorial-control map, live strike feed, or travel safety assessment. Conditions change rapidly.</p>'+
+      '<p class="bp-conflict-warning">This red boundary is a simplified overview, NOT a verified front line, territorial-control map, live strike feed, or travel safety assessment. Conditions change rapidly. The animated 3D fire, smoke, explosions and scorch marks are illustrative simulations, NOT observed destruction or real strike coordinates.</p>'+
       '<p>Also see <a href="'+CFR+'" target="_blank" rel="noopener noreferrer">CFR Global Conflict Tracker</a> and <a href="'+ACLED+'" target="_blank" rel="noopener noreferrer">ACLED 2026 Watchlist</a>.</p></article>';
   }
   function openCard(state,item){
@@ -217,14 +386,14 @@
     const button=document.getElementById(BUTTON);
     if(button){button.setAttribute('aria-pressed',String(state.enabled));button.classList.toggle('is-active',state.enabled);}
     if(state.enabled)ensureLayers(state);
-    else{state.popup?.remove();state.popup=null;}
+    else{state.popup?.remove();state.popup=null;stopFxTicker(state);}
     setVisibility(state);
   }
   function attach(map){
     if(!map||typeof map.addSource!=='function'||typeof map.on!=='function')return null;
     if(STATES.has(map))return STATES.get(map).api;
     ensureCss();
-    const state={map,enabled:false,popup:null,error:null,retry:0};
+    const state={map,enabled:false,popup:null,error:null,retry:0,fxInstalling:false,fxTicker:null,fxError:null,fx3d:null};
     state.style=()=>{if(state.enabled)ensureLayers(state);};
     state.click=e=>{
       if(!state.enabled||!map.queryRenderedFeatures)return;
@@ -243,7 +412,7 @@
     map.on('load',state.style);map.on('style.load',state.style);
     STATES.set(map,state);stateSet.add(state);
     state.api={version:VERSION,regions:AREAS.length,
-      get enabled(){return state.enabled},get status(){return {enabled:state.enabled,count:AREAS.length,error:state.error,reviewed:REVIEWED}},
+      get enabled(){return state.enabled},get status(){return {enabled:state.enabled,count:AREAS.length,error:state.error,fxReady:!!state.fx3d,fxError:state.fxError,reviewed:REVIEWED}},
       setEnabled:v=>setEnabled(state,v),toggle:()=>setEnabled(state,!state.enabled)};
     const retryButton=()=>{
       if(ensureButton(state))return;
