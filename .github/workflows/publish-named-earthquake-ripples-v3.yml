@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/publish-named-earthquake-ripples-v3.yml'
+      - 'scripts/overlay_named_earthquake_ripples_v3.py'
 permissions:
   contents: read
   actions: read
