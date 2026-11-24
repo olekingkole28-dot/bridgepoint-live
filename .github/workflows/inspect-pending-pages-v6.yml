@@ -22,6 +22,12 @@ jobs:
           echo 'Inspecting deployment 564934ecd2e0500c2ee5ff49e35a9f00cdbdd8c5'
           gh api "repos/$GITHUB_REPOSITORY/pages/deployments/564934ecd2e0500c2ee5ff49e35a9f00cdbdd8c5" \
             --jq '{status, status_url, page_url, id, error, created_at, updated_at}' || true
+          echo 'Recent github-pages deployment records:'
+          gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=20" --jq '.[]|{id,sha,created_at,updated_at,ref,environment,transient_environment}' || true
+          echo 'GitHub Pages site configuration:'
+          gh api "repos/$GITHUB_REPOSITORY/pages" --jq '{status,html_url,build_type,source,https_enforced}' || true
+          echo 'Past successful V5 Pages status:'
+          gh api "repos/$GITHUB_REPOSITORY/pages/deployments/e75b154f13ed9ef739c7b7e3418ef6e7a00c6615" --jq '{status,error}' || true
           echo 'Recent workflow runs:'
           gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=12" \
             --jq '.workflow_runs[]|select(.name|contains("Globe Foundation"))|{name,status,conclusion,run_attempt,id}' || true
