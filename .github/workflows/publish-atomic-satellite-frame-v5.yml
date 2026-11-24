@@ -2,12 +2,6 @@ name: Publish BridgePoint Atomic Satellite Frame Presentation V5
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-atomic-satellite-frame-v5.yml'
-      - 'release-v2300/world-v2300-map.js'
-      - 'tests/atomic-satellite-frame-presentation-v5.test.mjs'
 
 permissions:
   contents: read
