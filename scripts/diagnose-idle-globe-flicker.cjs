@@ -27,10 +27,10 @@ async function main(){
   if(mobile){await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');await page.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true})}
   else await page.setViewport({width:1120,height:760,deviceScaleFactor:1});
   await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'}))}catch(e){}});
-  await page.goto(ORIGIN+'/app/?render_diagnose='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
-  await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:25000}).catch(()=>{});
+  await page.goto(ORIGIN+'/?render_diagnose='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+  await page.waitForFunction(()=>(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),{timeout:25000}).catch(()=>{});
   const before=await page.evaluate(()=>{
-    const m=window.__BP_V5000_WORLD?.map;
+    const m=(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map);
     if(!m)return {map:false,html:document.body.innerText.slice(0,300)};
     const rows=[];
     for(const name of ['setLayoutProperty','setPaintProperty','setStyle','moveLayer','setTerrain','resize','setLight','setSky','setProjection','jumpTo','easeTo','triggerRepaint']){
@@ -57,7 +57,7 @@ async function main(){
   });
   console.log('PROBE_BOOT',mobile?'MOBILE':'DESKTOP',JSON.stringify(before));
   await sleep(10000);
-  const initial=await page.evaluate(()=>({url:location.href,hasMap:!!window.__BP_V5000_WORLD?.map,probe:!!window.__BP_IDLE_FLICKER_PROBE__,gate:!!document.querySelector('[data-surface="account"]')}));console.log('PROBE_INIT',JSON.stringify(initial));
+  const initial=await page.evaluate(()=>({url:location.href,hasMap:!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),probe:!!window.__BP_IDLE_FLICKER_PROBE__,gate:!!document.querySelector('[data-surface="account"]')}));console.log('PROBE_INIT',JSON.stringify(initial));
   const samples=[];
   for(let i=0;i<0;i++){
     try{const snap=await page.screenshot({type:'png',captureBeyondViewport:false});samples.push({t:i, ...cpu(snap)})}catch(e){if(errors.length<25)errors.push('screenshot:'+e.message)}
