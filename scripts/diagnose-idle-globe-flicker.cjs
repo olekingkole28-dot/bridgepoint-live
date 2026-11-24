@@ -20,7 +20,7 @@ const cpu=png=>{
 async function main(){
  const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
  try{
- for(const mobile of [false]){
+ for(const mobile of [true]){
   const page=await browser.newPage(), errors=[];
   page.on('pageerror',e=>{if(errors.length<25)errors.push(String(e.message||e).slice(0,220))});
   page.on('console',m=>{if(m.type()==='error'&&errors.length<25)errors.push(m.text().slice(0,220))});
@@ -45,18 +45,10 @@ async function main(){
     m.on('render',()=>renders++);m.on('idle',()=>idles++);m.on('sourcedata',e=>{sourceData++;const key=String(e?.sourceId||'unknown')+':'+String(e?.sourceDataType||'');sources[key]=(sources[key]||0)+1});m.on('move',()=>move++);
     const gpuFrames=[],gpuClearCalls={},gpuRenderCalls={};
     const gpu=m.getCanvas().getContext('webgl2')||m.getCanvas().getContext('webgl');
-    const originalClear=gpu.clear.bind(gpu);
-    const originalDrawArrays=gpu.drawArrays.bind(gpu);
-    const originalDrawElements=gpu.drawElements.bind(gpu);
-    gpu.clear=function(bits){
-      const key=String(new Error().stack||'').split('\\n').slice(1,4).join('|').slice(0,220);
-      gpuClearCalls[key]=(gpuClearCalls[key]||0)+1;
-      return originalClear(bits);
-    };
     m.on('render',()=>{
-      if(gpuFrames.length>=20)return;
+      if(gpuFrames.length>=100)return;
       try{
-        const w=gpu.drawingBufferWidth,h=gpu.drawingBufferHeight,sz=36;
+        const w=gpu.drawingBufferWidth,h=gpu.drawingBufferHeight,sz=24;
         if(w<100||h<100)return;
         const pixels=new Uint8Array(sz*sz*4);
         gpu.readPixels((w-sz)>>1,(h-sz)>>1,sz,sz,gpu.RGBA,gpu.UNSIGNED_BYTE,pixels);
@@ -67,6 +59,8 @@ async function main(){
     });
     window.__BP_GPU_DIAG__={gpuFrames,gpuClearCalls,gpuRenderCalls};
     const canvas=m.getCanvas();
+    try{m.jumpTo({center:[-102,41],zoom:1.6,pitch:0,bearing:0});}catch(e){}
+
     const cssHistory=[];
     let prior='',canvasSizes=[];
     const observe=()=>{
@@ -80,7 +74,7 @@ async function main(){
   });
   console.log('PROBE_BOOT',mobile?'MOBILE':'DESKTOP',JSON.stringify(before));
   if(before.map && (!before.policy?.contextAttributesVerified || !before.policy?.contextAttributesForced || before.bufferPreserved!==true))throw new Error('LIVE_GLOBE_WEBGL_BUFFER_NOT_RETAINED '+JSON.stringify(before));
-  await sleep(6500);
+  await sleep(10500);
   const initial=await page.evaluate(()=>({url:location.href,hasMap:!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),probe:!!window.__BP_IDLE_FLICKER_PROBE__,gate:!!document.querySelector('[data-surface="account"]')}));console.log('PROBE_INIT',JSON.stringify(initial));
   const samples=[];
   for(let i=0;i<0;i++){
