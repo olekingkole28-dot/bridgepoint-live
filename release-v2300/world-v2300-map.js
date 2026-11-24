@@ -697,25 +697,41 @@ export function initWorld(options={}){
  // Build a fine, Earth-fixed night hemisphere from the great-circle terminator.
  // Narrow longitude strips avoid antimeridian-spanning polygons and stay smooth on the globe.
  function solarNightGeometry(sun){
-  const rad=Math.PI/180,dec=sun.lat*rad,sinDec=Math.sin(dec),cosDec=Math.cos(dec),south=-85.05112878,north=85.05112878,segments=720,step=360/segments,polygons=[];
+  // The terminator is tan(latitude) = -cos(solarDeclination)*cos(lon-sunLng)/sin(solarDeclination).
+  // atan2(numerator,sinDeclination) gave the opposite quadrant when the Sun was south:
+  // that shaded the DAYLIT Northern Hemisphere in November and made a huge flickering
+  // 720-polygon overlay on a globe. atan(ratio) always returns the physical [-90,90] branch.
+  const rad=Math.PI/180,dec=sun.lat*rad,sinDec=Math.sin(dec),cosDec=Math.cos(dec);
+  const south=-85.05112878,north=85.05112878,segments=180,step=360/segments,features=[];
   const boundaryAt=lng=>{
-   let lat=Math.atan2(-cosDec*Math.cos((lng-sun.lng)*rad),sinDec)/rad;
-   if(lat>90)lat-=180;else if(lat< -90)lat+=180;
-   return clamp(lat,south,north);
+   const cosHour=Math.cos((lng-sun.lng)*rad);
+   if(Math.abs(sinDec)<1e-9)return cosHour<0?(sun.lat>=0?north:south):(sun.lat>=0?south:north);
+   return clamp(Math.atan(-cosDec*cosHour/sinDec)/rad,south,north);
+  };
+  const add=(coordinates,i)=>{
+   // Independent simple quads avoid globe stencil/triangulation artifacts from a
+   // single ~720-member MultiPolygon. No synthetic imagery; preserve the real Sun.
+   features.push({type:'Feature',properties:{kind:'earth-fixed-night-hemisphere',strip:i},
+    geometry:{type:'Polygon',coordinates:[coordinates]}});
   };
   for(let i=0;i<segments;i++){
-   const lon0=-180+i*step,lon1=lon0+step,mid=(lon0+lon1)*.5,midTerm=cosDec*Math.cos((mid-sun.lng)*rad);
-   if(Math.abs(sinDec)<1e-9&&midTerm>=0)continue;
+   const lon0=-180+i*step,lon1=lon0+step;
+   if(Math.abs(sinDec)<1e-9){
+    const midpoint=lon0+step*.5;
+    if(Math.cos((midpoint-sun.lng)*rad)<0)
+     add([[lon0,south],[lon1,south],[lon1,north],[lon0,north],[lon0,south]],i);
+    continue;
+   }
    const a=boundaryAt(lon0),b=boundaryAt(lon1);
-   if(sun.lat>=0){
+   if(sinDec>0){
     if(Math.max(a,b)<=south+.001)continue;
-    polygons.push([[[lon0,south],[lon1,south],[lon1,b],[lon0,a],[lon0,south]]]);
+    add([[lon0,south],[lon1,south],[lon1,b],[lon0,a],[lon0,south]],i);
    }else{
     if(Math.min(a,b)>=north-.001)continue;
-    polygons.push([[[lon0,a],[lon1,b],[lon1,north],[lon0,north],[lon0,a]]]);
+    add([[lon0,a],[lon1,b],[lon1,north],[lon0,north],[lon0,a]],i);
    }
   }
-  return{type:'FeatureCollection',features:polygons.length?[{type:'Feature',properties:{kind:'earth-fixed-night-hemisphere',subsolarLongitude:sun.lng,subsolarLatitude:sun.lat},geometry:{type:'MultiPolygon',coordinates:polygons}}]:[]};
+  return{type:'FeatureCollection',features};
  }
  function updateWorldLight(){
   try{

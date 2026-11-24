@@ -1,0 +1,25 @@
+name: Verify Solar Terminator Night-Shade Geometry V4
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-map.js'
+      - 'tests/solar-terminator-nightshade-flash-v4.test.mjs'
+      - '.github/workflows/verify-solar-nightshade-v4.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify globe source syntax and physically correct day-night shading
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          node tests/solar-terminator-nightshade-flash-v4.test.mjs
