@@ -1,0 +1,24 @@
+name: Diagnose Live Satellite Raster Tile Dropouts
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-satellite-tile-loss.yml'
+      - 'scripts/diagnose-satellite-tile-loss.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe real live NASA and Esri raster caches and brightness through camera transitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium-browser || command -v chromium)"
+          mkdir -p "$RUNNER_TEMP/bp-satellite-probe"
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/bp-satellite-probe" puppeteer-core@24
+          CHROME_PATH="$CHROME" NODE_PATH="$RUNNER_TEMP/bp-satellite-probe/node_modules" node scripts/diagnose-satellite-tile-loss.cjs
