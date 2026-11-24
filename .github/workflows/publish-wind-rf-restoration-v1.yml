@@ -1,0 +1,195 @@
+name: Publish BridgePoint Wind RF Jets isolated restoration V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-wind-rf-restoration-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful NEO restoration release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45457347419 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45457347419 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Repair only Wind RF Jets mobile activation and restore approved renderer
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          local='bridgepoint-volumetric-fields-v5978.js'
+          glob='bridgepoint-global-wind-rf-v1.js'
+          view='bridgepoint-view-v5917.js'
+          allowed={'index.html','app/index.html','wind-rf-global-v1.json'}|{pre+n for pre in ('','app/') for n in (local,glob,view)}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1, ('WIND_ANCHOR',a[:120],s.count(a))
+              return s.replace(a,b,1)
+          for prefix in ('','app/'):
+              p=site/(prefix+view)
+              if not p.exists():continue
+              s=p.read_text()
+              assert 'async function toggleUnifiedWindRfJets(button)' in s
+              old="if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}"
+              if old in s:
+                  s=one(s,old,"if(a==='volumetric'){if(b.disabled)return;b.disabled=true;void toggleUnifiedWindRfJets(b).catch(e=>{console.warn('BridgePoint Wind/RF/Jets unavailable',e);showActionNotice('Wind / RF / Jets could not activate: '+String(e?.message||e))}).finally(()=>{b.disabled=false});return}")
+              else:
+                  assert 'toggleUnifiedWindRfJets(b)' in s
+              # Preserve all other button handlers; only change this module's import cache.
+              s,n=re.subn(r'(bridgepoint-volumetric-fields-v5978\.js)\?v=[^\'"]+',r'\1?v=6002-wind-rf-restored-20261124',s)
+              assert n>=1
+              p.write_text(s)
+          for prefix in ('','app/'):
+              p=site/(prefix+local)
+              assert p.is_file(),str(p)
+              s=p.read_text()
+              s=one(s,"if(dock){dock.insertBefore(root,dock.querySelector('#bpv-dock-actions'));root.dataset.bpDockEmbedded='true';","if(dock){const actions=dock.querySelector('#bpv-dock-actions');const parent=actions?.parentElement;if(parent&&dock.contains(parent))parent.insertBefore(root,actions);else dock.appendChild(root);root.dataset.bpDockEmbedded='true';")
+              s=one(s,".then(mod=>{st.globalOverview=mod.initBridgePointGlobalWindRfV1(map);return st.globalOverview?.enable?.();})",".then(mod=>{st.globalOverview=mod.initBridgePointGlobalWindRfV1(map);if(!st.windOn&&!st.rfOn)return false;st.globalOverview?.setWind?.(st.windOn);st.globalOverview?.setRf?.(st.rfOn,st.rfMode);return st.globalOverview?.enable?.();})")
+              s,n=re.subn(r'(bridgepoint-global-wind-rf-v1\.js)\?v=[^\'"]+',r'\1?v=4-wind-rf-restored-20261124',s)
+              assert n==1
+              assert 'enableAll,disableAll' in s
+              p.write_text(s)
+          approved=(Path('rebuild-v5000')/glob).read_text()
+          assert all(t in approved for t in ('vertexColors:false','mountJetPreview(el,row)','getMatrixForModel','bp-wind-rf-global-jetstream-v1'))
+          for prefix in ('','app/'):
+              p=site/(prefix+glob)
+              # Recover the last approved moving, shaded, source-height renderer.
+              if not p.exists() or any(t not in p.read_text() for t in ('vertexColors:false','mountJetPreview(el,row)','getMatrixForModel')):
+                  p.write_text(approved)
+              s=p.read_text()
+              # Cache bust forecast fetch only; don't touch geometry or other layers.
+              s=one(s,"const DATA='/wind-rf-global-v1.json'","const DATA='/wind-rf-global-v1.json?v=20261124-wind-restore-v1'")
+              p.write_text(s)
+          for rel in ('index.html','app/index.html'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'((?:data-bp-deferred-src|src)=["\'][^"\']*bridgepoint-view-v5917\.js[^"\']*)(["\'])',lambda m:m[1]+('&' if '?' in m[1] else '?')+'windrestore=20261124v1'+m[2],s)
+              assert n>=1,(rel,n)
+              p.write_text(s)
+          assert snap()==before,'Non-wind file changed'
+          print('WIND_RF_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          for f in bridgepoint-global-wind-rf-v1.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-global-wind-rf-v1.js app/bridgepoint-volumetric-fields-v5978.js; do node --input-type=module --check < "$SITE/$f"; done
+          grep -Fq 'neo-restore-20261124-v1' "$SITE/index.html"
+      - name: Refresh real model wind and FCC source snapshot with safe cached fallback
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          if timeout 150s python3 -u scripts/build_wind_rf_global_v1.py "$RUNNER_TEMP/wind-rf-current.json"; then
+            cp "$RUNNER_TEMP/wind-rf-current.json" "$SITE/wind-rf-global-v1.json"
+            echo WIND_RF_FRESH_SOURCE_PASS
+          else
+            echo '::warning::Source refresh unavailable; keeping existing dated source snapshot, no synthetic measurements.'
+          fi
+          python3 - "$SITE/wind-rf-global-v1.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert d['version']==1 and len(d['winds'])>=100 and len(d['sites'])>=60
+          print('WIND_RF_SOURCE_DATA',d['fetched_at'],len(d['winds']),len(d['sites']))
+          PY
+      - name: Test actual mobile Wind RF Jets button on off on and clickable 3D jet card
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/wind-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            const errors=[];
+            page.on('pageerror',e=>console.log('PAGE_ERROR',e.message));
+            page.on('console',m=>{if(m.type()==='error'&&/Shader Error|Vertex shader is not compiled|Fragment shader is not compiled/i.test(m.text()))errors.push(m.text())});
+            const files=new Set(['bridgepoint-view-v5917.js','bridgepoint-volumetric-fields-v5978.js','bridgepoint-global-wind-rf-v1.js','wind-rf-global-v1.json']);
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
+              if(files.has(rel.split('/').pop())){const f=path.join(process.env.BP_SITE,rel);if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.json')?'application/json':'text/javascript',body:fs.readFileSync(f)});}
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?windrestore=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map&&!!document.querySelector('[data-bpv-action="volumetric"]'),null,{timeout:90000});
+            await page.waitForFunction(()=>{const d=document.getElementById('bpv-dock'),a=document.getElementById('bpv-dock-actions');return d?.classList.contains('bpv-mobile-v2')&&a?.parentElement!==d&&d.contains(a);},null,{timeout:60000});
+            await page.evaluate(()=>{window.__BP_LANDING_WORLD__.map.jumpTo({center:[-75,42],zoom:2.3});document.querySelector('#bpv-v2-tabs button[data-category="environment"],#bpv-v2-tabs button[data-bpv-v2-tab="environment"]')?.click();document.querySelector('[data-bpv-action="volumetric"]').click();});
+            await page.waitForFunction(()=>{const g=window.__BP_WIND_RF_GLOBAL_V1__?.state,l=window.__BP_VOLUMETRIC_FIELDS_V5992__?.state,m=window.__BP_LANDING_WORLD__?.map;return g?.enabled&&g.windOn&&g.rfOn&&g.gridSamples>=100&&g.registeredStructures>=60&&l?.windOn&&l.rfOn&&m?.getLayer('bp-wind-rf-global-jetstream-v1')&&document.querySelectorAll('button[aria-label^="Jet stream "]').length>0&&document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed')==='true';},null,{timeout:120000});
+            const report=await page.evaluate(()=>({global:window.__BP_WIND_RF_GLOBAL_V1__.state,local:window.__BP_VOLUMETRIC_FIELDS_V5992__.state,mounted:document.getElementById('bp-volumetric-fields-v5992')?.parentElement===document.getElementById('bpv-dock-actions')?.parentElement,icons:document.querySelectorAll('button[aria-label^="Jet stream "]').length}));
+            console.log('WIND_RF_MOBILE_ON',JSON.stringify(report));assert(report.mounted&&report.icons>0);
+            await page.waitForFunction(()=>[...document.querySelectorAll('button[aria-label^="Jet stream "]')].some(x=>!x.hidden),null,{timeout:30000});
+            await page.evaluate(()=>[...document.querySelectorAll('button[aria-label^="Jet stream "]')].find(x=>!x.hidden).click());
+            await page.waitForFunction(()=>!!document.querySelector('.bp-wind-jet-card-v1 canvas'),null,{timeout:30000});
+            await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+            await page.waitForFunction(()=>window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled===false&&!window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.windOn&&!window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.rfOn&&document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed')==='false'&&!document.querySelector('[aria-label="Jet stream forecast markers"]'),null,{timeout:30000});
+            await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+            await page.waitForFunction(()=>window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled===true&&document.querySelectorAll('button[aria-label^="Jet stream "]').length>0&&document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed')==='true',null,{timeout:60000});
+            assert.equal(errors.length,0,errors.join('\n'));
+            console.log('WIND_RF_MOBILE_ON_OFF_ON_3D_CARD_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live wind restoration and preserved NEO EMRF and globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_WIND_RF_JETS_RESTORATION_LIVE_PASS
