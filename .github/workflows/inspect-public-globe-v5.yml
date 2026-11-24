@@ -1,0 +1,33 @@
+name: Inspect Public Globe and Ocean in Chromium
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-public-globe-v5.yml'
+      - 'tests/inspect-public-globe-v5.mjs'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare browser
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium)
+          echo "CHROME_PATH=$CHROME" >> "$GITHUB_ENV"
+          cd /tmp
+          npm install puppeteer-core@24 --no-audit --no-fund
+      - name: Inspect actual public website and capture renders
+        run: node tests/inspect-public-globe-v5.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-globe-browser-screenshots
+          path: /tmp/bp-live-browser/
