@@ -1,0 +1,228 @@
+name: Publish BridgePoint Unified Layout and Anchored Water V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-unified-layout-anchored-water-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful adaptive device quality release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45479570125 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45479570125 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Unify responsive card and anchor ocean wave detail
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          dock='bridgepoint-bottom-card-mobile-v2.js';water='world-v2300-water.js'
+          allowed={'index.html','app/index.html','landing.js','app.js',dock,'app/'+dock,water,'app/'+water}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('LAYOUT_WATER_ANCHOR',a[:130],s.count(a))
+              return s.replace(a,b,1)
+          for rel in (dock,'app/'+dock):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              s=one(s,"const media=matchMedia('(max-width:700px)');","const media={matches:true}; // Same five-category control card on every display.")
+              s=one(s,r'\n@media(max-width:700px){\n',r'\n')
+              s=one(s,r'\n}";',r'\n";')
+              s=one(s,'width:calc(100% - 20px)!important;height:min(57dvh,650px)!important;','width:min(1080px,calc(100% - 20px))!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;height:min(57dvh,650px)!important;')
+              # Retain the existing mobile two-column grid and sticky header at every width.
+              # Only size changes with the viewport. Existing button nodes and events are reused.
+              s=one(s,'document.head.appendChild(sheet);',"""sheet.textContent+='\\n@media(min-width:701px){body #bpv-dock.bpv-mobile-v2.bpv-dock-maximized{height:calc(100dvh - 80px)!important;max-height:calc(100dvh - 80px)!important;}#bpv-dock.bpv-mobile-v2 #bpv-v2-tabs button{flex:1 0 auto;justify-content:center;}#bpv-dock.bpv-mobile-v2 #bpv-dock-actions button{min-height:48px!important;}#bpv-dock.bpv-mobile-v2 #bpv-dock-account-row .bpv-topbar-right{max-width:100%!important;}}';
+           document.head.appendChild(sheet);""")
+              assert 'content.appendChild(playback)' in s and "attachTo('bpMapsLaunchV1',prop)" in s and "attachTo('bpPublicScansLaunchV1',prop)" in s
+              p.write_text(s)
+          for rel in (water,'app/'+water):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              # The previous shader continuously multiplied geographic coordinates by
+              # exp2(camera zoom). Replace with two FIXED geographic frequency bands;
+              # zoom controls ONLY their crossfade, never either band's coordinates.
+              s=one(s,"'uniform vec2 u_magneticOrigin;',","'uniform vec2 u_magneticOrigin;',\n    'uniform vec2 u_magneticOriginNext;',\n    'uniform vec2 u_magneticScales;',\n    'uniform float u_magneticBlend;',")
+              a=s.index("'  float globeDensity=") if "'  float globeDensity=" in s else s.index("' float globeDensity=")
+              b=s.index("'  return;'",a) if "'  return;'" in s[a:] else s.index("' return;'",a)
+              # End of the liquid branch is the return immediately after its fragColor.
+              end=s.index('\n',b)
+              original=s[a:end]
+              lines=original.splitlines()
+              assert 'u_magneticOrigin' in original and 'fragColor=vec4(color' in original
+              # Move the unchanged turbulence/foam/lighting calculation into a reusable
+              # shader function. Do not interpolate texture coordinates between scales.
+              body='\n'.join(lines[2:])
+              body=re.sub(r"(['\"])\s*fragColor=vec4\(color,clamp\(alpha,0\.05,0\.96\)\);(['\"]),",r"\1  return vec4(color,clamp(alpha,0.05,0.96));\2,",body)
+              body=re.sub(r"^\s*' +return;',?\s*$",'',body,flags=re.M)
+              assert 'return vec4(color' in body and 'fragColor=' not in body
+              # Prevent the zoom-scaled ancillary stream shader from modulating ocean foam.
+              body=body.replace('+foam*0.10','+v_wave*0.10')
+              helper="'vec4 waterAnchoredLiquid(vec2 p,float directSun){',\n"+body+"\n    '}',\n    "
+              s=s[:a]+"""'  vec2 bandA=mod(v_coord*u_magneticScales.x+u_magneticOrigin,4096.0);',
+              '  vec2 bandB=mod(v_coord*u_magneticScales.y+u_magneticOriginNext,4096.0);',
+              '  vec4 liquidA=waterAnchoredLiquid(bandA,directSun);',
+              '  if(u_magneticBlend>0.001){vec4 liquidB=waterAnchoredLiquid(bandB,directSun);fragColor=mix(liquidA,liquidB,u_magneticBlend);}else{fragColor=liquidA;}',
+              '  return;',"""+s[end:]
+              s=one(s,"'out highp vec4 fragColor;',","'out highp vec4 fragColor;',\n    "+helper)
+              s=one(s,"'u_magneticOrigin'];","'u_magneticOrigin','u_magneticOriginNext','u_magneticScales','u_magneticBlend'];")
+              # Fixed vertex wavelength, with sampling-safe amplitude rather than camera
+              # zoom changing the phase. Keep wave height/vessel parameters synchronized.
+              s=one(s,"const requestedWavesPerWorld = 8.53 * Math.pow(2, waveFrequencyZoom);","const requestedWavesPerWorld = 8.53 * Math.pow(2, 15);")
+              s=one(s,"const wavesPerWorld = safeWaveFrequency.cyclesPerWorld;","const wavesPerWorld = requestedWavesPerWorld;\n        const waveSamplingWeight = clamp(safeWaveFrequency.cyclesPerWorld/requestedWavesPerWorld,0,1);")
+              s=one(s,"const amp = 4.25;","const amp = 4.25 * waveSamplingWeight * waveSamplingWeight;")
+              s=one(s,"v_wave = clamp(0.5 + rollingWave * 0.43, 0.0, 1.0);","v_wave = clamp(0.5 + rollingWave * 0.43 * clamp(u_waveAmp/4.25,0.0,1.0), 0.0, 1.0);")
+              a=s.index('const dens=48+(104-48)');b=s.index('api.localPrecisionProjection=',a)
+              s=s[:a]+"""const bandPosition=clamp((z-.6)/2,0,10.5);
+              const bandIndex=Math.floor(bandPosition),blendRaw=bandPosition-bandIndex;
+              const opticalScale=48*Math.pow(4,bandIndex),opticalScaleNext=opticalScale*4;
+              const opticalBlend=blendRaw*blendRaw*(3-2*blendRaw);
+              // Rebase in double precision, with geographic repeat boundaries fixed to
+              // the world rather than to the camera. Preserve close-zoom precision.
+              const wrapOptical=value=>((value%4096)+4096)%4096;
+              if(u.u_magneticOrigin)gl.uniform2f(u.u_magneticOrigin,wrapOptical(originX*opticalScale),wrapOptical(originY*opticalScale));
+              if(u.u_magneticOriginNext)gl.uniform2f(u.u_magneticOriginNext,wrapOptical(originX*opticalScaleNext),wrapOptical(originY*opticalScaleNext));
+              if(u.u_magneticScales)gl.uniform2f(u.u_magneticScales,opticalScale,opticalScaleNext);
+              if(u.u_magneticBlend)gl.uniform1f(u.u_magneticBlend,opticalBlend);
+              api.anchoredOpticalBands={scale:opticalScale,next:opticalScaleNext,blend:opticalBlend,worldAnchored:true};
+              """+s[b:]
+              assert 'api.seaSurfaceFrame=' in s and 'installOceanRelief' in s and 'u_magneticScales' in s
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(world-v2300-water\.js\?[^"\']+)',lambda m:m[1]+'&anchoredwater=20261124v1',s)
+              assert n>=1,(rel,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              for file in (entry,dock):
+                  s,n=re.subn(r'('+re.escape(file)+r'\?[^"\s\']+)',lambda m:m[1]+'&unifiedlayoutwater=20261124v1',s)
+                  assert n>=1,(rel,file,n)
+              assert 'devicequality=20261124v1' in s and 'bpv-independent-building-card-v2' in s
+              p.write_text(s)
+          assert before==snap(),'Unexpected unrelated asset changed'
+          print('UNIFIED_LAYOUT_WATER_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-bottom-card-mobile-v2.js"
+          for f in landing.js app.js world-v2300-water.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify real responsive card mount and actual water shader compilation
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/layout-water-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const site=process.env.BP_SITE;
+          const dock=fs.readFileSync(path.join(site,'bridgepoint-bottom-card-mobile-v2.js'),'utf8'),water=fs.readFileSync(path.join(site,'world-v2300-water.js'),'utf8');
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            for(const viewport of [{width:390,height:844},{width:1440,height:900}]){
+              const page=await browser.newPage({viewport});
+              await page.setContent('<div id="bpv-dock" style="position:fixed;bottom:10px"><div class="bpv-dock-label">Controls</div><div id="bpv-dock-account-row"><div class="bpv-topbar-right">Account</div></div><div id="bpv-dock-actions"><button data-bpv-action="parcels">Parcel lines</button><button data-bpv-action="weatherfx">Weather FX</button></div><div id="bpv-property-card-slot"></div><div id="bpv-more-info"></div></div><button id="bpMapsLaunchV1">BridgePoint Maps</button><button id="bpPublicScansLaunchV1">Public 3D Scan Library</button><div id="bp-world-time-slider-v5908">Timeline</div>');
+              await page.addScriptTag({content:dock});
+              const r=await page.evaluate(()=>{const d=document.getElementById('bpv-dock'),a=document.getElementById('bpv-dock-actions'),p=document.getElementById('bpv-v2-property');return {ready:window.__BP_MOBILE_CARD_V2__.ready,tabs:document.querySelectorAll('[data-bpv-v2-tab]').length,grid:getComputedStyle(a).gridTemplateColumns.split(' ').length,maps:p.contains(document.getElementById('bpMapsLaunchV1')),scans:p.contains(document.getElementById('bpPublicScansLaunchV1')),timeline:document.getElementById('bpv-v2-playback').parentElement.id,width:d.getBoundingClientRect().width,visible:getComputedStyle(d).display==='flex'}});
+              console.log('RESPONSIVE_LAYOUT',viewport,r);
+              assert(r.ready&&r.tabs===5&&r.grid===2&&r.maps&&r.scans&&r.timeline==='bpv-v2-content'&&r.visible&&r.width<=viewport.width);
+              await page.locator('[data-bpv-v2-tab="environment"]').click();
+              assert(await page.locator('[data-bpv-action="weatherfx"]').isVisible());
+              assert(!(await page.locator('[data-bpv-action="parcels"]').isVisible()));
+              await page.close();
+            }
+            const page=await browser.newPage({viewport:{width:400,height:300}});
+            const a=water.indexOf('function buildShaders('),b=water.indexOf('function compile(',a);
+            assert(a>=0&&b>a);
+            // Evaluate the actual generated shader strings, compile against a minimal
+            // projection stub; this checks GLSL syntax/linking, not live ocean geometry.
+            const shaderBuilder=water.slice(a,b)+'return {vertexSource,fragmentSource};}';
+            const report=await page.evaluate(src=>{
+              const build=new Function(src+';return buildShaders;')();
+              const shaders=build(null,{vertexShaderPrelude:'vec4 projectTileFor3D(vec2 p,float h){return vec4(p,h*0.00001,1.0);}',define:''});
+              const gl=document.createElement('canvas').getContext('webgl2');
+              if(!gl)throw Error('WebGL2 unavailable');
+              function compile(type,source){const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;}
+              const program=gl.createProgram();
+              gl.attachShader(program,compile(gl.VERTEX_SHADER,shaders.vertexSource));gl.attachShader(program,compile(gl.FRAGMENT_SHADER,shaders.fragmentSource));gl.linkProgram(program);
+              if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+              return {linked:true,bandA:shaders.fragmentSource.includes('v_coord*u_magneticScales.x'),bandB:shaders.fragmentSource.includes('v_coord*u_magneticScales.y'),noZoomCoordinate:!shaders.fragmentSource.includes('v_coord*zoomScale')};
+            },shaderBuilder);
+            console.log('ANCHORED_WATER_SHADER',report);assert(Object.values(report).every(Boolean));
+            // At any zoom within one band the exact same geographic point has the
+            // same phase. Adjacent bands share an endpoint and blend only color.
+            function bands(z){const p=Math.max(0,Math.min(10.5,(z-.6)/2)),k=Math.floor(p),t=p-k;return [48*4**k,48*4**(k+1),t*t*(3-2*t)];}
+            const u=bands(2.7),v=bands(4.4);assert.equal(u[0],v[0]);assert.equal(u[1],v[1]);assert.notEqual(u[2],v[2]);
+            assert.equal(bands(4.599999)[1],bands(4.600001)[0]);
+            assert(water.includes('api.seaSurfaceFrame=')&&water.includes('const requestedWavesPerWorld = 8.53 * Math.pow(2, 15);'));
+            console.log('UNIFIED_LAYOUT_WORLD_ANCHORED_WATER_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live unified layout, anchored water and preserved globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-map.js bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js world-v2300-time-slider.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_UNIFIED_LAYOUT_WATER_LIVE_PASS
