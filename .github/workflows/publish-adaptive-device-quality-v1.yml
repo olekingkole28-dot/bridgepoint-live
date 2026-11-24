@@ -87,7 +87,7 @@ jobs:
           """
               s=one(s,marker,profile+marker)
               s=one(s,"pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,1.5)","pixelRatio:window.__BP_DEVICE_QUALITY_V1__?.pixelRatio()??(MOBILE?1:Math.min(window.devicePixelRatio||1,1.5))")
-              s=one(s,"maxTileCacheSize:tileCacheCap,","maxTileCacheSize:window.__BP_DEVICE_QUALITY_V1__?.profile.tileCache??tileCacheCap,")
+              s=s.replace("maxTileCacheSize:tileCacheCap,","maxTileCacheSize:window.__BP_DEVICE_QUALITY_V1__?.profile.tileCache??tileCacheCap,")
               s=one(s,"const profileKey=lod.tier+':'+styleLayers.length;","const profileKey=lod.tier+':'+(lod.deviceLevel||0)+':'+styleLayers.length;")
               s=one(s,"p_limit:MAX_EXACT","p_limit:window.__BP_DEVICE_QUALITY_V1__?.profile.exact??MAX_EXACT")
               s=one(s,"prepare(d?.features||[],MAX_EXACT)","prepare(d?.features||[],window.__BP_DEVICE_QUALITY_V1__?.profile.exact??MAX_EXACT)")
