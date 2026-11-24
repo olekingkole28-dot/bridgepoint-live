@@ -1,0 +1,27 @@
+name: Inspect Pending BridgePoint Pages V6 Deployment
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-pending-pages-v6.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Read Pages deployment terminal status and errors without changing production
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          echo 'Inspecting deployment 564934ecd2e0500c2ee5ff49e35a9f00cdbdd8c5'
+          gh api "repos/$GITHUB_REPOSITORY/pages/deployments/564934ecd2e0500c2ee5ff49e35a9f00cdbdd8c5" \
+            --jq '{status, status_url, page_url, id, error, created_at, updated_at}' || true
+          echo 'Recent workflow runs:'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=12" \
+            --jq '.workflow_runs[]|select(.name|contains("Globe Foundation"))|{name,status,conclusion,run_attempt,id}' || true
