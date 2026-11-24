@@ -64,7 +64,7 @@ export function wildfireAtmosphereV5(T,groups,seed,quality){
   const mat=new T.ShaderMaterial({uniforms:{...uniforms,uKind:{value:kind}},
    transparent:true,depthWrite:false,depthTest:true,
    blending:kind===1?T.AdditiveBlending:T.NormalBlending,
-   vertexShader:\`
+   vertexShader:`
     attribute vec4 aParticle; uniform float uTime,uPixelRatio,uKind;
     varying float vLife,vSeed; varying float vKind;
     void main(){
@@ -81,8 +81,8 @@ export function wildfireAtmosphereV5(T,groups,seed,quality){
      float size=uKind<.5?(12.+life*35.):(uKind<1.5?3.1:2.0);
      gl_PointSize=clamp(size*uPixelRatio*(.65+aParticle.w*.55),1.,64.);
      vLife=life;vSeed=r;vKind=uKind;
-    }\`,
-   fragmentShader:\`
+    }`,
+   fragmentShader:`
     varying float vLife,vSeed,vKind;
     void main(){
      vec2 p=gl_PointCoord*2.-1.;float r=length(p);
@@ -93,7 +93,7 @@ export function wildfireAtmosphereV5(T,groups,seed,quality){
        vKind<1.5?mix(vec3(1.,.88,.32),vec3(1.,.20,.02),vLife):vec3(.61,.57,.51);
      float a=vKind<.5?max(0.,edge+noise)*fade*.23:edge*fade*.85;
      if(r>1.)discard;gl_FragColor=vec4(col,a);
-    }\`});
+    }`});
   const obj=new T.Points(geo,mat);obj.frustumCulled=false;return obj;
  }
  const smoke=particles(0,quality>=1?4:2),embers=particles(1,quality>=1?8:4),ash=particles(2,quality>=1?6:3);
