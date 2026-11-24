@@ -1,4 +1,4 @@
-name: Publish BridgePoint Independent Building Card V2
+name: Publish BridgePoint Independent Building Card V3
 on:
   workflow_dispatch:
   push:
@@ -135,7 +135,14 @@ jobs:
                 await page.route('**/*',route=>route.abort());
                 await page.setContent(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*>/gi,''),{waitUntil:'domcontentloaded'});
                 await page.addStyleTag({content:styles+'\n'+css});
-                await page.evaluate(mode=>{document.body.classList.add(mode==='public'?'bpv-home':'bpv-app');},mode);
+                await page.evaluate(mode=>{
+                  document.body.classList.add(mode==='public'?'bpv-home':'bpv-app');
+                  // At building zoom the welcome scene is not an active modal.
+                  // The isolated fixture does not run the welcome renderer, so
+                  // explicitly represent that post-intro state here.
+                  const gate=document.getElementById('bpWelcomeGateV1');
+                  if(gate){gate.hidden=true;gate.style.setProperty('display','none','important');}
+                },mode);
                 await page.addScriptTag({content:overlay});
                 const cardId=mode==='public'?'previewCard':'buildingPanel';
                 await page.evaluate(({cardId,mode})=>{
