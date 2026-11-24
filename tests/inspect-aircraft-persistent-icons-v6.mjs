@@ -1,0 +1,30 @@
+import {createRequire} from 'node:module';import fs from 'node:fs';
+const require=createRequire('/tmp/bp-live-browser.cjs'),puppeteer=require('puppeteer-core');
+const out='/tmp/bp-aircraft-icons-v6';fs.mkdirSync(out,{recursive:true});
+const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,protocolTimeout:120000,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+const page=await browser.newPage(),errors=[];
+page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error'&&errors.length<30)errors.push(m.text().slice(0,400))});
+await page.setViewport({width:440,height:900,isMobile:true,hasTouch:true,deviceScaleFactor:1});
+try{
+ await page.goto('https://bridgepointintelligence.online/?aircraftonetapqa='+Date.now(),{waitUntil:'domcontentloaded',timeout:90000});
+ await page.waitForFunction(()=>!!document.querySelector('[data-bp-drone-awareness-button="1"]')&&window.__BP_DRONE_AWARENESS_V1__?.state?.mapReady,{timeout:90000});
+ const snap=()=>page.evaluate(()=>{const api=window.__BP_DRONE_AWARENESS_V1__,m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;const side=document.querySelector('#bpv-sidecar'),pane=document.querySelector('[data-bpv-pane="drones"]');return {state:api.state,panelOpen:!!side&&!side.hidden&&side.dataset.panel==='drones',paneVisible:!!pane&&!pane.hidden&&!!pane.getClientRects().length,button:document.querySelector('[data-bp-drone-awareness-button="1"]')?.getAttribute('aria-pressed'),layers:(m?.getStyle()?.layers||[]).filter(l=>/bp-aircraft-awareness-live|bp-drone-awareness-.*(live|model)/.test(l.id)).map(l=>[l.id,l.type,l.layout?.visibility])}});
+ const before=await snap();if(before.state.enabled)throw Error('Aircraft unexpectedly active before tap');
+ await page.evaluate(()=>document.querySelector('[data-bp-drone-awareness-button="1"]').click());
+ await page.waitForFunction(()=>window.__BP_DRONE_AWARENESS_V1__?.state?.enabled&&window.__BP_DRONE_AWARENESS_V1__?.state?.layerVisible,{timeout:20000});
+ const first=await snap();console.log('BP_AIRCRAFT_FIRST_TAP '+JSON.stringify(first));
+ if(first.panelOpen||first.paneVisible||first.button!=='true'||first.state.selectedAircraftGroups.length!==5)throw Error('Nested card or incomplete activation');
+ const rendered=()=>page.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;const ids=['bp-aircraft-awareness-live-dots-v1','bp-aircraft-awareness-persistent-marker-v6'].filter(x=>m.getLayer(x));const counts=Object.fromEntries(ids.map(id=>[id,m.queryRenderedFeatures({layers:[id]}).length]));return {counts,source:m.querySourceFeatures('bp-aircraft-awareness-live-source-v1').length,state:window.__BP_DRONE_AWARENESS_V1__.state}});
+ await page.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;const id='bp-aircraft-awareness-live-dots-v1';return m?.getLayer(id)&&m.queryRenderedFeatures({layers:[id]}).length>0},{timeout:150000});
+ const global=await rendered();console.log('BP_VISIBLE_AIRCRAFT_MARKERS_GLOBAL '+JSON.stringify(global));
+ await page.screenshot({path:out+'/global-markers.jpg',type:'jpeg',quality:80});
+ const target=await page.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;return m.queryRenderedFeatures({layers:['bp-aircraft-awareness-live-dots-v1']}).find(f=>f.geometry.type==='Point')?.geometry.coordinates});
+ if(!target)throw Error('No rendered aircraft icon to follow');
+ await page.evaluate(target=>{const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;m.stop();m.jumpTo({center:target,zoom:10,pitch:0})},target);
+ await page.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;return m.queryRenderedFeatures({layers:['bp-aircraft-awareness-live-dots-v1']}).length>0},{timeout:45000});
+ const close=await rendered();console.log('BP_VISIBLE_AIRCRAFT_MARKERS_CLOSE '+JSON.stringify(close));await page.screenshot({path:out+'/close-markers.jpg',type:'jpeg',quality:80});
+ console.log('BP_AIRCRAFT_ERRORS '+JSON.stringify(errors.slice(0,15)));
+ await page.evaluate(()=>document.querySelector('[data-bp-drone-awareness-button="1"]').click());
+ const off=await snap();if(off.state.enabled||off.state.layerVisible||off.panelOpen)throw Error('Second tap did not hide aircraft');
+ console.log('BP_AIRCRAFT_ONE_TAP_PASS');
+}catch(e){console.log('BP_AIRCRAFT_ONE_TAP_FAILURE '+String(e?.stack||e));process.exitCode=1}finally{await browser.close()}
