@@ -13,7 +13,7 @@ permissions:
   id-token: write
 concurrency:
   group: bridgepoint-v5000-production-authority
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event.head_commit.message == 'Restart stalled wildfire V6 deployment' }}
 jobs:
   publish:
     runs-on: ubuntu-24.04
@@ -26,14 +26,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Download latest confirmed wildfire V5 production artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: bridgepoint-v5000-1
-          run-id: 45442073231
-          repository: ${{ github.repository }}
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/baseline
+      - name: Download latest confirmed wildfire V5 production artifact with bounded retries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45442073231 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then
+              echo "Verified V5 baseline downloaded"
+              exit 0
+            fi
+            echo "Baseline download attempt $attempt failed; retrying"
+            sleep 5
+          done
+          exit 1
       - name: Apply wildfire-only close zoom persistence patch
         shell: bash
         run: |
