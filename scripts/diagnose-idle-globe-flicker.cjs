@@ -27,6 +27,15 @@ async function main(){
   if(mobile){await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');await page.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true})}
   else await page.setViewport({width:1120,height:760,deviceScaleFactor:1});
   await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'}))}catch(e){}});
+  await page.evaluateOnNewDocument(()=>{
+    const original=HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext=function(kind,attributes){
+      const webgl=kind==='webgl2'||kind==='webgl'||kind==='experimental-webgl';
+      if(webgl&&(this.classList?.contains('maplibregl-canvas')||this.closest?.('#liveMap,#previewMap')))
+        return original.call(this,kind,{...(attributes||{}),preserveDrawingBuffer:true});
+      return original.call(this,kind,attributes);
+    };
+  });
   await page.goto(ORIGIN+'/?render_diagnose='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
   await page.waitForFunction(()=>(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),{timeout:25000}).catch(()=>{});
   const before=await page.evaluate(()=>{
