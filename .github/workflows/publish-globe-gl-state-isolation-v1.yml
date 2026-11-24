@@ -104,7 +104,7 @@ jobs:
           for rel in ('landing.js','app.js'):
               path=site/rel
               original=path.read_text(encoding='utf-8')
-              updated, count=re.subn(r'world-v2300-water\.js\?v=[^"\\x27\s)]+',
+              updated, count=re.subn(r'world-v2300-water\.js\?v=[^\s\x22\x27)]+',
                   'world-v2300-water.js?v='+key, original)
               if count<2: raise SystemExit('MISSING_WATER_LOADER: '+rel)
               if updated.replace('world-v2300-water.js?v='+key,
@@ -116,7 +116,7 @@ jobs:
               path=site/rel
               html=path.read_text(encoding='utf-8')
               # Replace only the main entry v= token, preserving all remaining query args.
-              pattern=r'('+re.escape(stem)+r'\?v=)[^&"\\x27\s]+'
+              pattern=r'('+re.escape(stem)+r'\?v=)[^&\s\x22\x27]+'
               updated,count=re.subn(pattern,lambda m:m.group(1)+entry,html,count=1)
               if count!=1: raise SystemExit('ENTRY_SCRIPT_NOT_FOUND: '+rel)
               path.write_text(updated,encoding='utf-8')
