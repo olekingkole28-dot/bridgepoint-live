@@ -1,0 +1,157 @@
+name: Publish BridgePoint Aircraft Activation Restoration V9
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-aircraft-restoration-v9.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful bright wind release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45463591233 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45463591233 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore aircraft activation only, retaining V8 visual and follow code
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);name='bridgepoint-drone-awareness-v1.js'
+          allowed={name,'app/'+name,'index.html','app/index.html'}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('AIRCRAFT_RESTORE_ANCHOR',a[:140],s.count(a))
+              return s.replace(a,b,1)
+          for rel in (name,'app/'+name):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              assert all(x in s for x in ('beginFlightFollow','followGroundVersion:8','installPersistentFlightMarkers','flightVisualScale','aircraft-follow-ground-v20261124-v8'))
+              # The responsive grid moves controls out of their original section.
+              # Find the existing live button anywhere in the actual dock.
+              s=one(s,"let b=grid.querySelector('[data-bp-drone-awareness-button=\"1\"]');","let b=document.querySelector('#bpv-dock [data-bp-drone-awareness-button=\"1\"]')||grid.querySelector('[data-bpv-action=\"drones\"]');if(b){b.dataset.bpDroneAwarenessButton='1';b.dataset.bpvBound='1';}")
+              s=one(s,"const target=event.target?.closest?.('[data-bp-drone-awareness-button=\"1\"]');","const target=event.target?.closest?.('[data-bp-drone-awareness-button=\"1\"],#bpv-dock [data-bpv-action=\"drones\"],#bpv-dock [data-bpv-action=\"aircraft\"]');")
+              s=one(s,"event.preventDefault();event.stopImmediatePropagation();\n   void toggle().catch","event.preventDefault();event.stopImmediatePropagation();\n   button=target;target.dataset.bpDroneAwarenessButton='1';target.dataset.bpvBound='1';\n   if(worldMap()!==map||!map)tryBoot();\n   void toggle().catch")
+              # Synchronize all copies of the aircraft command without affecting other buttons.
+              s=one(s,"button.classList.toggle('active',enabled);","for(const command of document.querySelectorAll('[data-bp-drone-awareness-button=\"1\"],#bpv-dock [data-bpv-action=\"drones\"],#bpv-dock [data-bpv-action=\"aircraft\"]')){command.classList.toggle('active',enabled);command.setAttribute('aria-pressed',String(enabled));}\n button.classList.toggle('active',enabled);")
+              s=one(s,"lastFetchAt=0;diagnosticState.sourceStatus='waiting';","lastFetchAt=0;allowedCategories.add('drones');diagnosticState.sourceStatus='waiting';")
+              # A cancelled prior sampling pass must not strand the next ON state.
+              s=one(s,"}finally{inFlight=false;if(refreshButton)refreshButton.disabled=false}","}finally{inFlight=false;if(refreshButton)refreshButton.disabled=false;if(enabled&&lastFetchAt===0)scheduleViewportRefresh()}")
+              s=one(s,"setLayerVisibility(true);scheduleDroneRefresh();void refresh(false);","allowedCategories.add('drones');setLayerVisibility(true);scheduleDroneRefresh();void refresh(false);if(inFlight&&lastFetchAt===0)scheduleViewportRefresh();")
+              p.write_text(s)
+          for rel in ('index.html','app/index.html'):
+              p=site/rel;old=p.read_text()
+              new,n=re.subn(r'('+re.escape(name)+r'\?[^"\s]+)',lambda m:m[1]+'&aircraftrestore=20261124v1',old)
+              assert n>=1,(rel,n)
+              assert 'windbright=20261124v1' in new and 'neo-restore-20261124-v1' in new
+              p.write_text(new)
+          assert before==snap(),'Unexpected non-aircraft file change'
+          print('AIRCRAFT_RESTORE_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          node --input-type=module --check < "$SITE/bridgepoint-aircraft-visuals-v2.js"
+      - name: Test the actual mobile aircraft button and live ADS-B models
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/aircraft-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            let n=0;page.on('pageerror',e=>{if(n++<8)console.log('PAGE_ERROR',e.stack||e.message)});
+            page.on('console',m=>{if(m.type()==='error'&&/aircraft|drone/i.test(m.text()))console.log('AIRCRAFT_ERROR',m.text().slice(0,400))});
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
+              if(rel===''||rel==='index.html'||rel==='app/'||rel==='app/index.html'||rel.endsWith('bridgepoint-drone-awareness-v1.js')){
+                const f=path.join(process.env.BP_SITE,rel===''?'index.html':rel==='app/'?'app/index.html':rel);
+                if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.js')?'text/javascript':'text/html',body:fs.readFileSync(f)});
+              }
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?aircraft-restore-verify=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>window.__BP_DRONE_AWARENESS_V1__?.state?.mapReady&&!!document.querySelector('[data-bp-drone-awareness-button="1"]'),null,{timeout:100000});
+            await page.waitForFunction(()=>document.getElementById('bpv-dock')?.classList.contains('bpv-mobile-v2'),null,{timeout:60000});
+            const sel='#bpv-dock [data-bp-drone-awareness-button="1"]';
+            assert(!(await page.evaluate(()=>window.__BP_DRONE_AWARENESS_V1__.state.enabled)));
+            await page.evaluate(sel=>document.querySelector(sel).click(),sel);
+            await page.waitForFunction(()=>{const a=window.__BP_DRONE_AWARENESS_V1__;return a?.state?.enabled&&a.state.layerVisible&&a.state.drone3DRendererReady;},null,{timeout:60000});
+            await page.waitForFunction(()=>{const a=window.__BP_DRONE_AWARENESS_V1__;return a.state.aircraftPositions>0&&a.state.aircraftModelsRendered>0&&a.diagnostics().persistentMarkerVisible&&a.diagnostics().richModuleVersion===8;},null,{timeout:150000}).catch(async e=>{console.log('AIRCRAFT_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>window.__BP_DRONE_AWARENESS_V1__.diagnostics())).slice(0,9000));throw e;});
+            const report=await page.evaluate(()=>{const a=window.__BP_DRONE_AWARENESS_V1__,s=a.state,d=a.diagnostics();return {state:s,follow:d.followGroundVersion,rich:d.richModuleVersion,markers:d.persistentMarkerVisible,button:document.querySelector('#bpv-dock [data-bp-drone-awareness-button="1"]').getAttribute('aria-pressed'),pane:!document.querySelector('[data-bpv-pane="drones"]')?.hidden};});
+            console.log('AIRCRAFT_MOBILE_V8_ON',JSON.stringify(report));
+            assert(report.follow===8&&report.rich===8&&report.markers&&report.button==='true'&&!report.pane&&report.state.selectedAircraftGroups.length===5);
+            await page.evaluate(sel=>document.querySelector(sel).click(),sel);
+            await page.waitForFunction(()=>!window.__BP_DRONE_AWARENESS_V1__.state.enabled&&!window.__BP_DRONE_AWARENESS_V1__.state.layerVisible,null,{timeout:30000});
+            console.log('AIRCRAFT_MOBILE_V8_ON_OFF_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live aircraft and preserved wind NEO EMRF and globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_AIRCRAFT_RESTORATION_V9_LIVE_PASS
