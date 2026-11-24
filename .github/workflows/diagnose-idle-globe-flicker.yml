@@ -1,0 +1,24 @@
+name: Diagnose BridgePoint Untouched Globe Flicker
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-idle-globe-flicker.yml'
+      - 'scripts/diagnose-idle-globe-flicker.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Observe untouched production desktop and phone map frames
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium-browser || command -v chromium)"
+          mkdir -p "$RUNNER_TEMP/bridgepoint-flicker-deps"
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/bridgepoint-flicker-deps" puppeteer-core@24 pngjs@7
+          CHROME_PATH="$CHROME" NODE_PATH="$RUNNER_TEMP/bridgepoint-flicker-deps/node_modules" node scripts/diagnose-idle-globe-flicker.cjs
