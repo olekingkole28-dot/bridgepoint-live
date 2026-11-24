@@ -101,7 +101,7 @@ jobs:
           for rel in ('landing.js','app.js'):
               path=site/rel
               original=path.read_text(encoding='utf-8')
-              updated, count=re.subn(r'world-v2300-water\.js\?v=[^\s\x22\x27)]+',
+              updated, count=re.subn(r'world-v2300-map\.js\?v=[^\s\x22\x27)]+',
                   'world-v2300-map.js?v='+key, original)
               if count<1: raise SystemExit('MISSING_MAP_LOADER: '+rel)
               if updated.replace('world-v2300-map.js?v='+key,
@@ -157,7 +157,7 @@ jobs:
           for spec in "index.html" "app/" "landing.js" "app.js" "world-v2300-map.js" "app/world-v2300-map.js"; do
             label="$(printf '%s' "$spec" | tr '/.' '__')"
             curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL \
-              -H 'Cache-Control: no-cache' "$ORIGIN/$spec?verify=$GITHUB_SHA-glstate" -o "$out/$label"
+              -H 'Cache-Control: no-cache' "$ORIGIN/$spec?verify=$GITHUB_SHA-idleframe" -o "$out/$label"
           done
           cmp "$out/world-v2300-map_js" release-v2300/world-v2300-map.js
           cmp "$out/app_world-v2300-map_js" release-v2300/world-v2300-map.js
