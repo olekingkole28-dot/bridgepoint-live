@@ -161,7 +161,7 @@ for id in ['AIRCRAFT_LAYER','LAYER']:
  if not m:raise SystemExit('missing icon layer '+id)
  source='AIRCRAFT_SOURCE' if id=='AIRCRAFT_LAYER' else 'SOURCE'
  filterpart=",filter:['!',['has','point_count']]" if id=='LAYER' else ''
- icon="['concat','bp-aircraft-detail-icon-',['coalesce',['get','aircraft_kind'],'airplane']]]" if id=='AIRCRAFT_LAYER' else "'bp-aircraft-detail-icon-drone'"
+ icon="['concat','bp-aircraft-detail-icon-',['coalesce',['get','aircraft_kind'],'airplane']]" if id=='AIRCRAFT_LAYER' else "'bp-aircraft-detail-icon-drone'"
  new="  if(!map.getLayer("+id+"))map.addLayer({id:"+id+",type:'symbol',source:"+source+filterpart+",minzoom:0,layout:{visibility:'none','icon-image':"+icon+",'icon-size':['interpolate',['linear'],['zoom'],0,.66,7,.87,15,1.0,22,.82],'icon-allow-overlap':false,'icon-ignore-placement':false,'icon-padding':2,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});"
  s=s[:m.start()]+new+s[m.end():]
 # Thin upward-moving pulsing ground rods, per-segment normalized distance.
