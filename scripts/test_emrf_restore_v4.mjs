@@ -1,13 +1,18 @@
 import {chromium} from 'playwright-core';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 const b=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 try{
  const page=await b.newPage({viewport:{width:850,height:600},serviceWorkers:'block'});
  const errors=[];
  page.on('pageerror',e=>console.log('PAGE',e.message));
  page.on('console',m=>{if(m.type()==='error'&&/shader|glsl/i.test(m.text()))errors.push(m.text())});
- await page.goto('http://127.0.0.1:8769/index.html',{waitUntil:'domcontentloaded',timeout:45000});
- await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,null,{timeout:90000});
+ const root=process.env.BP_SITE;
+ const patched=new Set(['bridgepoint-view-v5917.js','bridgepoint-emrf-spectrogram-v1.js','bridgepoint-emrf-starlink-global-v2.js','starlink-orbits-v2.json']);
+ await page.route('https://bridgepointintelligence.online/**',async route=>{const u=new URL(route.request().url());const rel=u.pathname.replace(/^\//,'');if(patched.has(rel.split('/').pop())){const f=path.join(root,rel);if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.json')?'application/json':'text/javascript',body:fs.readFileSync(f)});}return route.continue();});
+ await page.goto('https://bridgepointintelligence.online/?emrf-verify=20261124-v4',{waitUntil:'domcontentloaded',timeout:60000});
+ await page.waitForFunction(()=>!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map),null,{timeout:90000});
  await page.waitForFunction(()=>!!document.querySelector('[data-bpv-action="emrf"]'),null,{timeout:60000});
  await page.evaluate(()=>document.querySelector('[data-bpv-action="emrf"]').click());
  await page.waitForFunction(()=>window.__BP_EMRF_SPECTROGRAM_V1__?.active&&window.__BP_EMRF_STARLINK_BEAMS_V2__?.state?.beamCount>=2000,null,{timeout:90000});
