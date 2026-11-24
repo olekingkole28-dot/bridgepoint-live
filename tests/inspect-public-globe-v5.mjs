@@ -25,7 +25,7 @@ async function snapshot(tag){
   const brief=(v)=>v&&Object.fromEntries(Object.entries(v).filter(([k,a])=>/error|active|enabled|vertex|polygon|grid|shader|build|render|frame|wave|draw|relief|anim|surface|context|marine/i.test(k)&&['string','number','boolean'].includes(typeof a)).slice(0,85));
   const visible=el=>!!el&&!el.hidden&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden'&&el.getBoundingClientRect().width>0;
   let oceanPoints=[];try{oceanPoints=[[-40,20],[-150,20],[0,0]].map(p=>[p,map.queryTerrainElevation(p,{exaggerated:false})])}catch(_){}
-  return {url:location.href,zoom:map?.getZoom?.(),pitch:map?.getPitch?.(),center:map?.getCenter?.(),projection:map?.getProjection?.()?.type,canvas:cv&&{width:cv.width,height:cv.height,visibility:cv.style.visibility,transform:cv.style.transform},auth:!!document.querySelector('#authPanel:not([hidden])'),publicButtons:visible(document.querySelector('#bp-public-account-v4')),card:!!document.querySelector('.bpv-command-btn'),spaceButton:visible(document.querySelector('#bpAppSpaceToggleV1')),space:sp?.state,celestial:cel?.state?.()?.viewState,orbit:visible(document.querySelector('#bp-public-orbit-v4')),water:brief(w),terrain,layerInfo,oceanPoints,submerged:window.__BP_WATER_SUBMERGENCE_V2__,dive:window.__BP_UNDERWATER_DIVE_STATE__,sensor:window.__BP_SENSOR_LAYERS_V5945__?.snapshot?.(),mapErrors:window.__BP_MAP_RUNTIME_ERRORS__?.slice(-5)};
+  return {url:location.href,zoom:map?.getZoom?.(),pitch:map?.getPitch?.(),center:map?.getCenter?.(),projection:map?.getProjection?.()?.type,canvas:cv&&{width:cv.width,height:cv.height,visibility:cv.style.visibility,transform:cv.style.transform},auth:!!document.querySelector('#authPanel:not([hidden])'),publicButtons:visible(document.querySelector('#bp-public-account-v4')),card:!!document.querySelector('.bpv-command-btn'),spaceButton:visible(document.querySelector('#bpAppSpaceToggleV1')),space:sp?.state,spaceCanvas:visible(document.querySelector('#bpWelcomeSpaceCanvasV6257')),celestial:cel?.state?.()?.viewState,orbit:visible(document.querySelector('#bp-public-orbit-v4')),water:brief(w),terrain,layerInfo,oceanPoints,submerged:window.__BP_WATER_SUBMERGENCE_V2__,dive:window.__BP_UNDERWATER_DIVE_STATE__,sensor:window.__BP_SENSOR_LAYERS_V5945__?.snapshot?.(),mapErrors:window.__BP_MAP_RUNTIME_ERRORS__?.slice(-5)};
  });
  console.log('BP_BROWSER_STATE '+tag+' '+JSON.stringify(state));
  const bytes=await page.screenshot({type:'jpeg',quality:42,path:out+'/'+tag+'.jpg'});
@@ -36,11 +36,12 @@ async function snapshot(tag){
 try{
  await page.goto(base+'/?bp_visual_probe='+Date.now(),{waitUntil:'domcontentloaded',timeout:90000});
  await page.waitForFunction(()=>!!window.__BP_V5000_WORLD__?.map,{timeout:90000}).catch(()=>{});
- await sleep(13000);
- await snapshot('global');
- await sleep(2800);await snapshot('global-second');
- if(await page.evaluate(()=>!!window.__BP_APP_SPACE_EXPLORER_V1__?.open)){
-  await page.evaluate(()=>{void window.__BP_APP_SPACE_EXPLORER_V1__.open()});
+ await sleep(16000);
+ const first=await snapshot('global');
+ await sleep(4000);const second=await snapshot('global-second');
+ console.log('BP_GLOBAL_VISUAL_CHECK '+JSON.stringify({public:!first.auth,celestialOverview:second.space?.overviewVisible===true,spaceCanvas:second.spaceCanvas,geometryBuilds:second.water?.geometryBuilds,renderFrames:second.water?.glStateRestoredFrames,waterDrawAdvanced:(second.water?.glStateRestoredFrames||0)>(first.water?.glStateRestoredFrames||0),globalZoom:second.zoom}));
+ if(await page.evaluate(()=>!!window.__BP_APP_SPACE_EXPLORER_V1__?.enterFullSpace)){
+  await page.evaluate(()=>{void window.__BP_APP_SPACE_EXPLORER_V1__.enterFullSpace()});
   await sleep(10000);await snapshot('space');
   await page.evaluate(()=>window.__BP_APP_SPACE_EXPLORER_V1__?.close?.());await sleep(700);
  }
@@ -48,6 +49,7 @@ try{
  await sleep(6500);await snapshot('ocean-regional');
  await page.evaluate(()=>{const m=window.__BP_V5000_WORLD__?.map;m?.stop();m?.jumpTo({center:[-40,20],zoom:13,pitch:58,bearing:0})});
  await sleep(7000);await snapshot('ocean-close');
+ await page.evaluate(()=>{const m=window.__BP_V5000_WORLD__?.map;m?.stop();m?.jumpTo({center:[0,20],zoom:1.25,pitch:0,bearing:0})});await sleep(6500);await snapshot('global-return');
  console.log('BP_BROWSER_ERRORS '+JSON.stringify(errors));console.log('BP_BROWSER_NETWORK '+JSON.stringify(network));
 }catch(e){console.log('BP_PROBE_FAILURE '+String(e?.stack||e));try{await snapshot('failure')}catch(_){}process.exitCode=1}
 finally{await browser.close()}
