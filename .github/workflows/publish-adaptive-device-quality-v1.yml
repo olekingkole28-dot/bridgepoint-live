@@ -1,0 +1,229 @@
+name: Publish BridgePoint Ten Device Quality Tiers and Building Dock Fix V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-adaptive-device-quality-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful independent building release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45477081413 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45477081413 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Apply only standalone building behavior and ten adaptive device tiers
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          quality='bridgepoint-device-quality-v1.js'
+          world='world-v2300-map.js'
+          allowed={'index.html','app/index.html','landing.js','app.js',quality,world,'app/'+world}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('DEVICE_QUALITY_ANCHOR',a[:140],s.count(a))
+              return s.replace(a,b,1)
+          (site/quality).write_bytes(Path('scripts',quality).read_bytes())
+          # Do not reopen the feature dock during a building selection or lookup.
+          p=site/'landing.js';s=p.read_text()
+          anchor="if($('bpv-dock')?.hidden)$('bpv-dock-reopen')?.click();"
+          assert s.count(anchor)==2,('PUBLIC_DOCK_REOPEN',s.count(anchor))
+          s=s.replace(anchor,'')
+          p.write_text(s)
+          p=site/'app.js';s=p.read_text()
+          s=one(s,"if(revealDock&&$('bpv-dock')?.hidden)$('bpv-dock-reopen')?.click();","")
+          p.write_text(s)
+          for rel in (world,'app/'+world):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              s=one(s,"const MAX_EXACT=MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650);","const MAX_EXACT=window.__BP_DEVICE_QUALITY_V1__?.profile.exact??(MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650));")
+              s=one(s,"function activeWorldLodProfile(){","function originalWorldLodProfile(){")
+              marker="window.__BP_WORLD_FIX_V5542__="
+              profile="""function activeWorldLodProfile(){
+            const lod=originalWorldLodProfile(),q=window.__BP_DEVICE_QUALITY_V1__?.profile;
+            if(!q)return lod;
+            // Preserve the original coarse globe/building shells and layer switches.
+            // Only detailed geometry is deferred to closer zoom on slower hardware.
+            const next={...lod,deviceLevel:q.level};
+            for(const key of ['roofMin','floorMin','facadeMin','partsMin','edgeMin','treeTrunkMin','treeDetailedMin','bridgeSupportMin','roadMin','landmarkDetailMin','objectDetailMin']){
+              next[key]=Math.min(21.5,Number(lod[key])+q.lodOffset);
+            }
+            return next;
+          }
+          """
+              s=one(s,marker,profile+marker)
+              s=one(s,"pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,1.5)","pixelRatio:window.__BP_DEVICE_QUALITY_V1__?.pixelRatio()??(MOBILE?1:Math.min(window.devicePixelRatio||1,1.5))")
+              s=one(s,"maxTileCacheSize:tileCacheCap,","maxTileCacheSize:window.__BP_DEVICE_QUALITY_V1__?.profile.tileCache??tileCacheCap,")
+              s=one(s,"const profileKey=lod.tier+':'+styleLayers.length;","const profileKey=lod.tier+':'+(lod.deviceLevel||0)+':'+styleLayers.length;")
+              s=one(s,"p_limit:MAX_EXACT","p_limit:window.__BP_DEVICE_QUALITY_V1__?.profile.exact??MAX_EXACT")
+              s=one(s,"prepare(d?.features||[],MAX_EXACT)","prepare(d?.features||[],window.__BP_DEVICE_QUALITY_V1__?.profile.exact??MAX_EXACT)")
+              s=one(s,"limit:baseLimit},8500)","limit:Math.min(baseLimit,window.__BP_DEVICE_QUALITY_V1__?.profile.living??baseLimit)},8500)")
+              s=one(s,"limit:treeLimit},12000)","limit:Math.min(treeLimit,window.__BP_DEVICE_QUALITY_V1__?.profile.trees??treeLimit)},12000)")
+              s=one(s,"retentionRadiusMeters,baseCap)","retentionRadiusMeters,Math.min(baseCap,(window.__BP_DEVICE_QUALITY_V1__?.profile.living??baseCap)*3))")
+              s=one(s,"retentionRadiusMeters,treeCap)","retentionRadiusMeters,Math.min(treeCap,(window.__BP_DEVICE_QUALITY_V1__?.profile.trees??treeCap)*3))")
+              # Connect frame feedback without a new map or style reset. Apply zoom
+              # range changes on the next settled map event, never during a gesture.
+              s=one(s,"__bpTrace('after-map-constructor',{zoom:initialZoom});","""__bpTrace('after-map-constructor',{zoom:initialZoom});
+          const bpDeviceQuality=window.__BP_DEVICE_QUALITY_V1__;
+          if(bpDeviceQuality){
+            bpDeviceQuality.bind(map);
+            let pendingQuality=false;
+            const applyQuality=()=>{
+              if(!pendingQuality||map.isMoving?.()||!map.isStyleLoaded?.())return;
+              pendingQuality=false;map.__bpLodRangeProfile=null;syncWorldLodLayerRanges(activeWorldLodProfile());
+            };
+            const unsub=bpDeviceQuality.subscribe(()=>{pendingQuality=true;setTimeout(applyQuality,350);});
+            map.on('moveend',applyQuality);map.on('idle',applyQuality);
+            map.once('remove',()=>{unsub();map.off('moveend',applyQuality);map.off('idle',applyQuality);});
+          }""")
+              p.write_text(s)
+          # Cache-bust only the two entry scripts and the shared world module.
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(world-v2300-map\.js\?[^"\']+)',lambda m:m[1]+'&devicequality=20261124v1',s)
+              assert n>=1,(rel,n)
+              p.write_text(s)
+          css=r'''<style id="bp-device-quality-css-v1">
+          html[data-bp-quality-low=true] #bpv-dock,html[data-bp-quality-low=true] #bpv-sidecar,html[data-bp-quality-low=true] #previewCard,html[data-bp-quality-low=true] #buildingPanel{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 8px 24px rgba(0,0,0,.3)!important}
+          html[data-bp-quality-low=true] #bpv-dock,html[data-bp-quality-low=true] #previewCard,html[data-bp-quality-low=true] #buildingPanel{transition:none!important}
+          </style>'''
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\s\']+)',lambda m:m[1]+'&devicequality=20261124v1',s);assert n>=1,(rel,n)
+              s=re.subn(r'(world-v2300-map\.js\?[^"\s\']+)',lambda m:m[1]+'&devicequality=20261124v1',s)[0]
+              assert s.count('<head>')==1 and s.count('</head>')==1
+              s=s.replace('<head>','<head><script src="/'+quality+'?v=20261124v1"></script>',1)
+              s=s.replace('</head>',css+'\n</head>',1)
+              assert all(k in s for k in ('bpv-independent-building-card-v2','turbineperf=20261124v1','singlenasa=20261124v1','timelinefooter=20261124v1'))
+              p.write_text(s)
+          assert before==snap(),'Unexpected unrelated asset changed'
+          print('BUILDING_DOCK_DEVICE_QUALITY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-device-quality-v1.js"
+          for f in landing.js app.js world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify ten tiers, dynamic FPS adaptation, and building selection dock independence
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          export SITE
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import vm from 'node:vm';
+          import assert from 'node:assert/strict';
+          const root=process.env.SITE;
+          const code=fs.readFileSync(root+'/bridgepoint-device-quality-v1.js','utf8');
+          const landing=fs.readFileSync(root+'/landing.js','utf8'),app=fs.readFileSync(root+'/app.js','utf8'),world=fs.readFileSync(root+'/world-v2300-map.js','utf8');
+          assert(!landing.includes("if($('bpv-dock')?.hidden)$('bpv-dock-reopen')?.click();"));
+          assert(!app.includes("if(revealDock&&$('bpv-dock')?.hidden)$('bpv-dock-reopen')?.click();"));
+          assert(world.includes('bpDeviceQuality.bind(map)')&&world.includes('profile.exact')&&world.includes('profile.living')&&world.includes('profile.trees'));
+          for(const file of ['index.html','app/index.html']){
+            const h=fs.readFileSync(root+'/'+file,'utf8');assert(h.includes('bpv-independent-building-card-v2')&&h.includes('/bridgepoint-device-quality-v1.js?v=20261124v1'));
+          }
+          function scenario(cores,memory,mobile){
+            let now=0,interval,ratio=null,moving=false;
+            const events=new Map(),doc={hidden:false,documentElement:{dataset:{}},addEventListener(){}};
+            const g={navigator:{hardwareConcurrency:cores,deviceMemory:memory,userAgent:mobile?'Android':'Desktop'},innerWidth:mobile?390:1920,innerHeight:mobile?844:1080,devicePixelRatio:2,document:doc,matchMedia:()=>({matches:mobile}),performance:{now:()=>now},requestAnimationFrame(){},setInterval(fn){interval=fn},addEventListener(){},console};
+            g.window=g;vm.createContext(g);vm.runInContext(code,g);
+            const q=g.__BP_DEVICE_QUALITY_V1__;
+            const map={on:(e,f)=>events.set(e,f),off:e=>events.delete(e),isMoving:()=>moving,setPixelRatio:r=>{ratio=r}};
+            q.bind(map);
+            function windowOf(fps,active=true){
+              moving=active;
+              const start=now;
+              const frames=Math.max(1,Math.round(fps*2.5));
+              for(let i=1;i<=frames;i++){now=start+i*2500/frames;events.get('render')?.();}
+              now=start+2500;interval();
+            }
+            return {q,doc,windowOf,settle(){moving=false;events.get('moveend')?.()},get ratio(){return ratio}};
+          }
+          const low=scenario(2,2,true),mid=scenario(6,4,true),high=scenario(16,8,false);
+          assert.equal(low.q.state.level,1);assert.equal(mid.q.state.level,4);assert.equal(high.q.state.level,10);
+          assert.equal(high.q.profiles.length,10);
+          for(let i=0;i<10;i++){const p=high.q.profiles[i];assert.equal(p.level,i+1);assert(p.dpr>0&&p.exact>0&&p.living>0&&p.trees>0);if(i)assert(p.dpr>high.q.profiles[i-1].dpr&&p.lodOffset<high.q.profiles[i-1].lodOffset);}
+          for(let i=0;i<5;i++)high.windowOf(16);
+          assert(high.q.state.level<10&&high.q.state.measuredFps<20);
+          high.settle();assert(high.ratio>0&&high.ratio<2);
+          const afterSlow=high.q.state.level;
+          for(let i=0;i<24;i++)high.windowOf(60);
+          assert(high.q.state.level>afterSlow);high.settle();
+          assert.equal(high.q.state.featuresDisabled,0);
+          // Execute the original public map-selection callback and the app panel-open
+          // function with a closed dock to prove no simulated dock click occurs.
+          const publicMatch=landing.match(/world\.onBuildingSelect\?\.\(\(\{feature,lngLat\}\)=>\{([\s\S]*?)\n\s*\}\);/);
+          assert(publicMatch,'public selection callback not found');
+          const appMatch=app.match(/function ensureBuildingPanelOpen\(revealDock=false\)\{[^\n]+/);
+          assert(appMatch,'app selection helper not found');
+          const el={hidden:true,dataset:{},textContent:'',style:{setProperty(){}},removeAttribute(){}};
+          let reopenClicks=0;
+          const els={previewCard:{...el,dataset:{}},previewTitle:{...el},previewMeta:{...el},buildingPanel:{...el},'bpv-dock':{hidden:true},'bpv-dock-reopen':{click(){reopenClicks++}}};
+          const context={$:id=>els[id],window:{},feature:{properties:{building_id:123,height:10}},lngLat:{lng:-74,lat:40},Number};
+          vm.createContext(context);vm.runInContext(publicMatch[1],context);assert.equal(els.previewCard.hidden,false);assert(els.previewTitle.textContent.includes('123'));
+          vm.runInContext(appMatch[0]+'\nensureBuildingPanelOpen(true);',context);
+          assert.equal(els.buildingPanel.hidden,false);assert.equal(reopenClicks,0);assert.equal(els['bpv-dock'].hidden,true);
+          console.log('TEN_DEVICE_TIERS_ADAPTIVE_FPS_BUILDING_DOCK_PASS',JSON.stringify({low:low.q.state,mid:mid.q.state,high:high.q.state}));
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live ten device tiers, building dock fix and preserved globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-map.js bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js world-v2300-time-slider.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_ADAPTIVE_DEVICE_QUALITY_LIVE_PASS
