@@ -1,4 +1,4 @@
-name: Publish BridgePoint Independent Building Card V1
+name: Publish BridgePoint Independent Building Card V2
 on:
   workflow_dispatch:
   push:
@@ -37,7 +37,7 @@ jobs:
             sleep 5
           done
           exit 1
-      - name: Move only existing building inspectors outside the bottom dock
+      - name: Detach only the existing building inspector after native mounting
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/wind-site"
@@ -45,40 +45,69 @@ jobs:
           tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
           export SITE
           python3 - <<'PY'
-          import os,re,hashlib
+          import os,hashlib
           from pathlib import Path
-          site=Path(os.environ['SITE']);name='bridgepoint-view-v5917.js'
-          allowed={name,'app/'+name,'index.html','app/index.html'}
+          site=Path(os.environ['SITE'])
+          allowed={'index.html','app/index.html'}
           def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
           before=snap()
-          def one(s,a,b):
-              assert s.count(a)==1,('BUILDING_CARD_ANCHOR',a[:140],s.count(a))
-              return s.replace(a,b,1)
-          for rel in (name,'app/'+name):
-              p=site/rel
-              if not p.exists():continue
-              s=p.read_text()
-              s=one(s,"const propertySlot=$('#bpv-property-card-slot');if(propertySlot&&previewCard.parentElement!==propertySlot)propertySlot.appendChild(previewCard);","if(previewCard.parentElement!==document.body)document.body.appendChild(previewCard);previewCard.classList.add('bpv-independent-building-card');if(!previewCard.querySelector('#bpv-close-public-building')){const close=document.createElement('button');close.id='bpv-close-public-building';close.type='button';close.textContent='×';close.setAttribute('aria-label','Close building details');close.addEventListener('click',()=>{previewCard.hidden=true});previewCard.prepend(close);}")
-              s=one(s,"const propertySlot=$('#bpv-property-card-slot');if(bp&&propertySlot&&bp.parentElement!==propertySlot)propertySlot.appendChild(bp);","if(bp){if(bp.parentElement!==document.body)document.body.appendChild(bp);bp.classList.add('bpv-independent-building-card');}")
-              p.write_text(s)
-          css="""<style id="bpv-independent-building-card-css">
-          body.bpv-home #previewCard.bpv-independent-building-card,body.bpv-app #buildingPanel.bpv-independent-building-card{position:fixed!important;z-index:calc(var(--bpv-ui-z,1200) + 30)!important;top:max(76px,env(safe-area-inset-top))!important;bottom:auto!important;right:12px!important;left:auto!important;width:min(430px,calc(100vw - 24px))!important;max-height:calc(100dvh - 100px)!important;height:auto!important;overflow:auto!important;overscroll-behavior:contain;box-sizing:border-box;pointer-events:auto}
+          view=(site/'bridgepoint-view-v5917.js').read_text()
+          assert "propertySlot.appendChild(previewCard)" in view and "propertySlot.appendChild(bp)" in view
+          overlay=r'''<style id="bpv-independent-building-card-css">
+          body #previewCard.bpv-independent-building-card,body #buildingPanel.bpv-independent-building-card{position:fixed!important;z-index:calc(var(--bpv-ui-z,1200) + 30)!important;top:max(76px,env(safe-area-inset-top))!important;bottom:auto!important;right:12px!important;left:auto!important;width:min(430px,calc(100vw - 24px))!important;max-height:calc(100dvh - 100px)!important;height:auto!important;overflow:auto!important;overscroll-behavior:contain;box-sizing:border-box;pointer-events:auto;margin:0!important;transform:none!important}
           body #previewCard.bpv-independent-building-card[hidden],body #buildingPanel.bpv-independent-building-card[hidden]{display:none!important}
           #bpv-close-public-building{float:right;position:sticky;top:0;z-index:2;min-width:36px;min-height:36px;font-size:22px!important;padding:0!important;margin:0 0 6px 8px;border-radius:10px}
-          @media(max-width:700px){body.bpv-home #previewCard.bpv-independent-building-card,body.bpv-app #buildingPanel.bpv-independent-building-card{top:max(64px,env(safe-area-inset-top))!important;left:8px!important;right:8px!important;width:auto!important;max-height:calc(100dvh - 88px)!important}}
-          </style>"""
+          @media(max-width:700px){body #previewCard.bpv-independent-building-card,body #buildingPanel.bpv-independent-building-card{top:max(64px,env(safe-area-inset-top))!important;left:8px!important;right:8px!important;width:auto!important;max-height:calc(100dvh - 88px)!important}}
+          </style>
+          <script id="bpv-independent-building-card-v2">
+          (()=>{
+            'use strict';
+            let discovery=null,slotObserver=null,slot=null;
+            function detach(){
+              if(!slot)return;
+              for(const id of ['previewCard','buildingPanel']){
+                const card=document.getElementById(id);
+                if(!card||!slot.contains(card))continue;
+                card.classList.add('bpv-independent-building-card');
+                if(id==='previewCard'&&!card.querySelector('#bpv-close-public-building')){
+                  const close=document.createElement('button');
+                  close.id='bpv-close-public-building';close.type='button';close.textContent='×';
+                  close.setAttribute('aria-label','Close building details');
+                  close.addEventListener('click',()=>{card.hidden=true;});
+                  card.prepend(close);
+                }
+                document.body.appendChild(card);
+              }
+            }
+            function locate(){
+              const next=document.getElementById('bpv-property-card-slot');
+              if(!next)return;
+              if(slot!==next){
+                slotObserver?.disconnect();slot=next;
+                slotObserver=new MutationObserver(detach);
+                slotObserver.observe(slot,{childList:true,subtree:true});
+              }
+              detach();
+              discovery?.disconnect();discovery=null;
+            }
+            function start(){
+              locate();
+              if(!slot){discovery=new MutationObserver(locate);discovery.observe(document.body,{childList:true,subtree:true});}
+            }
+            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+          })();
+          </script>'''
           for rel in ('index.html','app/index.html'):
               p=site/rel;s=p.read_text()
-              s,n=re.subn(r'((?:data-bp-deferred-src|src)=["\'][^"\']*bridgepoint-view-v5917\.js[^"\']*)(["\'])',lambda m:m[1]+('&' if '?' in m[1] else '?')+'buildingcard=20261124v1'+m[2],s);assert n>=1,(rel,n)
               assert s.count('</head>')==1
-              s=s.replace('</head>',css+'\n</head>',1)
+              assert 'bpv-independent-building-card-v2' not in s
+              s=s.replace('</head>',overlay+'\n</head>',1)
               assert all(k in s for k in ('turbineperf=20261124v1','turbineicons=20261124v1','singlenasa=20261124v1','timelinefooter=20261124v1'))
               p.write_text(s)
           assert before==snap(),'Unexpected unrelated asset changed'
           print('BUILDING_CARD_ONLY_BYTE_PRESERVATION_PASS',len(before))
           PY
-          node --check "$SITE/bridgepoint-view-v5917.js"
-      - name: Verify mobile independent building card and original contents
+      - name: Test actual shipped inspector markup and mount lifecycle on mobile and desktop
         run: |
           set -euo pipefail
           TEST="$RUNNER_TEMP/building-card-test"
@@ -90,37 +119,61 @@ jobs:
           import assert from 'node:assert/strict';
           import fs from 'node:fs';
           import path from 'node:path';
-          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          const site=process.env.BP_SITE;
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
           try{
-            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
-            await page.route('https://bridgepointintelligence.online/**',async route=>{
-              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
-              if(rel===''||rel==='index.html'||rel==='app/'||rel==='app/index.html'||rel.endsWith('bridgepoint-view-v5917.js')){
-                const f=path.join(process.env.BP_SITE,rel===''?'index.html':rel==='app/'?'app/index.html':rel);
-                if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.js')?'text/javascript':'text/html',body:fs.readFileSync(f)});
+            for(const mode of ['public','app']){
+              const file=mode==='public'?'index.html':'app/index.html';
+              const html=fs.readFileSync(path.join(site,file),'utf8');
+              const overlay=html.match(/<script id="bpv-independent-building-card-v2">([\s\S]*?)<\/script>/)[1];
+              const css=html.match(/<style id="bpv-independent-building-card-css">([\s\S]*?)<\/style>/)[1];
+              const styles=['bridgepoint-view-v5917.css',mode==='public'?'landing.css':'styles.css'].map(f=>fs.readFileSync(path.join(site,f),'utf8')).join('\n');
+              for(const viewport of [{width:390,height:844},{width:1440,height:960}]){
+                const page=await browser.newPage({viewport,deviceScaleFactor:1});
+                // Real release markup and CSS, isolated from globe and network startup.
+                // Exercise the exact native slot insertion and inspector hidden transition.
+                await page.route('**/*',route=>route.abort());
+                await page.setContent(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*>/gi,''),{waitUntil:'domcontentloaded'});
+                await page.addStyleTag({content:styles+'\n'+css});
+                await page.evaluate(mode=>{document.body.classList.add(mode==='public'?'bpv-home':'bpv-app');},mode);
+                await page.addScriptTag({content:overlay});
+                const cardId=mode==='public'?'previewCard':'buildingPanel';
+                await page.evaluate(({cardId,mode})=>{
+                  const card=document.getElementById(cardId);
+                  if(!card)throw Error('Missing original inspector '+cardId);
+                  const dock=document.createElement('section');dock.id='bpv-dock';dock.className='bpv-dock bpv-mobile-v2';
+                  dock.style.cssText='position:fixed;bottom:8px;height:320px;width:96%;overflow:hidden;z-index:1200';
+                  const slot=document.createElement('div');slot.id='bpv-property-card-slot';
+                  dock.appendChild(slot);document.body.appendChild(dock);
+                  window.originalCard=card;window.originalNodes=[...card.children];window.originalDockHeight=dock.getBoundingClientRect().height;
+                  const button=card.querySelector('button');window.originalListenerCalls=0;
+                  button?.addEventListener('bp-test',()=>window.originalListenerCalls++);
+                  window.originalButton=button;
+                  slot.appendChild(card);
+                },{cardId,mode});
+                await page.waitForFunction(id=>document.getElementById(id).parentElement===document.body&&document.getElementById(id).classList.contains('bpv-independent-building-card'),cardId,{timeout:10000});
+                const r=await page.evaluate(id=>{
+                  const c=document.getElementById(id),d=document.getElementById('bpv-dock');c.hidden=false;
+                  const rect=c.getBoundingClientRect(),style=getComputedStyle(c);
+                  window.originalButton?.dispatchEvent(new Event('bp-test'));
+                  return {outside:!d.contains(c),sameNode:c===window.originalCard,allChildren:window.originalNodes.every(n=>c.contains(n)),listener:window.originalListenerCalls===1,fixed:style.position==='fixed',visible:rect.width>0&&rect.height>0,withinViewport:rect.left>=0&&rect.right<=innerWidth+1&&rect.bottom<=innerHeight+1,aboveDock:Number(style.zIndex)>Number(getComputedStyle(d).zIndex),dockUnchanged:window.originalDockHeight===d.getBoundingClientRect().height};
+                },cardId);
+                console.log('BUILDING_CARD_LAYOUT',mode,viewport,JSON.stringify(r));assert(Object.values(r).every(Boolean));
+                if(mode==='public'){
+                  assert(await page.locator('#previewCard [data-preview-cap]').count()>=8);
+                  await page.locator('#bpv-close-public-building').click();
+                }else{
+                  assert(await page.locator('#buildingPanel #closeBuilding').count()===1);
+                  await page.evaluate(id=>document.getElementById(id).hidden=true,cardId);
+                }
+                assert(await page.evaluate(id=>document.getElementById(id).hidden&&getComputedStyle(document.getElementById(id)).display==='none',cardId));
+                await page.evaluate(id=>{document.getElementById('bpv-property-card-slot').appendChild(document.getElementById(id));},cardId);
+                await page.waitForFunction(id=>document.getElementById(id).parentElement===document.body,cardId);
+                if(mode==='public')assert(await page.locator('#bpv-close-public-building').count()===1);
+                await page.close();
               }
-              return route.continue();
-            });
-            await page.goto('https://bridgepointintelligence.online/?building-card-verify=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
-            await page.waitForFunction(()=>window.__BP_MOBILE_CARD_V2__?.ready&&document.querySelector('#previewCard.bpv-independent-building-card #bpv-home-property-slots'),null,{timeout:120000});
-            // Exercise the same inspector visibility transition used by the existing building hit handler.
-            // No external property backend is required to verify the mount and layout contract.
-            const r=await page.evaluate(()=>{
-              const c=document.getElementById('previewCard'),d=document.getElementById('bpv-dock');
-              if(d.hidden)document.getElementById('bpv-dock-reopen')?.click();
-              const before=d.getBoundingClientRect().height;
-              c.hidden=false;const rect=c.getBoundingClientRect(),style=getComputedStyle(c);
-              return {outside:c.parentElement===document.body&&!d.contains(c),fixed:style.position==='fixed',visible:rect.width>0&&rect.height>0,withinViewport:rect.left>=0&&rect.right<=innerWidth+1&&rect.bottom<=innerHeight+1,aboveDock:Number(style.zIndex)>Number(getComputedStyle(d).zIndex),tabs:c.querySelectorAll('[data-preview-cap]').length,slots:!!c.querySelector('#bpv-home-property-slots'),details:!!c.querySelector('#previewTitle')&&!!c.querySelector('#previewMeta'),dockUnchanged:before===d.getBoundingClientRect().height};
-            });
-            console.log('INDEPENDENT_PUBLIC_BUILDING_CARD',JSON.stringify(r));assert(r.outside&&r.fixed&&r.visible&&r.withinViewport&&r.aboveDock&&r.tabs>=8&&r.slots&&r.details&&r.dockUnchanged);
-            await page.evaluate(()=>document.getElementById('bpv-close-public-building').click());
-            assert(await page.evaluate(()=>document.getElementById('previewCard').hidden&&getComputedStyle(document.getElementById('previewCard')).display==='none'));
-            // The authenticated inspector uses the same independent mount; verify the exact
-            // shipped app DOM contract without signing into or altering an account.
-            const app=fs.readFileSync(path.join(process.env.BP_SITE,'app/index.html'),'utf8');
-            const view=fs.readFileSync(path.join(process.env.BP_SITE,'bridgepoint-view-v5917.js'),'utf8');
-            assert(app.includes('id="buildingPanel"')&&app.includes('id="closeBuilding"')&&app.includes('bpv-independent-building-card-css')&&view.includes("document.body.appendChild(bp);bp.classList.add('bpv-independent-building-card')")&&view.includes('installAppSlots()'));
-            console.log('BUILDING_CARD_STANDALONE_MOBILE_PASS');
+            }
+            console.log('BUILDING_CARD_STANDALONE_LAYOUT_PASS');
           }finally{await browser.close();}
           JS
           node "$TEST/test.mjs"
