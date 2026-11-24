@@ -1,0 +1,268 @@
+name: Publish BridgePoint Close Water Continuity and Surf V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-close-water-surf-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful unified layout and anchored water release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45483122753 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45483122753 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Repair only close water coverage and add modeled hollow shoreline breakers
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);water='world-v2300-water.js';vendor='vendor/bp-surf-barrels-v1.mjs'
+          allowed={'index.html','app/index.html','landing.js','app.js',water,'app/'+water,vendor}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('CLOSE_WATER_ANCHOR',a[:150],s.count(a))
+              return s.replace(a,b,1)
+          (site/vendor).write_bytes(Path('scripts/bp-surf-barrels-v1.mjs').read_bytes())
+          for rel in (water,'app/'+water):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              assert 'waterAnchoredLiquid' in s and 'api.anchoredOpticalBands=' in s
+              s="import {buildSurfBarrels} from '/vendor/bp-surf-barrels-v1.mjs';\n"+s
+              # Continuous clipped coast triangles at every non-global near-shore zoom.
+              s=one(s,"const useCoastalMesh=regionalCoast||fallbackCoast;","const useCoastalMesh=regionalCoast||fallbackCoast||!!(coastalMesh&&!worldView&&!offshoreSafe&&z>=11);")
+              # Coastal atlas can supply water even while local vector tiles are empty.
+              # If no coastal triangles actually intersect the viewport, keep exact source
+              # marine polygons and verified offshore fallback available.
+              s=one(s,"if(worldView||offshoreTilt||useCoastalMesh||!marineFeature(f)||marineVertices>=marineBudget)continue;","if(worldView||offshoreTilt||coastalVertices>0||!marineFeature(f)||marineVertices>=marineBudget)continue;")
+              # Do not leave an old global buffer completely invisible during transition
+              # to a replacement local mesh.
+              s=one(s,"if(z<3.5&&globalCount){","if(globalCount){")
+              # Keep the original globe/offshore rendering intact. At close zoom, the
+              # source-clipped sea surface is drawn above inconsistent bathymetry/DEM,
+              # but not while submerged; the original land layers remain unchanged.
+              s=one(s,"if(z<11&&wet<.02){gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}","if(wet<.02){gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}")
+              s=one(s,"gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);\n","if(z<3.5)gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);\n")
+              # Source inland polygon triangles, including holes, replace accepted
+              # whole-grid squares, preserving a single validated water level per feature.
+              anchor="api.exactMarineVertices=marineVertices;api.exactMarinePolygons=marinePolygons;"
+              block="""api.exactMarineVertices=marineVertices;api.exactMarinePolygons=marinePolygons;
+              const exactInland=new Set();
+              let inlandVertices=0;
+              const inlandBudget=api.low?18000:api.mobile?32000:56000;
+              if(z>=8){
+                for(const f of waterFeatures){
+                  if(z>=10)yield;
+                  if(marineFeature(f)||inlandVertices>=inlandBudget)continue;
+                  const bb=f.bbox,lng=(bb[0]+bb[2])*.5,lat=(bb[1]+bb[3])*.5;
+                  // Do not duplicate source tile fragments that lie inside the continuous sea.
+                  if(coastalVertices>0&&coastalMesh.contains(mercX(lng),mercY(lat)))continue;
+                  const h=estimatedInlandSurface(f,scene,terrainCache,'exact-inland',lng,lat);
+                  if(!Number.isFinite(h)||h<MIN_VALID_TERRAIN_ELEVATION_M||h>MAX_VALID_INLAND_WATER_ELEVATION_M)continue;
+                  const dir=api.wind.direction*RAD;
+                  const result=buildOceanPolygonMesh(f.parts,{maxVertices:inlandBudget-inlandVertices,step:Math.max(dx,dy)*.35},(x,y)=>{
+                    pushVertex(surface,x,y,h+.12,1,Math.sin(dir),-Math.cos(dir),0);
+                  });
+                  if(result.count){exactInland.add(f);inlandVertices+=result.count;polygonCells+=result.polygons;}
+                }
+              }
+              api.exactInlandVertices=inlandVertices;api.exactInlandPolygons=exactInland.size;
+              """
+              s=one(s,anchor,block)
+              s=one(s,"if(kind===3||offshoreTilt&&kind===1)continue;","if(kind===3||offshoreTilt&&kind===1||exactInland.has(waterFeature))continue;")
+              s=one(s,"if(useCoastalMesh&&kind===1&&coastalMesh.contains(mod1(xCenterRaw),yCenter))continue;","if(coastalVertices>0&&kind===1&&coastalMesh.contains(mod1(xCenterRaw),yCenter))continue;")
+              # Source waterways may be narrow line-only features at max tile zoom.
+              # Use only mapped, uncovered stream segments with corroborated low-slope
+              # terrain. Native waterway remains visible if no valid elevation exists.
+              a=s.index('if (!waterPolygon) {',s.index('function makeRibbon'))
+              b=s.index('const flood = floodDepthAt',a)
+              orig=s[a:b]
+              assert 'let waterLevel = 0;' in orig and 'estimatedInlandSurface(' in orig
+              orig=re.sub(r'if \(!waterPolygon\) \{\s*api\.flowSegmentsRejectedOutsideWater\+\+;\s*continue;\s*\}', '',orig,count=1)
+              orig=orig.replace('if (marineFeature(waterPolygon)) {',"""if(!waterPolygon){
+                const p=raw.properties||{};
+                if(z<12||/yes|true|culvert/i.test(String(p.tunnel||p.covered||''))||Number(p.layer||0)<0||segmentMeters>240){api.flowSegmentsRejectedOutsideWater++;continue;}
+                const hs=[[lngA,latA],[midLng,midLat],[lngB,latB]].map(pt=>{try{return map.queryTerrainElevation(pt,{exaggerated:false})}catch(_){return NaN}});
+                if(hs.some(h=>!Number.isFinite(h))||Math.max(...hs)-Math.min(...hs)>Math.min(1.5,segmentMeters*.06+.25)){api.flowSegmentsRejectedOutsideWater++;continue;}
+                waterLevel=Math.max(...hs)+.12;
+              } else if (marineFeature(waterPolygon)) {""")
+              orig=orig.replace('waterLevel > MAX_CUSTOM_INLAND_WATER_SURFACE_ELEVATION_M','waterLevel > MAX_VALID_INLAND_WATER_ELEVATION_M')
+              s=s[:a]+orig+s[b:]
+              # Bounded true 3D overhanging wave mesh near mapped sea shore only.
+              # Use a distinct kind within marine range, keep it out of flood logic.
+              anchor="const flowCount = makeRibbon(flowFeatures, waterFeatures, bounds, flow, scene, terrainCache, maxSegs);"
+              s=one(s,anchor,anchor+"""
+              let surfVertices=0,surfCount=0;
+              if(z>=15&&coastalMesh&&!offshoreTilt){
+                const q=window.__BP_DEVICE_QUALITY_V1__?.profile.level??(api.low?2:api.mobile?5:8);
+                const gen=buildSurfBarrels(bounds,map.getCenter().lat,coastalMesh,q,(x,y,h,fx,fy,t)=>{
+                  pushVertex(surface,x,y,h,3.08,fx,fy,-t);surfVertices++;
+                });
+                let result=gen.next();while(!result.done){yield;result=gen.next();}
+                surfCount=result.value?.count||0;
+              }
+              """)
+              s=one(s,"if(z>=10)yield;\n    if(worldView){","if(z>=10)yield;\n    api.surfBarrelVertices=surfVertices;api.surfBarrelCount=surfCount;\n    if(worldView){") if "if(z>=10)yield;\n    if(worldView){" in s else re.sub(r'if\(z>=10\)yield;(\s*)if\(worldView\)\{\s*api\.coastalSurfaceActive',r'if(z>=10)yield;\1api.surfBarrelVertices=surfVertices;api.surfBarrelCount=surfCount;\1if(worldView){\1api.coastalSurfaceActive',s,count=1)
+              assert 'api.surfBarrelVertices=surfVertices' in s
+              # Surf-only animation: a bounded shoreward movement, lip folding and
+              # collapse. The static hollow mesh is visible from both sides.
+              s=one(s,"'  vec2 displacedPosition = worldPos+curlOffset;',","""'  bool surfBarrel=a_kind>3.04&&a_kind<3.10;',
+              '  float surfPulse=0.5+0.5*sin(u_time*1.05+6.2831853*fract(worldPos.x*4096.0+worldPos.y*2048.0));',
+              '  if(surfBarrel){curlOffset=normalize(a_flow+vec2(0.00001))*surfPulse*1.8/(40075016.6856*cLat);offsetM=-a_height*(0.24*surfPulse);}',
+              '  vec2 displacedPosition = worldPos+curlOffset;',""") if "'  vec2 displacedPosition = worldPos+curlOffset;'," in s else re.sub(r"'(\s*)vec2 displacedPosition = worldPos\+curlOffset;',",lambda m:"'  bool surfBarrel=a_kind>3.04&&a_kind<3.10;',\n    '  float surfPulse=0.5+0.5*sin(u_time*1.05+6.2831853*fract(worldPos.x*4096.0+worldPos.y*2048.0));',\n    '  if(surfBarrel){curlOffset=normalize(a_flow+vec2(0.00001))*surfPulse*1.8/(40075016.6856*cLat);offsetM=-a_height*(0.24*surfPulse);}',\n    '  vec2 displacedPosition = worldPos+curlOffset;',",s,count=1)
+              assert 'bool surfBarrel=' in s
+              # Keep sea surface height and optical bands unchanged; color only the
+              # breaking-wave lip with turbulent white foam, two-sided translucent face.
+              match=re.search(r"'(\s*)if \(v_kind > 1\.5 && v_kind < 2\.5\) \{',",s)
+              assert match,('stream shader anchor',rel)
+              surfshader="""'  if(v_kind>3.04&&v_kind<3.10){',
+              '    float lip=smoothstep(0.62,1.0,-v_flood);',
+              '    float froth=clamp(lip*(0.72+0.28*sin(u_time*2.2+v_coord.x*78000.0+v_coord.y*48000.0)),0.0,1.0);',
+              '    vec3 face=mix(vec3(0.012,0.22,0.34),vec3(0.11,0.70,0.83),clamp(0.38+highlight*0.55+v_wave*0.18,0.0,1.0));',
+              '    fragColor=vec4(mix(face,vec3(0.94,0.99,1.0),froth),mix(0.68+lip*0.21,0.12,u_underwater));',
+              '    return;',
+              '  }',
+              """
+              s=s[:match.start()]+surfshader+s[match.start():]
+              # Draw the added wave faces separately, both sides visible; keep depth
+              # test so the hollow crest is physically occluded by its own surface.
+              anchor="if(this.surfaceVertexCount>first)gl.drawArrays(gl.TRIANGLES,first,this.surfaceVertexCount-first);"
+              s=one(s,anchor,"""const barrelCount=z>=15?Math.min(this.surfaceVertexCount-first,Number(api.surfBarrelVertices||0)):0;
+              const storedBarrelCount=Math.min(this.surfaceVertexCount-first,Number(api.surfBarrelVertices||0));
+              if(this.surfaceVertexCount>first+storedBarrelCount)gl.drawArrays(gl.TRIANGLES,first,this.surfaceVertexCount-first-storedBarrelCount);
+              if(barrelCount>0){
+                gl.disable(gl.CULL_FACE);gl.enable(gl.DEPTH_TEST);
+                gl.drawArrays(gl.TRIANGLES,this.surfaceVertexCount-barrelCount,barrelCount);
+                if(savedWaterState.cullFace)gl.enable(gl.CULL_FACE);else gl.disable(gl.CULL_FACE);
+                if(savedWaterState.depthTest)gl.enable(gl.DEPTH_TEST);else gl.disable(gl.DEPTH_TEST);
+              }""")
+              # Clear surf count when the globe buffer is replaced immediately.
+              s=one(s,"layer.setGeometry(mesh,[]);","api.surfBarrelVertices=0;api.surfBarrelCount=0;layer.setGeometry(mesh,[]);")
+              assert 'api.seaSurfaceFrame=' in s and 'waterAnchoredLiquid' in s and 'api.anchoredOpticalBands=' in s
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(world-v2300-water\.js\?[^"\']+)',lambda m:m[1]+'&closewater=20261124v1',s);assert n>=1,(rel,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\s\']+)',lambda m:m[1]+'&closewater=20261124v1',s);assert n>=1
+              assert 'unifiedlayoutwater=20261124v1' in s and 'devicequality=20261124v1' in s
+              p.write_text(s)
+          assert before==snap(),'Unexpected unrelated asset changed'
+          print('CLOSE_WATER_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          for f in world-v2300-water.js app/world-v2300-water.js landing.js app.js; do node --input-type=module --check < "$SITE/$f"; done
+          node --check "$SITE/vendor/bp-surf-barrels-v1.mjs"
+      - name: Verify actual water shaders and hollow shoreline geometry
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/closewater-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {pathToFileURL} from 'node:url';
+          const site=process.env.BP_SITE;
+          const {buildSurfBarrels}=await import(pathToFileURL(path.join(site,'vendor/bp-surf-barrels-v1.mjs')));
+          const {buildOceanPolygonMesh}=await import(pathToFileURL(path.join(site,'vendor/bp-ocean-mesh-v3.mjs')));
+          const C=40075016.68557849,edge=.5,geo={contains:(x,y)=>x<edge,shoreStrength:(x,y,r)=>Math.max(0,1-Math.abs(x-edge)/r)};
+          const bounds={x0:edge-220/C,x1:edge+80/C,y0:.5-220/C,y1:.5+220/C};
+          for(const quality of [1,5,10]){
+            const vertices=[],g=buildSurfBarrels(bounds,0,geo,quality,(...v)=>vertices.push(v));
+            let r=g.next();while(!r.done)r=g.next();
+            assert(r.value.count>0&&r.value.count<=Math.max(3,Math.round(quality*2.8)));
+            assert(vertices.every(v=>v.every(Number.isFinite)&&v[0]<edge&&v[2]>0&&v[2]<4));
+            assert(Math.max(...vertices.map(v=>v[2]))>1.5);
+            console.log('SURF_GEOMETRY_BUDGET',quality,r.value);
+          }
+          let count=0;const polygon=buildOceanPolygonMesh([[[[0,0],[.0005,0],[.0005,.0005],[0,.0005],[0,0]],[[.0002,.0002],[.0002,.0003],[.0003,.0003],[.0003,.0002],[.0002,.0002]]]],{maxVertices:5000,step:.000001},()=>count++);
+          assert(count>0&&polygon.count===count);
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage();
+            for(const rel of ['world-v2300-water.js','app/world-v2300-water.js']){
+              const water=fs.readFileSync(path.join(site,rel),'utf8'),a=water.indexOf('function buildShaders('),b=water.indexOf('function compile(',a);
+              assert(a>=0&&b>a&&water.includes('exactInland.has(waterFeature)')&&water.includes('api.surfBarrelVertices=surfVertices')&&water.includes('api.anchoredOpticalBands='));
+              const report=await page.evaluate(src=>{
+                const build=new Function(src+';return buildShaders;')();
+                const sh=build(null,{vertexShaderPrelude:'vec4 projectTile(vec2 p){return vec4(p,0.0,1.0);} vec4 projectTileFor3D(vec2 p,float h){return vec4(p,h*0.00001,1.0);}',define:''});
+                const gl=document.createElement('canvas').getContext('webgl2');
+                function compile(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
+                const p=gl.createProgram();gl.attachShader(p,compile(gl.VERTEX_SHADER,sh.vertexSource));gl.attachShader(p,compile(gl.FRAGMENT_SHADER,sh.fragmentSource));gl.linkProgram(p);
+                if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p));
+                return {linked:true,barrel:sh.vertexSource.includes('bool surfBarrel'),anchored:sh.fragmentSource.includes('waterAnchoredLiquid')&&!sh.fragmentSource.includes('v_coord*zoomScale')};
+              },water.slice(a,b)+'return {vertexSource,fragmentSource};}');
+              assert(Object.values(report).every(Boolean));console.log('CLOSE_WATER_SHADER',rel,report);
+            }
+          }finally{await browser.close();}
+          console.log('CLOSE_WATER_SURF_GEOMETRY_SHADER_PASS');
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live close water and preserved globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in vendor/bp-surf-barrels-v1.mjs app/world-v2300-water.js bridgepoint-device-quality-v1.js world-v2300-map.js bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js world-v2300-time-slider.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_CLOSE_WATER_SURF_LIVE_PASS
