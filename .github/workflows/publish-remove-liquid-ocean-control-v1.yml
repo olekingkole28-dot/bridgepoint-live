@@ -1,0 +1,143 @@
+name: Publish BridgePoint Remove Obsolete Ocean Control Only V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-remove-liquid-ocean-control-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful timeline footer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45468413047 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45468413047 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Remove only obsolete Liquid Ocean control and ocean status
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);name='world-v2300-sensor-layers.js'
+          allowed={name,'app/'+name,'landing.js','app.js','index.html','app/index.html'}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          for rel in (name,'app/'+name):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              anchor="const $=q=>ui.querySelector(q),bl=$('[data-l]'),bLiquid=$('[data-liquid]'),bg=$('[data-g]'),status=$('[data-status]');"
+              assert s.count(anchor)==1
+              s=s.replace(anchor,anchor+"\n // Legacy control is detached; existing internal state references remain valid.\n bLiquid.remove();status.hidden=true;\n const oceanControlCss=document.createElement('style');oceanControlCss.textContent='#bp-sensor-layers-v5945 [data-status][hidden]{display:none!important} #bpv-dock.bpv-mobile-v2 #bpv-dock-actions #bp-sensor-layers-v5945:not(:has(button[data-bpv-v2-visible=true])){display:none!important}';ui.appendChild(oceanControlCss);",1)
+              anchor="function say(html){status.innerHTML=html}"
+              assert s.count(anchor)==1
+              s=s.replace(anchor,"function say(html){status.innerHTML=html;status.hidden=/liquid ocean|bathymetr|underwater|surface restored|surface view restored|ocean depth|dive/i.test(status.textContent||'')&&!/NASA night lights|ground features/i.test(status.textContent||'')}",1)
+              assert 'autoOceanDive' in s and 'setLiquidEnabled(true)' in s
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(world-v2300-sensor-layers\.js\?[^"\']+)',lambda m:m[1]+'&nooceanbutton=20261124v1',s)
+              assert n>=1,(rel,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\s\']+)',lambda m:m[1]+'&nooceanbutton=20261124v1',s)
+              assert n>=1,(rel,n)
+              assert 'timelinefooter=20261124v1' in s and 'aircraftrestore=20261124v1' in s and 'windbright=20261124v1' in s
+              p.write_text(s)
+          assert before==snap(),'Unexpected unrelated asset changed'
+          print('REMOVE_OCEAN_CONTROL_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          for f in world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify mobile obsolete button gone and water still enabled
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/ocean-control-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
+              if(rel===''||rel==='index.html'||rel==='app/'||rel==='app/index.html'||rel==='landing.js'||rel==='app.js'||rel.endsWith('world-v2300-sensor-layers.js')){
+                const f=path.join(process.env.BP_SITE,rel===''?'index.html':rel==='app/'?'app/index.html':rel);
+                if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.js')?'text/javascript':'text/html',body:fs.readFileSync(f)});
+              }
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?no-ocean-control-verify=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>window.__BP_MOBILE_CARD_V2__?.ready&&window.__BP_SENSOR_LAYERS_V5945__?.liquid===true,null,{timeout:120000});
+            await page.evaluate(()=>document.querySelector('[data-bpv-v2-tab="environment"]').click());
+            const report=await page.evaluate(()=>{const s=window.__BP_SENSOR_LAYERS_V5945__,u=document.getElementById('bp-sensor-layers-v5945');return {liquid:s.liquid,alwaysOn:s.alwaysOn,autoDive:typeof s.toggleDive==='function',buttons:document.querySelectorAll('#bp-sensor-layers-v5945 [data-liquid]').length,status:u?.querySelector('[data-status]')?.hidden,night:!!u?.querySelector('[data-l]'),ground:!!u?.querySelector('[data-g]'),timeline:document.getElementById('bpv-v2-playback')?.parentElement?.id}});
+            console.log('OCEAN_CONTROL_REMOVAL',JSON.stringify(report));
+            assert(report.liquid&&report.alwaysOn&&report.autoDive&&report.buttons===0&&report.night&&report.ground&&report.status&&report.timeline==='bpv-v2-content');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live ocean control removal and preserved aircraft wind and globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_REMOVE_OCEAN_CONTROL_LIVE_PASS
