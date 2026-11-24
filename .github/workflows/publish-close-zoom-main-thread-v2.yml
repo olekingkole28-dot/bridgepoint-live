@@ -3,8 +3,6 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/publish-close-zoom-main-thread-v2.yml'
-      - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-sidewalks-3d.js'
       - 'tests/sidewalk-3d-global.test.mjs'
   workflow_dispatch:
