@@ -102,7 +102,8 @@ export function wildfireAtmosphereV5(T,groups,seed,quality){
 """
     return s
 def controller(s):
-    s=one(s,"?v=4-rolling-heat-turbulence&restore=20261120-emrf-fire","?v=5-terrain-smoke-ash-20261124")
+    s,n=re.subn(r'(bridgepoint-wildfire-realistic-mesh-v4\.js)(?:\?[^\'"\s]+)?',r'\g<1>?v=5-terrain-smoke-ash-20261124',s)
+    assert n>=1,("wildfire volume import absent",n)
     s=s.replace("{exaggerated:false}","{exaggerated:true}")
     # MapLibre model frame: x east, y up, z south. Fallback also uses south.
     s=one(s,"if(zoom<12.5)return [];","if(zoom<10.5)return [];")
