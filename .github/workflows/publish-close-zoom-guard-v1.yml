@@ -1,13 +1,6 @@
 name: Publish BridgePoint Close-Zoom Rendering Guard V1
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-close-zoom-guard-v1.yml'
-      - 'release-v2300/world-v2300-map.js'
-      - 'release-v2300/world-v2300-sidewalks-3d.js'
-      - 'tests/sidewalk-3d-global.test.mjs'
-  workflow_dispatch:
+
 permissions:
   actions: read
   contents: read
