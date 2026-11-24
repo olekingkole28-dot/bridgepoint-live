@@ -1,0 +1,173 @@
+name: Publish BridgePoint Near-Earth Objects restoration V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-neo-restoration-v1.yml'
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact verified mobile EMRF V5 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45453898688 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45453898688 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore only the approved NEO module and transition
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/neo-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          git show cb1f7516ea01aeeb0a680a3e434835911ddefe8d:rebuild-v5000/bridgepoint-neo-watch-v1.js > "$RUNNER_TEMP/approved-neo.js"
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']); name='bridgepoint-neo-watch-v1.js'
+          allowed={name,'app/'+name,'index.html','app/index.html'}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          src=(Path(os.environ['RUNNER_TEMP'])/'approved-neo.js').read_text()
+          def one(a,b):
+              global src
+              assert src.count(a)==1, 'Unexpected NEO anchor: '+a[:100]
+              src=src.replace(a,b,1)
+          assert all(x in src for x in ('const worldPerPixel =','new THREE.SphereGeometry(0.0012, 12, 8)','selectedOrbitCoreColor','backdropDirection','vertexColors: true','new THREE.LineLoop('))
+          one("dataLoading: false, dockVisualState: null,", "dataLoading: false, dockVisualState: null, enteredFullSpace: false,")
+          one("    setDockSuppressed(true);\n    setSpaceCloseControlHidden(true);", "    setDockSuppressed(true);\n    document.documentElement.classList.add('bp-neo-active-v1');\n    setSpaceCloseControlHidden(true);")
+          one("    setDockSuppressed(false);\n    setSpaceCloseControlHidden(false);", """    document.documentElement.classList.remove('bp-neo-active-v1');
+              if (state.enteredFullSpace) {
+                state.enteredFullSpace = false;
+                window.__BP_APP_SPACE_EXPLORER_V1__?.close?.();
+              }
+              setDockSuppressed(false);
+              setSpaceCloseControlHidden(false);""")
+          one("if (app && typeof app.open === 'function') { await app.open(); break; }", """if (app && typeof app.open === 'function') {
+                  const publicMode = app.publicOverview || app.state?.publicOverview || document.querySelector('#bpWelcomeGateV1.bp-public-earth-overview');
+                  if (publicMode || !app.state?.open) {
+                    state.enteredFullSpace = true;
+                    if (typeof app.enterFullSpace === 'function') await app.enterFullSpace();
+                    else { if (publicMode) app.close?.(); await app.open(); }
+                    if (!state.open) { app.close?.(); return null; }
+                  } else await app.open();
+                  break;
+                }""")
+          one("      '.bpNeoStageV2{position:absolute;inset:0;pointer-events:none}',","""      '.bpNeoStageV2{position:absolute;inset:0;pointer-events:none}',
+                '.bp-neo-active-v1 #bpWelcomeGateV1 .bpw-space-controls{display:none!important}',""")
+          # The approved desktop marker was still overridden by the old mobile
+          # sizing. Keep a tappable target, with the actual dot small at every zoom.
+          one('.bpNeoMarkerV2{width:30px;height:30px;font-size:11px}', '.bpNeoMarkerV2{width:24px;height:24px;font-size:7px}')
+          one('.bpNeoMarkerV2[aria-pressed=\\"true\\"]{width:38px;height:38px}', '.bpNeoMarkerV2[aria-pressed=\\"true\\"]{width:28px;height:28px}')
+          one("      '@media(prefers-reduced-motion:reduce)", """      '.bpNeoMarkerV2::before{inset:auto;width:5px;height:5px;box-shadow:0 0 3px var(--bp-neo-orbit-color,#52e7ff)}.bpNeoMarkerV2[data-hazard="true"]::before{box-shadow:0 0 3px #ffc675}.bpNeoMarkerV2[aria-pressed="true"]::before{inset:auto;width:8px;height:8px;box-shadow:0 0 5px #51f1ff}',
+                '@media(prefers-reduced-motion:reduce)""")
+          for rel in (name,'app/'+name):
+              p=site/rel
+              if rel==name or p.exists(): p.write_text(src,encoding='utf-8')
+          for rel in ('index.html','app/index.html'):
+              p=site/rel; old=p.read_text(encoding='utf-8')
+              new,n=re.subn(r'(src=["\'][^"\']*bridgepoint-neo-watch-v1\.js)(?:\?[^"\']*)?(["\'])',r'\g<1>?v=1.5.5-neo-restore-20261124-v1\2',old)
+              assert n==1,(rel,n)
+              p.write_text(new,encoding='utf-8')
+          assert before==snap(),'Non-NEO asset changed'
+          print('NEO_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --input-type=module --check < "$SITE/bridgepoint-neo-watch-v1.js"
+          grep -Fq 'enterFullSpace' "$SITE/bridgepoint-app-space-explorer-v1.js"
+          grep -Fq 'focusHeliocentricOverview' "$SITE/bridgepoint-welcome-space-v6260.js"
+      - name: Verify actual mobile NEO button, shared camera and selection
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/neo-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/neo-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import { chromium } from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            page.on('pageerror',e=>console.log('PAGE_ERROR',e.message));
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url());
+              if(u.pathname.endsWith('/bridgepoint-neo-watch-v1.js')) return route.fulfill({status:200,contentType:'text/javascript',body:fs.readFileSync(process.env.BP_SITE+'/bridgepoint-neo-watch-v1.js')});
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?neo-verify=20261124-v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>document.getElementById('bpNeoWatchLaunchV1')&&window.__BP_APP_SPACE_EXPLORER_V1__?.overviewVisible,null,{timeout:90000});
+            await page.evaluate(()=>document.getElementById('bpNeoWatchLaunchV1').click());
+            await page.waitForFunction(()=>{const a=window.__BP_APP_SPACE_EXPLORER_V1__,gate=document.getElementById('bpWelcomeGateV1'),cv=gate?.querySelector('.bpw-space-renderer-canvas');return a?.state?.open&&!a.publicOverview&&gate&&!gate.hidden&&!gate.classList.contains('bp-public-earth-overview')&&cv&&!cv.style.maskImage&&document.documentElement.classList.contains('bp-neo-active-v1');},null,{timeout:90000});
+            await page.waitForFunction(()=>{const s=window.__BP_WELCOME_SPACE_V6257__?.getScene?.();return s?.getObjectByName('BridgePoint near-Earth objects and full nominal orbital paths')?.children.length>0&&document.querySelectorAll('.bpNeoMarkerV2').length>0;},null,{timeout:120000});
+            const result=await page.evaluate(()=>{const s=window.__BP_WELCOME_SPACE_V6257__.getScene(),g=s.getObjectByName('BridgePoint near-Earth objects and full nominal orbital paths'),m=document.querySelector('.bpNeoMarkerV2');return {count:g.children.length,lines:g.children[0].children.filter(o=>o.isLineLoop).length,body:g.children[0].children.some(o=>o.material?.isMeshStandardMaterial),dot:getComputedStyle(m,'::before').width,status:document.querySelector('[data-neo-status]').textContent};});
+            console.log('NEO_MOBILE_RENDER',JSON.stringify(result));
+            assert(result.count>0&&result.lines===2&&result.body&&result.dot==='5px');
+            await page.evaluate(()=>document.querySelector('.bpNeoMarkerV2:not([hidden])')?.click()||document.querySelector('.bpNeoMarkerV2')?.click());
+            await page.waitForFunction(()=>document.querySelector('[data-neo-detail]')?.hidden===false,null,{timeout:20000});
+            await page.waitForFunction(()=>{const g=window.__BP_WELCOME_SPACE_V6257__?.getScene?.().getObjectByName('BridgePoint near-Earth objects and full nominal orbital paths');return g?.children.some(o=>o.children.some(c=>c.isLineLoop&&c.material.opacity===1));},null,{timeout:20000});
+            await page.evaluate(()=>document.querySelector('[data-neo-action="close"]').click());
+            await page.waitForFunction(()=>document.getElementById('bpNeoSpaceRootV2')?.hidden&&!document.documentElement.classList.contains('bp-neo-active-v1'),null,{timeout:20000});
+            console.log('NEO_MOBILE_OPEN_SELECT_EXIT_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/neo-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live NEO restoration and preserved layers
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/neo-site"
+          for p in bridgepoint-neo-watch-v1.js index.html app/index.html bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js bridgepoint-app-space-explorer-v1.js bridgepoint-welcome-space-v6260.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?neo=$GITHUB_SHA" -o "$RUNNER_TEMP/neo-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/neo-live"
+          done
+          echo BRIDGEPOINT_NEO_RESTORATION_LIVE_PASS
