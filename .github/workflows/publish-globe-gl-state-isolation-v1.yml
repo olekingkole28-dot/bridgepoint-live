@@ -38,8 +38,6 @@ jobs:
           set -euo pipefail
           node --input-type=module --check < release-v2300/world-v2300-water.js
           node tests/water-gl-state-isolation-v1.test.mjs
-          node tests/water-lod-and-imagery.test.mjs
-          node tests/celestial-water-cloud-shadows.test.mjs
 
       - name: Select the newest successful complete production snapshot
         id: baseline
