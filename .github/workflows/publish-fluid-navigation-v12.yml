@@ -1,0 +1,128 @@
+name: Publish BridgePoint Fluid Water and Vessel Navigation V12
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-fluid-navigation-v12.yml'
+      - 'scripts/overlay_fluid_navigation_v12.py'
+
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check precision patch syntax
+        run: python3 -m py_compile scripts/overlay_fluid_navigation_v12.py
+      - name: Download latest verified persistent globe release
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 45344160089
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/baseline
+      - name: Patch only water and vessel update scheduling
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          mkdir -p "$SITE"
+          ARCHIVE="$(find "$RUNNER_TEMP/baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          python3 scripts/overlay_fluid_navigation_v12.py "$SITE"
+          grep -Fq "fluid-navigation-v20261124-v12" "$SITE/app/index.html"
+          grep -Fq "incrementalMeshYields" "$SITE/world-v2300-water.js"
+          grep -Fq "u_localProjection" "$SITE/world-v2300-water.js"
+          grep -Fq "vesselDataReads" "$SITE/bridgepoint-vessel-awareness-v1.js"
+          grep -Fq "sampleSeaSurface" "$SITE/world-v2300-water.js"
+          grep -Fq "const display=length,ratio=1" "$SITE/bridgepoint-vessel-awareness-v1.js"
+          node --check "$SITE/bridgepoint-vessel-awareness-v1.js"
+          grep -Fq "bp-vessel-persistent-positions-v2" "$SITE/bridgepoint-vessel-awareness-v1.js"
+          grep -Fq "motionFor" "$SITE/bridgepoint-vessel-awareness-v1.js"
+          grep -Fq "hullNameGeometry" "$SITE/bridgepoint-vessel-awareness-v1.js"
+          grep -Fq "bp-vessel-window-glare-v2" "$SITE/bridgepoint-vessel-awareness-v1.js"
+          node --check "$SITE/vendor/bp-coastal-mesh-v10.mjs"
+          grep -Fq "shorePhase" "$SITE/world-v2300-water.js"
+          grep -Fq "coastalSurfaceFrames" "$SITE/world-v2300-water.js"
+          grep -Fq "GLOBAL_OCEAN_MESH_B64" "$SITE/world-v2300-water.js"
+          grep -Fq "globalHorizonSurfaceFrames" "$SITE/world-v2300-water.js"
+          grep -Fq "continuousOffshoreTilt" "$SITE/world-v2300-water.js"
+          grep -Fq "denseMagneticShader" "$SITE/world-v2300-water.js"
+          for f in world-v2300-water.js world-v2300-sensor-layers.js app/world-v2300-water.js app/world-v2300-sensor-layers.js world-v2300-map.js app/world-v2300-map.js landing.js app.js; do
+            node --input-type=module --check < "$SITE/$f"
+          done
+          grep -Fq 'float whitecap' "$SITE/world-v2300-water.js"
+          grep -Fq 'new T.InstancedMesh' "$SITE/world-v2300-sensor-layers.js"
+          grep -Fq 'bp-liquid-ocean-cover-v2' "$SITE/world-v2300-water.js"
+          grep -Fq 'targetAltitude=Math.min(-3,bed+clearance)' "$SITE/world-v2300-sensor-layers.js"
+          grep -Fq 'restoreWaterGLState(gl, savedWaterState)' "$SITE/world-v2300-water.js"
+          grep -Fq 'fluid-navigation-v20261124-v12' "$SITE/landing.js"
+          grep -Fq 'fluid-navigation-v20261124-v12' "$SITE/app.js"
+          grep -Fq 'buildOceanPolygonMesh' "$SITE/world-v2300-water.js"
+          grep -Fq 'autoOceanDive' "$SITE/world-v2300-sensor-layers.js"
+          grep -Fq 'bp-app-public-entry-v4' "$SITE/app/index.html"
+          grep -Fq 'bp-public-home-v4' "$SITE/index.html"
+          grep -Fq 'attachPublicGlobe(world)' "$SITE/app.js"
+          grep -Fq 'showPublicOverview' "$SITE/bridgepoint-app-space-explorer-v1.js"
+          grep -Fq 'verifiedOceanFallbackCells' "$SITE/world-v2300-water.js"
+          node --check "$SITE/bridgepoint-app-space-explorer-v1.js"
+          ! grep -Fq 'id="bp-app-entry-gate-v6247"' "$SITE/app/index.html"
+          node --check "$SITE/vendor/bp-ocean-relief-v4.mjs"
+          node --check "$SITE/vendor/bp-public-globe-v4.mjs"
+          node --check "$SITE/vendor/bp-ocean-mesh-v3.mjs"
+          for f in bridgepoint-earth-protection-v1.js bridgepoint-neo-watch-v1.js bridgepoint-conflict-zones-v1.js; do test -s "$SITE/$f"; done
+          echo FLUID_NAVIGATION_BUILD_PASS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-liquid-site
+          include-hidden-files: true
+      - name: Wait for uploaded artifact to be indexed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then echo "Indexed artifact $ID"; sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify public precision water and vessel files
+        shell: bash
+        run: |
+          set -euo pipefail
+          O=https://bridgepointintelligence.online
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          for p in bridgepoint-vessel-awareness-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js world-v2300-map.js app/world-v2300-map.js vendor/bp-coastal-mesh-v10.mjs vendor/bp-coastal-data-v10.mjs vendor/bp-ocean-mesh-v3.mjs vendor/bp-ocean-relief-v4.mjs vendor/bp-public-globe-v4.mjs bridgepoint-app-space-explorer-v1.js landing.js app.js index.html app/index.html; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$O/$p?liquid=$GITHUB_SHA" -o "$RUNNER_TEMP/liquid-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/liquid-live"
+          done
+          echo BRIDGEPOINT_FLUID_NAVIGATION_LIVE_PASS
