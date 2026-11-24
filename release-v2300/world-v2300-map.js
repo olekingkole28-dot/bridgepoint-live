@@ -843,17 +843,17 @@ export function initWorld(options={}){
    const points=[[0,0],[-.22,0],[.22,0],[0,-.22],[0,.22],[-.15,-.15],[.15,.15],[-.15,.15],[.15,-.15]];
    const pixels=new Uint8Array(4*4*4);
    const data={version:5,enabled:true,validFrames:0,rejectedDarkFrames:0,heldDarkFrames:0,unprotectedDarkFrames:0,captures:0,held:false,reason:'awaiting-first-complete-frame',lastCheckAt:0};
-   let reference=null,referenceAt=0,lastGoodAt=0,lastSnapshotAt=0,trackedCamera='',samplesSinceMovement=0,lastGlSize='';
+   let reference=null,referenceAt=0,lastGoodAt=0,lastSnapshotAt=0,trackedCamera=null,samplesSinceMovement=0,lastGlSize='';
    const hide=()=>{
     if(guard.style.display!=='none')guard.style.display='none';
     data.held=false;
    };
-   const reset=()=>{hide();reference=null;trackedCamera='';samplesSinceMovement=0;lastSnapshotAt=0;data.reason='camera-moved';};
+   const reset=()=>{hide();reference=null;trackedCamera=null;samplesSinceMovement=0;lastSnapshotAt=0;data.reason='camera-moved';};
    const getCamera=()=>{
     const center=map.getCenter?.();
     if(!center)return null;
-    return [map.getZoom?.().toFixed(3),map.getPitch?.().toFixed(1),
-     map.getBearing?.().toFixed(1),center.lng.toFixed(3),center.lat.toFixed(3)].join(':');
+    return {zoom:Number(map.getZoom?.()),pitch:Number(map.getPitch?.()),
+     bearing:Number(map.getBearing?.()),lng:Number(center.lng),lat:Number(center.lat)};
    };
    const measure=()=>{
     const w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
@@ -887,10 +887,20 @@ export function initWorld(options={}){
    const onFrame=()=>{
     try{
      if(!liveCanvas.isConnected||document.hidden||!map.getLayer('gta-nasa')){hide();return;}
-     if(map.isMoving?.()||window.__BP_APP_SPACE_EXPLORER_V1__?.state?.open){reset();return;}
+     if(window.__BP_APP_SPACE_EXPLORER_V1__?.state?.open){reset();return;}
      const camera=getCamera();
      if(!camera){hide();return;}
-     if(camera!==trackedCamera){reset();trackedCamera=camera;}
+     if(trackedCamera){
+      const lngDelta=Math.abs((((camera.lng-trackedCamera.lng)+540)%360)-180);
+      const drift=lngDelta>.8||Math.abs(camera.lat-trackedCamera.lat)>.5||
+       Math.abs(camera.zoom-trackedCamera.zoom)>.08||
+       Math.abs(camera.pitch-trackedCamera.pitch)>.5||
+       Math.abs(camera.bearing-trackedCamera.bearing)>.6;
+      // Ambient globe rotation is intentional and must NOT disable the shield.
+      // A genuine fast camera transition invalidates the backup immediately.
+      if(drift)reset();
+     }
+     trackedCamera=camera;
      const current=measure();
      if(!current){hide();return;}
      const size=current.w+':'+current.h;
@@ -934,7 +944,9 @@ export function initWorld(options={}){
     }catch(error){hide();data.reason='guard-readback-error';data.error=String(error?.message||error).slice(0,150);}
    };
    map.on('render',onFrame);
-   for(const name of ['movestart','zoomstart','rotatestart','pitchstart','resize'])map.on(name,reset);
+   for(const name of ['dragstart','zoomstart','pitchstart','resize'])map.on(name,reset);
+   host.addEventListener('pointerdown',reset,{passive:true});
+   host.addEventListener('wheel',reset,{passive:true});
    map.on('remove',()=>{hide();guard.remove();});
    Object.defineProperty(data,'lastValidAt',{get:()=>lastGoodAt});
    Object.defineProperty(data,'backupAgeMs',{get:()=>lastSnapshotAt?Math.round(performance.now()-lastSnapshotAt):null});
