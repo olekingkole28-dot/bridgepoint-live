@@ -106,7 +106,7 @@
   // matrix carries the local anchor onto the globe, avoiding GPU global jitter.
   const batches=new Map();
   for(const site of sites){
-   const bucket=Math.max(.001,Math.min(.18,site.spacing/111320*4));
+   const bucket=Math.max(.001,Math.min(.55,site.spacing/111320*4));
    const key=Math.floor(site.coord[0]/bucket)+':'+Math.floor(site.coord[1]/bucket);
    let b=batches.get(key);
    if(!b){b={anchor:site.coord,elevation:electricTerrain(m,site.coord),pos:[],phase:[],edge:[]};batches.set(key,b);}
@@ -148,7 +148,7 @@
   electricMap=null;
  }
  function ensureElectricity(){
-  if(!enabled||!map||!map.isStyleLoaded?.())return;
+  if(!enabled||!map||!map.getStyle?.()||!map.getLayer?.(IDS.areaPoints))return;
   if(electricMap&&electricMap!==map)stopElectricity();
   if(map.getLayer(ELECTRIC_LAYER))return;
   if(!electricThree){
