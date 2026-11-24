@@ -97,9 +97,7 @@ function wildfireFootprintVisible(state,fire,viewport=wildfireViewport(state),in
 """+s[b:]
     # Keep boundaries installed even while camera moves; update on moveend as
     # before, but include all approximate polygons in one stable GeoJSON source.
-    s=one(s,"const fires=state.fires.filter(f=>wildfireFootprintVisible(state,f,viewport))","const fires=state.fires")
-    # Prevent stale map style max zoom/collision hooks from suppressing the fire.
-    s=one(s,"const addLayer=(layer,before)=>{if(!map.getLayer?.(layer.id))map.addLayer(layer,before);};","const addLayer=(layer,before)=>{if(!map.getLayer?.(layer.id))map.addLayer(layer,before);};")
+    s=one(s,"const viewport=wildfireViewport(state);\n  const fires=state.fires.filter(f=>wildfireFootprintVisible(state,f,viewport))","const fires=state.fires.slice()")
     return s
 targets=set()
 name="bridgepoint-wildfires-volumetric-v1.js"
