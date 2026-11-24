@@ -1,0 +1,126 @@
+name: Publish BridgePoint Power Outages Electricity V6
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-power-outages-electric-v6.yml'
+      - 'scripts/overlay_power_outages_electric_v6.py'
+      - 'scripts/power_outage_electricity_v6.inc.js'
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download latest confirmed power outage V5 production artifact with bounded retries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45446676981 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then
+              echo "Verified outage V5 baseline downloaded"
+              exit 0
+            fi
+            echo "Baseline download attempt $attempt failed; retrying"
+            sleep 5
+          done
+          exit 1
+      - name: Apply power outage only patch and verify release preservation
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 scripts/overlay_power_outages_electric_v6.py "$SITE"
+          for f in bridgepoint-power-outages-v1.js app/bridgepoint-power-outages-v1.js; do
+            if test -f "$SITE/$f"; then node --check "$SITE/$f"; fi
+          done
+          grep -Fq 'wildfireFootprintVisible' "$SITE/bridgepoint-wildfires-volumetric-v1.js"
+          grep -Fq 'bp-usgs-seismic-ripple-crests-v3' "$SITE/world-v2300-seismic-layer-v1.js"
+      - name: Test traveling ground electricity and raised 3D branches at close zoom
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BP_SITE="$RUNNER_TEMP/bp-liquid-site"
+          node --experimental-default-type=module --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          import {pathToFileURL} from 'node:url';
+          const T=await import(pathToFileURL(process.env.BP_SITE+'/vendor/three.module.js'));
+          const source=fs.readFileSync('scripts/power_outage_electricity_v6.inc.js','utf8');
+          const M=await import('data:text/javascript;base64,'+Buffer.from(source+'\nexport {electricPolygons,electricSites,electricArcPaths,electricInside,electricMesh,electricViewport};').toString('base64'));
+          const poly={id:'test',geometry:{type:'Polygon',coordinates:[[[-75,40],[-74.9,40],[-74.9,40.1],[-75,40.1],[-75,40]],[[-74.96,40.04],[-74.94,40.04],[-74.94,40.06],[-74.96,40.06],[-74.96,40.04]]]}};
+          const polys=M.electricPolygons([poly],-74.95);
+          for(const zoom of [5,12,18,22,24]){
+            const c={lng:-74.975,lat:40.025},d=zoom<12?.2:zoom<18?.03:zoom<22?.001:.00015;
+            let samples=0;
+            const map={getCenter:()=>c,getZoom:()=>zoom,getBounds:()=>({getWest:()=>c.lng-d,getEast:()=>c.lng+d,getSouth:()=>c.lat-d,getNorth:()=>c.lat+d}),queryTerrainElevation:(p,o)=>{assert.equal(o.exaggerated,true);samples++;return 100+(p[1]-40)*100;}};
+            const sites=M.electricSites(polys,M.electricViewport(map));
+            assert(sites.length>0);
+            let paths=0,raised=0;
+            for(const s of sites){
+              assert(M.electricInside(s.coord,s.p.rings));
+              for(const path of M.electricArcPaths(s)){paths++;if(path[0].kind===1&&path.some(p=>p.height>path[0].height+1))raised++;for(const p of path){assert(M.electricInside(p.coord,s.p.rings));assert(p.height>0);}}
+            }
+            assert(paths>0&&raised>0);
+            const mesh=M.electricMesh(T,map,sites);
+            assert(mesh.scenes.length>0&&samples>0);
+            for(const b of mesh.scenes){assert(b.geometry.attributes.position.count>0);assert.equal(b.geometry.attributes.aTravel.count,b.geometry.attributes.position.count);assert.equal(b.geometry.attributes.aLift.count,b.geometry.attributes.position.count);assert(Array.from(b.geometry.attributes.position.array).every(Number.isFinite));}
+            mesh.dispose();
+          }
+          assert.equal(M.electricInside([-74.95,40.05],polys[0].rings),false);
+          console.log('POWER_OUTAGE_TRAVELING_ARCS_GEOMETRY_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-liquid-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then echo "Indexed artifact $ID"; sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live files
+        shell: bash
+        run: |
+          set -euo pipefail
+          O=https://bridgepointintelligence.online
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          for p in bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-wildfires-volumetric-v1.js bridgepoint-view-v5917.js app.js landing.js index.html app/index.html world-v2300-seismic-layer-v1.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js world-v2300-water.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$O/$p?wildfire=$GITHUB_SHA" -o "$RUNNER_TEMP/wildfire-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wildfire-live"
+          done
+          echo BRIDGEPOINT_POWER_OUTAGES_ELECTRIC_V6_LIVE_PASS
