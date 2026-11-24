@@ -3,15 +3,6 @@ name: Publish BridgePoint Buffered Radar and Satellite Recovery v3
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-globe-flash-fix-v1.yml'
-      - 'release-v2300/world-v2300-map.js'
-      - 'rebuild-v5000/app.js'
-      - 'rebuild-v5000/landing.js'
-      - 'rebuild-v5000/index.html'
-      - 'rebuild-v5000/app-index.html'
 
 permissions:
   actions: read
