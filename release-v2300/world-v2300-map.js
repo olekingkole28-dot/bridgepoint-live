@@ -518,9 +518,26 @@ export function initWorld(options={}){
  const containerId=String(options.containerId||'liveMap'),globalKey=String(options.globalKey||'__bpWorldV2300'),container=document.getElementById(containerId);if(!container||!window.maplibregl)return null;if(window[globalKey]?.map)return window[globalKey];container.innerHTML='';
  const initialCenter=Array.isArray(options.center)&&options.center.length===2?options.center:[0,20],initialZoom=Number.isFinite(options.zoom)?Number(options.zoom):(MOBILE?1.05:1.25),initialPitch=Number.isFinite(options.pitch)?Number(options.pitch):0,initialBearing=Number.isFinite(options.bearing)?Number(options.bearing):0,initialMinZoom=options.preview===true&&Number.isFinite(options.minZoom)?Number(options.minZoom):(options.preview===true?.55:.65),projectionType=String(options.projection||'globe'),tileCacheCap=MOBILE?(LOW?128:180):(LOW?220:TIER==='HIGH'?640:360);
  __bpTrace('before-map-constructor',{projectionType,containerId});
- const map=new maplibregl.Map({container,style:style(projectionType),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:initialMinZoom,maxZoom:22,maxPitch:110,pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,1.5),antialias:false,preserveDrawingBuffer:true,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:tileCacheCap,maxTileCacheZoomLevels:9,refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:false,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});
+ const bpOriginalCanvasGetContext=HTMLCanvasElement.prototype.getContext;
+ let bpForcedMapCanvasContext=false,bpVerifiedRetainedFrame=false;
+ const map=(()=>{
+  HTMLCanvasElement.prototype.getContext=function(kind,attributes){
+   const isWebGL=kind==='webgl2'||kind==='webgl'||kind==='experimental-webgl';
+   const isBridgePointGlobe=this.classList?.contains('maplibregl-canvas')||
+    Boolean(this.closest?.('#liveMap,#previewMap'));
+   if(isWebGL&&isBridgePointGlobe){
+    const context=bpOriginalCanvasGetContext.call(this,kind,{...(attributes||{}),preserveDrawingBuffer:true});
+    bpForcedMapCanvasContext=true;
+    bpVerifiedRetainedFrame=!!context?.getContextAttributes?.()?.preserveDrawingBuffer;
+    return context;
+   }
+   return bpOriginalCanvasGetContext.call(this,kind,attributes);
+  };
+  try{return new maplibregl.Map({container,style:style(projectionType),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:initialMinZoom,maxZoom:22,maxPitch:110,pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,1.5),antialias:false,preserveDrawingBuffer:true,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:tileCacheCap,maxTileCacheZoomLevels:9,refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:false,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});}
+  finally{HTMLCanvasElement.prototype.getContext=bpOriginalCanvasGetContext;}
+ })();
  __bpTrace('after-map-constructor',{zoom:initialZoom});
- window.__BP_IDLE_GLOBE_FRAME_V2__={version:2,retainPresentedWebGLFrame:true,preserveDrawingBuffer:true,expiredRasterRefreshSuppressed:true,liveWeatherAndFeaturesUnchanged:true,at:Date.now()};
+ window.__BP_IDLE_GLOBE_FRAME_V3__={version:3,retainPresentedWebGLFrame:bpVerifiedRetainedFrame,preserveDrawingBuffer:true,contextAttributesForced:bpForcedMapCanvasContext,contextAttributesVerified:bpVerifiedRetainedFrame,expiredRasterRefreshSuppressed:true,liveWeatherAndFeaturesUnchanged:true,at:Date.now()};
  const space=null; // Keep the existing world API shape without mounting the opaque celestial canvas.
  __bpTrace('space-overlay-disabled',{reason:'keep-satellite-imagery-uncovered'});
  try{map.setMaxPitch?.(110)}catch(_){};window.__BP_TILE_RETENTION_V6017__={version:6017,maxTileCacheSize:tileCacheCap,maxTileCacheZoomLevels:9,cancelPendingTileRequestsWhileZooming:false,bufferedViewportFetches:true,updatedAt:Date.now()};window.__BP_CAMERA_GROUND_GUARD_V6017__={version:6017,enabled:true,terrainAware:true,minimumClearanceMeters:1.4,maxPitch:110,updatedAt:Date.now()};
