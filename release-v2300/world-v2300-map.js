@@ -823,6 +823,125 @@ export function initWorld(options={}){
   map.on('pitchend',()=>keepSatelliteRasterLayersVisible('pitchend'));
   // Keep the satellite underlay authoritative if a late startup controller hides it.
   map.on('render',()=>keepSatelliteRasterLayersVisible('render'));
+
+  // The satellite can render a single blank/dark GPU frame between otherwise identical
+  // frames (confirmed in a Samsung screen recording, roughly every 0.4 seconds).
+  // Preserve the last VALID MapLibre composite across such frames, without freezing
+  // the globe, hiding any live overlays, changing its camera or touching tile sources.
+  function installAtomicSatelliteFramePresentationV5(){
+   const liveCanvas=map.getCanvas?.(),host=map.getCanvasContainer?.();
+   if(!liveCanvas||!host||!window.WebGLRenderingContext)return;
+   const gl=liveCanvas.getContext('webgl2')||liveCanvas.getContext('webgl');
+   if(!gl?.getContextAttributes?.()?.preserveDrawingBuffer)return;
+   const guard=document.createElement('canvas');
+   guard.className='bp-stable-globe-frame-v5';
+   guard.setAttribute('aria-hidden','true');
+   guard.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none!important;z-index:2;image-rendering:auto;contain:paint;';
+   const ctx=guard.getContext('2d',{alpha:false});
+   if(!ctx)return;
+   host.appendChild(guard);
+   const points=[[0,0],[-.22,0],[.22,0],[0,-.22],[0,.22],[-.15,-.15],[.15,.15],[-.15,.15],[.15,-.15]];
+   const pixels=new Uint8Array(4*4*4);
+   const data={version:5,enabled:true,validFrames:0,rejectedDarkFrames:0,heldDarkFrames:0,unprotectedDarkFrames:0,captures:0,held:false,reason:'awaiting-first-complete-frame',lastCheckAt:0};
+   let reference=null,referenceAt=0,lastGoodAt=0,lastSnapshotAt=0,trackedCamera='',samplesSinceMovement=0,lastGlSize='';
+   const hide=()=>{
+    if(guard.style.display!=='none')guard.style.display='none';
+    data.held=false;
+   };
+   const reset=()=>{hide();reference=null;trackedCamera='';samplesSinceMovement=0;lastSnapshotAt=0;data.reason='camera-moved';};
+   const getCamera=()=>{
+    const center=map.getCenter?.();
+    if(!center)return null;
+    return [map.getZoom?.().toFixed(3),map.getPitch?.().toFixed(1),
+     map.getBearing?.().toFixed(1),center.lng.toFixed(3),center.lat.toFixed(3)].join(':');
+   };
+   const measure=()=>{
+    const w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
+    if(w<64||h<64)return null;
+    // A custom terrain pass can temporarily bind an offscreen target: never
+    // tamper with or sample that framebuffer instead of the actual map canvas.
+    if(gl.getParameter(gl.FRAMEBUFFER_BINDING)!==null)return null;
+    const spacing=Math.min(w,h),values=[];
+    for(const [ox,oy] of points){
+     const x=Math.max(0,Math.min(w-4,Math.floor(w*.5+ox*spacing)-2));
+     const y=Math.max(0,Math.min(h-4,Math.floor(h*.5+oy*spacing)-2));
+     gl.readPixels(x,y,4,4,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+     let light=0;
+     for(let i=0;i<pixels.length;i+=4)
+      light+=(pixels[i]+pixels[i+1]+pixels[i+2])/(3*16);
+     values.push(light);
+    }
+    return {values,mean:values.reduce((sum,n)=>sum+n,0)/values.length,w,h};
+   };
+   const drawBackup=frame=>{
+    try{
+     const scale=Math.min(1,Math.sqrt(3000000/(frame.w*frame.h)));
+     const width=Math.max(1,Math.round(frame.w*scale)),height=Math.max(1,Math.round(frame.h*scale));
+     if(guard.width!==width||guard.height!==height){guard.width=width;guard.height=height;}
+     ctx.drawImage(liveCanvas,0,0,width,height);
+     lastSnapshotAt=performance.now();
+     data.captures++;
+     return true;
+    }catch(error){data.reason='snapshot-unavailable';return false}
+   };
+   const onFrame=()=>{
+    try{
+     if(!liveCanvas.isConnected||document.hidden||!map.getLayer('gta-nasa')){hide();return;}
+     if(map.isMoving?.()||window.__BP_APP_SPACE_EXPLORER_V1__?.state?.open){reset();return;}
+     const camera=getCamera();
+     if(!camera){hide();return;}
+     if(camera!==trackedCamera){reset();trackedCamera=camera;}
+     const current=measure();
+     if(!current){hide();return;}
+     const size=current.w+':'+current.h;
+     if(lastGlSize&&size!==lastGlSize){reset();trackedCamera=camera;}
+     lastGlSize=size;
+     samplesSinceMovement++;
+     const now=performance.now();
+     data.lastCheckAt=Date.now();
+     const prior=reference;
+     if(prior&&now-referenceAt<45000){
+      let collapsed=0,eligible=0;
+      for(let i=0;i<points.length;i++){
+       const old=prior.values[i],next=current.values[i];
+       if(old>27){eligible++;if(next<old*.48&&old-next>18)collapsed++;}
+      }
+      const drastic=current.mean<prior.mean*.53&&prior.mean-current.mean>17;
+      if(eligible>=4&&collapsed>=Math.max(4,Math.ceil(eligible*.6))&&drastic){
+       data.rejectedDarkFrames++;
+       if(lastSnapshotAt&&now-lastSnapshotAt<15000){
+        guard.style.display='block';
+        data.held=true;data.heldDarkFrames++;data.reason='preserved-prior-valid-satellite-frame';
+       }else{hide();data.unprotectedDarkFrames++;data.reason='valid-backup-not-yet-captured';}
+       return;
+      }
+     }
+     hide();
+     data.validFrames++;
+     lastGoodAt=now;
+     // Follow real cloud/light changes slowly, never learn a one-frame blackout
+     // as the new valid baseline. Movement resets the reference instead.
+     if(!reference||current.mean>reference.mean*1.26){
+      reference={values:[...current.values],mean:current.mean};referenceAt=now;
+     }else if(current.mean>reference.mean*.77){
+      reference.values=reference.values.map((n,i)=>n*.96+current.values[i]*.04);
+      reference.mean=reference.mean*.96+current.mean*.04;
+      referenceAt=now;
+     }
+     if(samplesSinceMovement>=2&&now-lastSnapshotAt>=900&&current.mean>=reference.mean*.82)
+      drawBackup(current);
+     data.reason='valid-render-published';
+    }catch(error){hide();data.reason='guard-readback-error';data.error=String(error?.message||error).slice(0,150);}
+   };
+   map.on('render',onFrame);
+   for(const name of ['movestart','zoomstart','rotatestart','pitchstart','resize'])map.on(name,reset);
+   map.on('remove',()=>{hide();guard.remove();});
+   Object.defineProperty(data,'lastValidAt',{get:()=>lastGoodAt});
+   Object.defineProperty(data,'backupAgeMs',{get:()=>lastSnapshotAt?Math.round(performance.now()-lastSnapshotAt):null});
+   window.__BP_ATOMIC_GLOBE_FRAME_V5__=data;
+  }
+  installAtomicSatelliteFramePresentationV5();
+
  function metersLon(lat){return 111320*Math.max(.12,Math.cos(lat*Math.PI/180))}
  function circlePoly(coord,r,n=10){const out=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;out.push([coord[0]+Math.cos(a)*r/metersLon(coord[1]),coord[1]+Math.sin(a)*r/110540])}out.push(out[0]);return[out]}
  function treeHash(v){let h=2166136261>>>0;for(const ch of String(v||'tree')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h>>>0}
