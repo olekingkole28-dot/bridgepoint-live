@@ -36,7 +36,9 @@ jobs:
           set -euo pipefail
           python3 -m py_compile scripts/overlay_liquid_turbulence_depth_v1.py
           curl --retry 4 --retry-all-errors --max-time 30 -fsSL 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/3/4/4.png' -o "$RUNNER_TEMP/terrain.png"
-          python3 - <<'PY'
+          python3 -m venv "$RUNNER_TEMP/bp-water-venv"
+          "$RUNNER_TEMP/bp-water-venv/bin/python" -m pip install --quiet Pillow
+          "$RUNNER_TEMP/bp-water-venv/bin/python" - <<'PY'
           from PIL import Image
           import os
           im=Image.open(os.environ['RUNNER_TEMP']+'/terrain.png').convert('RGB')
