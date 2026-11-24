@@ -54,7 +54,8 @@ async function main(){
         gpu.readPixels((w-sz)>>1,(h-sz)>>1,sz,sz,gpu.RGBA,gpu.UNSIGNED_BYTE,pixels);
         let light=0,alpha=0;
         for(let k=0;k<pixels.length;k+=4){light+=(pixels[k]+pixels[k+1]+pixels[k+2])/3;alpha+=pixels[k+3];}
-        gpuFrames.push({at:Math.round(performance.now()),brightness:Math.round(light/(sz*sz)),alpha:Math.round(alpha/(sz*sz)),zoom:+m.getZoom().toFixed(2),bearing:+m.getBearing().toFixed(2),err:gpu.getError()});
+        const tileInfo={};for(const source of ['nasa','esri']){let cache=m.style?._sourceCaches?.[source]||m.style?.sourceCaches?.[source];if(!cache){tileInfo[source]={cache:'missing',sourcePresent:!!m.getSource(source)};continue;}const tiles=Object.values(cache._tiles||{});tileInfo[source]={tiles:tiles.length,loaded:tiles.filter(t=>t?.state==='loaded').length,states:[...new Set(tiles.map(t=>t?.state))].join(','),layerVisibility:m.getLayoutProperty('gta-'+source,'visibility'),layerOpacity:m.getPaintProperty('gta-'+source,'raster-opacity')};}
+        gpuFrames.push({at:Math.round(performance.now()),brightness:Math.round(light/(sz*sz)),alpha:Math.round(alpha/(sz*sz)),zoom:+m.getZoom().toFixed(2),bearing:+m.getBearing().toFixed(2),tiles:tileInfo,isMoving:m.isMoving(),styleLoaded:m.isStyleLoaded(),err:gpu.getError()});
       }catch(e){gpuFrames.push({error:String(e).slice(0,130)})}
     });
     window.__BP_GPU_DIAG__={gpuFrames,gpuClearCalls,gpuRenderCalls};
@@ -74,7 +75,7 @@ async function main(){
   });
   console.log('PROBE_BOOT',mobile?'MOBILE':'DESKTOP',JSON.stringify(before));
   if(before.map && (!before.policy?.contextAttributesVerified || !before.policy?.contextAttributesForced || before.bufferPreserved!==true))throw new Error('LIVE_GLOBE_WEBGL_BUFFER_NOT_RETAINED '+JSON.stringify(before));
-  await sleep(10500);
+  await sleep(21000);
   const initial=await page.evaluate(()=>({url:location.href,hasMap:!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),probe:!!window.__BP_IDLE_FLICKER_PROBE__,gate:!!document.querySelector('[data-surface="account"]')}));console.log('PROBE_INIT',JSON.stringify(initial));
   const samples=[];
   for(let i=0;i<0;i++){
