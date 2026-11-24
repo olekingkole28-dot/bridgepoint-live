@@ -72,7 +72,22 @@ async function main(){
     const layerChanges=p.rows.filter(r=>r.op==='setLayoutProperty'||r.op==='setPaintProperty'||r.op==='moveLayer'||r.op==='setStyle');
     const m=p.m;
     const diagnostics={water:window.__BP_WATER_ENGINE_APP_V6123__?.state||null,water2:{restored:window.__BP_WATER_ENGINE_APP_V6123__?.glStateRestoredFrames},satellite:window.__BP_SATELLITE_RASTER_VISIBILITY_GUARD_V6217__,cloud:window.__BP_SKY_CLOUDS_V5908__?.state||null};
-    const repaintCallers={};for(const r of p.rows.filter(r=>r.op==='triggerRepaint'))repaintCallers[r.site]=(repaintCallers[r.site]||0)+1;return {probe:true,url:location.href,counts,repaintCallers,layerChanges:layerChanges.slice(-65),cssHistory:p.cssHistory.slice(-50),stats:p.getStats(),isMoving:m.isMoving(),zoom:m.getZoom(),diagnostics};
+    const repaintCallers={},layerTotals={},recent=[];
+    for(const row of p.rows){
+      if(row.op==='triggerRepaint'){
+        const lines=row.site.split(' / ');const first=lines.find(x=>!x.includes('maplibre-gl.js'))||lines[0]||'';
+        const name=first.replace(/https:\/\/bridgepointintelligence.online\//g,'').slice(0,190);
+        repaintCallers[name]=(repaintCallers[name]||0)+1;
+      }else if(row.op==='setLayoutProperty'||row.op==='moveLayer'||row.op==='setPaintProperty'){
+        const k=row.op+':'+row.args.slice(0,120);layerTotals[k]=(layerTotals[k]||0)+1;
+        recent.push({at:row.at,op:row.op,args:row.args.slice(0,150)});
+      }
+    }
+    return {probe:true,url:location.href,counts,
+      repaintCallers:Object.entries(repaintCallers).sort((a,b)=>b[1]-a[1]).slice(0,35),
+      layerTotals:Object.entries(layerTotals).sort((a,b)=>b[1]-a[1]).slice(0,55),
+      layerChanges:recent.slice(-40),cssHistory:p.cssHistory.slice(-20),
+      stats:p.getStats(),isMoving:m.isMoving(),zoom:m.getZoom(),diagnostics};
   });
   console.log('PROBE_RESULT',mobile?'MOBILE':'DESKTOP',JSON.stringify(after).slice(0,23000));
   console.log('PROBE_SCREENS',mobile?'MOBILE':'DESKTOP',JSON.stringify(samples).slice(0,20000));
