@@ -77,8 +77,11 @@ jobs:
               # exp2(camera zoom). Replace with two FIXED geographic frequency bands;
               # zoom controls ONLY their crossfade, never either band's coordinates.
               s=one(s,"'uniform vec2 u_magneticOrigin;',","'uniform vec2 u_magneticOrigin;',\n    'uniform vec2 u_magneticOriginNext;',\n    'uniform vec2 u_magneticScales;',\n    'uniform float u_magneticBlend;',")
-              a=s.index("'  float globeDensity=") if "'  float globeDensity=" in s else s.index("' float globeDensity=")
-              b=s.index("'  return;'",a) if "'  return;'" in s[a:] else s.index("' return;'",a)
+              a=s.rfind("'",0,s.index('float globeDensity='))
+              colorEnd=s.index('fragColor=vec4(color,clamp(alpha,0.05,0.96));',a)
+              match=re.search(r"'\s*return;'",s[colorEnd:])
+              assert match,('liquid return missing',rel)
+              b=colorEnd+match.start()
               # End of the liquid branch is the return immediately after its fragColor.
               end=s.index('\n',b)
               original=s[a:end]
