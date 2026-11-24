@@ -28,7 +28,7 @@ async function main(){
   else await page.setViewport({width:1120,height:760,deviceScaleFactor:1});
   await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'}))}catch(e){}});
   await page.goto(ORIGIN+'/app/?render_diagnose='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
-  await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:50000}).catch(()=>{});
+  await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:18000}).catch(()=>{});
   const before=await page.evaluate(()=>{
     const m=window.__BP_V5000_WORLD?.map;
     if(!m)return {map:false,html:document.body.innerText.slice(0,300)};
@@ -56,12 +56,12 @@ async function main(){
     return {map:true,zoom:m.getZoom(),pitch:m.getPitch(),container:canvas.parentElement?.id,srcCount:Object.keys(m.getStyle()?.sources||{}).length,layerCount:m.getStyle()?.layers?.length};
   });
   console.log('PROBE_BOOT',mobile?'MOBILE':'DESKTOP',JSON.stringify(before));
-  await sleep(5000);
+  await sleep(1800);
   const initial=await page.evaluate(()=>({url:location.href,hasMap:!!window.__BP_V5000_WORLD?.map,probe:!!window.__BP_IDLE_FLICKER_PROBE__,gate:!!document.querySelector('[data-surface="account"]')}));console.log('PROBE_INIT',JSON.stringify(initial));
   const samples=[];
-  for(let i=0;i<60;i++){
+  for(let i=0;i<14;i++){
     try{const snap=await page.screenshot({type:'png',captureBeyondViewport:false});samples.push({t:i, ...cpu(snap)})}catch(e){if(errors.length<25)errors.push('screenshot:'+e.message)}
-    await sleep(130);
+    await sleep(180);
   }
   const after=await page.evaluate(()=>{
     const p=window.__BP_IDLE_FLICKER_PROBE__;
