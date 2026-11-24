@@ -1,0 +1,24 @@
+name: Validate Atomic Globe Frame V5 In Real Mobile Browser
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-map.js'
+      - 'scripts/test-atomic-globe-frame-v5.cjs'
+      - '.github/workflows/test-atomic-globe-browser-v5.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test retained globe frame on real MapLibre canvas with synthetic loss
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium-browser || command -v chromium)"
+          mkdir -p "$RUNNER_TEMP/bridgepoint-frame-test-deps"
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/bridgepoint-frame-test-deps" puppeteer-core@24
+          CHROME_PATH="$CHROME" NODE_PATH="$RUNNER_TEMP/bridgepoint-frame-test-deps/node_modules" node scripts/test-atomic-globe-frame-v5.cjs
