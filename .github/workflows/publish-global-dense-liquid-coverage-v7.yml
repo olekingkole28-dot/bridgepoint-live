@@ -1,0 +1,108 @@
+name: Publish BridgePoint Complete Global Dense Liquid Coverage V7
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-global-dense-liquid-coverage-v7.yml'
+      - 'scripts/overlay_global_dense_liquid_coverage_v7.py'
+      - 'scripts/build_global_ocean_mesh_v7.py'
+
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Materialize and verify complete global ocean geometry
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/overlay_global_dense_liquid_coverage_v7.py scripts/build_global_ocean_mesh_v7.py
+          python3 -m venv "$RUNNER_TEMP/ocean-mesh-env"
+          "$RUNNER_TEMP/ocean-mesh-env/bin/pip" install --quiet 'shapely==2.1.2' 'pyshp==2.3.1'
+          curl --retry 4 --retry-all-errors --max-time 45 -fsSL 'https://naturalearth.s3.amazonaws.com/50m_physical/ne_50m_ocean.zip' -o "$RUNNER_TEMP/ne-ocean.zip"
+          "$RUNNER_TEMP/ocean-mesh-env/bin/python" scripts/build_global_ocean_mesh_v7.py "$RUNNER_TEMP/ne-ocean.zip" "$RUNNER_TEMP/global-ocean.b64"
+      - name: Download latest verified persistent globe release
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 45332498288
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/baseline
+      - name: Patch global water coverage only
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          mkdir -p "$SITE"
+          ARCHIVE="$(find "$RUNNER_TEMP/baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          python3 scripts/overlay_global_dense_liquid_coverage_v7.py "$SITE" "$RUNNER_TEMP/global-ocean.b64"
+          grep -Fq "GLOBAL_OCEAN_MESH_B64" "$SITE/world-v2300-water.js"
+          grep -Fq "denseMagneticShader" "$SITE/world-v2300-water.js"
+          for f in world-v2300-water.js world-v2300-sensor-layers.js app/world-v2300-water.js app/world-v2300-sensor-layers.js world-v2300-map.js app/world-v2300-map.js landing.js app.js; do
+            node --input-type=module --check < "$SITE/$f"
+          done
+          grep -Fq 'float whitecap' "$SITE/world-v2300-water.js"
+          grep -Fq 'new T.InstancedMesh' "$SITE/world-v2300-sensor-layers.js"
+          grep -Fq 'bp-liquid-ocean-cover-v2' "$SITE/world-v2300-water.js"
+          grep -Fq 'targetAltitude=Math.min(-3,bed+clearance)' "$SITE/world-v2300-sensor-layers.js"
+          grep -Fq 'restoreWaterGLState(gl, savedWaterState)' "$SITE/world-v2300-water.js"
+          grep -Fq 'global-dense-liquid-coverage-v20261124-v7' "$SITE/landing.js"
+          grep -Fq 'global-dense-liquid-coverage-v20261124-v7' "$SITE/app.js"
+          grep -Fq 'buildOceanPolygonMesh' "$SITE/world-v2300-water.js"
+          grep -Fq 'autoOceanDive' "$SITE/world-v2300-sensor-layers.js"
+          grep -Fq 'bp-app-public-entry-v4' "$SITE/app/index.html"
+          grep -Fq 'bp-public-home-v4' "$SITE/index.html"
+          grep -Fq 'attachPublicGlobe(world)' "$SITE/app.js"
+          grep -Fq 'showPublicOverview' "$SITE/bridgepoint-app-space-explorer-v1.js"
+          grep -Fq 'verifiedOceanFallbackCells' "$SITE/world-v2300-water.js"
+          node --check "$SITE/bridgepoint-app-space-explorer-v1.js"
+          ! grep -Fq 'id="bp-app-entry-gate-v6247"' "$SITE/app/index.html"
+          node --check "$SITE/vendor/bp-ocean-relief-v4.mjs"
+          node --check "$SITE/vendor/bp-public-globe-v4.mjs"
+          node --check "$SITE/vendor/bp-ocean-mesh-v3.mjs"
+          for f in bridgepoint-earth-protection-v1.js bridgepoint-neo-watch-v1.js bridgepoint-conflict-zones-v1.js; do test -s "$SITE/$f"; done
+          echo GLOBAL_DENSE_LIQUID_COVERAGE_BUILD_PASS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-liquid-site
+          include-hidden-files: true
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify public water modules and cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          O=https://bridgepointintelligence.online
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          for p in world-v2300-water.js app/world-v2300-water.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js world-v2300-map.js app/world-v2300-map.js vendor/bp-ocean-mesh-v3.mjs vendor/bp-ocean-relief-v4.mjs vendor/bp-public-globe-v4.mjs bridgepoint-app-space-explorer-v1.js landing.js app.js index.html app/index.html; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$O/$p?liquid=$GITHUB_SHA" -o "$RUNNER_TEMP/liquid-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/liquid-live"
+          done
+          echo BRIDGEPOINT_GLOBAL_DENSE_LIQUID_COVERAGE_LIVE_PASS
