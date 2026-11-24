@@ -94,8 +94,8 @@ jobs:
                       for p in site.rglob('*') if p.is_file()
                       and p.relative_to(site).as_posix() not in touched}
           before=snapshot()
-          key='idleframe-20261123-v1'
-          entry='idleframe-20261123-entry-v1'
+          key='idleframe-20261123-v2'
+          entry='idleframe-20261123-entry-v2'
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
               (site/rel).write_bytes(Path('release-v2300/world-v2300-map.js').read_bytes())
           for rel in ('landing.js','app.js'):
@@ -159,10 +159,10 @@ jobs:
             curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL \
               -H 'Cache-Control: no-cache' "$ORIGIN/$spec?verify=$GITHUB_SHA-glstate" -o "$out/$label"
           done
-          cmp "$out/world-v2300-water_js" release-v2300/world-v2300-map.js
-          cmp "$out/app_world-v2300-water_js" release-v2300/world-v2300-map.js
-          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v1' "$out/landing_js"
-          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v1' "$out/app_js"
-          grep -Fq 'landing.js?v=idleframe-20261123-entry-v1' "$out/index_html"
-          grep -Fq 'app.js?v=idleframe-20261123-entry-v1' "$out/app_"
+          cmp "$out/world-v2300-map_js" release-v2300/world-v2300-map.js
+          cmp "$out/app_world-v2300-map_js" release-v2300/world-v2300-map.js
+          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v2' "$out/landing_js"
+          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v2' "$out/app_js"
+          grep -Fq 'landing.js?v=idleframe-20261123-entry-v2' "$out/index_html"
+          grep -Fq 'app.js?v=idleframe-20261123-entry-v2' "$out/app_"
           echo 'BRIDGEPOINT_IDLE_WEBGL_FRAMEBUFFER_STABILITY_PUBLISHED_ROOT_AND_APP'
