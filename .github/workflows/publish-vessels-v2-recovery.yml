@@ -35,8 +35,8 @@ jobs:
       - name: Download latest verified persistent globe release
         uses: actions/download-artifact@v4
         with:
-          name: bridgepoint-v5000-2
-          run-id: 45341293126
+          name: bridgepoint-v5000-1
+          run-id: 45342206711
           repository: ${{ github.repository }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/baseline
@@ -92,13 +92,22 @@ jobs:
           name: bridgepoint-v5000-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bp-liquid-site
           include-hidden-files: true
+      - name: Wait for uploaded artifact to be indexed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then echo "Indexed artifact $ID"; sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
       - name: Publish preserved site
         id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: bridgepoint-v5000-${{ github.run_attempt }}
-          timeout: 1800000
-          error_count: 10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
       - name: Verify public vessel module and preserved water files
         shell: bash
         run: |
