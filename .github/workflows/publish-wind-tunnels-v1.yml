@@ -1,0 +1,141 @@
+name: Publish BridgePoint Wind Jet Tunnel Visual Upgrade V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-wind-tunnels-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful Wind RF restoration release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45459754941 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45459754941 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Upgrade only wind tunnel geometry, wisps and horizon visibility
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 scripts/overlay_wind_tunnels_v1.py "$SITE"
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          for f in bridgepoint-global-wind-rf-v1.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-global-wind-rf-v1.js app/bridgepoint-volumetric-fields-v5978.js; do node --input-type=module --check < "$SITE/$f"; done
+          grep -Fq 'neo-restore-20261124-v1' "$SITE/index.html"
+          grep -Fq 'windrestore=20261124v1' "$SITE/index.html"
+      - name: Test mobile wind toggle, open jet geometry, far-side occlusion and 3D card
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/wind-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            const errors=[];
+            let pageErrorCount=0;page.on('pageerror',e=>{if(pageErrorCount++<8)console.log('PAGE_ERROR',e.stack||e.message)});
+            page.on('console',m=>{if(m.type()==='error'&&/Shader Error|Vertex shader is not compiled|Fragment shader is not compiled/i.test(m.text()))errors.push(m.text())});
+            const files=new Set(['bridgepoint-view-v5917.js','bridgepoint-volumetric-fields-v5978.js','bridgepoint-global-wind-rf-v1.js','wind-rf-global-v1.json']);
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
+              if(files.has(rel.split('/').pop())||rel===''||rel==='index.html'||rel==='app/'||rel==='app/index.html'){const f=path.join(process.env.BP_SITE,rel===''?'index.html':rel==='app/'?'app/index.html':rel);if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.json')?'application/json':rel===''||rel==='app/'||rel.endsWith('.html')?'text/html':'text/javascript',body:fs.readFileSync(f)});}
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?wind-tunnel-verify=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map||window.__bpWorldV2300?.map)&&!!document.querySelector('[data-bpv-action="volumetric"]'),null,{timeout:90000}).catch(async e=>{console.log('WIND_STARTUP_DIAGNOSTIC',await page.evaluate(()=>({url:location.href,worlds:[!!window.__BP_LANDING_WORLD__?.map,!!window.__BP_V5000_WORLD__?.map,!!window.__bpWorldV2300?.map],buttons:[...document.querySelectorAll('[data-bpv-action]')].map(b=>b.dataset.bpvAction),dock:!!document.getElementById('bpv-dock')})));throw e;});
+            await page.waitForFunction(()=>{const d=document.getElementById('bpv-dock'),a=document.getElementById('bpv-dock-actions');return d?.classList.contains('bpv-mobile-v2')&&a?.parentElement!==d&&d.contains(a);},null,{timeout:60000});
+            await page.evaluate(()=>{(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map||window.__bpWorldV2300?.map).jumpTo({center:[-75,42],zoom:2.3});document.querySelector('#bpv-v2-tabs button[data-category="environment"],#bpv-v2-tabs button[data-bpv-v2-tab="environment"]')?.click();document.querySelector('[data-bpv-action="volumetric"]').click();});
+            await page.waitForFunction(()=>{const g=window.__BP_WIND_RF_GLOBAL_V1__?.state,l=window.__BP_VOLUMETRIC_FIELDS_V5992__?.state,m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map||window.__bpWorldV2300?.map;return g?.enabled&&g.windOn&&g.rfOn&&g.gridSamples>=100&&g.registeredStructures>=60&&l?.windOn&&l.rfOn&&m?.getLayer('bp-wind-rf-global-jetstream-v1')&&document.querySelectorAll('button[aria-label^="Jet stream "]').length>0&&document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed')==='true';},null,{timeout:120000});
+            const report=await page.evaluate(()=>({global:window.__BP_WIND_RF_GLOBAL_V1__.state,local:window.__BP_VOLUMETRIC_FIELDS_V5992__.state,mounted:document.getElementById('bp-volumetric-fields-v5992')?.parentElement===document.getElementById('bpv-dock-actions')?.parentElement,icons:document.querySelectorAll('button[aria-label^="Jet stream "]').length}));
+            console.log('WIND_RF_MOBILE_ON',JSON.stringify(report));assert(report.mounted&&report.icons>0);
+            assert(report.global.openTunnels&&report.global.tunnelCount>0);
+            const geometry=await page.evaluate(async()=>{
+              const m=window.__BP_WIND_RF_GLOBAL_V1__.map;
+              const mod=await import('/bridgepoint-global-wind-rf-v1.js?v=5-hollow-jet-tunnels-20261124');
+              const T=await import('/vendor/three.module.js?v=169-local');
+              const row=[0,0,20,270,160,270,10500],fake={transform:{getMatrixForModel:([lon,lat])=>new T.Matrix4().makeTranslation(lon*111200,0,lat*111200).toArray()}};
+              const g=mod.streamGeometry(T,fake,[row],'jet',2),h=mod.streamGeometry(T,fake,[row],'jet',17);
+              const p=g.attributes.position.array,q=h.attributes.position.array;
+              const c=m.getCenter(),opposite=[((c.lng+360)%360)-180,-c.lat];
+              const hidden=Array.from(document.querySelectorAll('button[aria-label^="Jet stream "]')).filter(x=>x.hidden&&getComputedStyle(x).display==='none').length;
+              const r={open:g.userData.openTunnel,count:g.userData.tunnelCount,vertices:p.length/3,indices:g.index.count,stable:p.length===q.length&&p.every((x,i)=>x===q[i]),colors:[mod.jetSeverityColor(100),mod.jetSeverityColor(160),mod.jetSeverityColor(200)],dimensions:mod.jetTunnelDimensions(row),farSideHidden:!mod.jetLocatorVisible(m,opposite[0],opposite[1]),hidden};
+              g.dispose();h.dispose();return r;
+            });
+            console.log('WIND_OPEN_TUNNEL_GEOMETRY',JSON.stringify(geometry));
+            assert(geometry.open&&geometry.count===1&&geometry.vertices>1000&&geometry.indices>5000&&geometry.stable&&geometry.farSideHidden&&geometry.hidden>0);
+            assert(geometry.dimensions.halfWidthM>=24000&&geometry.dimensions.halfHeightM>=1800);
+            assert(geometry.colors[0][1]===1&&geometry.colors[1][1]>.8&&geometry.colors[2][1]<.3);
+            await page.waitForFunction(()=>[...document.querySelectorAll('button[aria-label^="Jet stream "]')].some(x=>!x.hidden),null,{timeout:30000});
+            await page.evaluate(()=>[...document.querySelectorAll('button[aria-label^="Jet stream "]')].find(x=>!x.hidden).click());
+            await page.waitForFunction(()=>!!document.querySelector('.bp-wind-jet-card-v1 canvas'),null,{timeout:30000});
+            await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+            await page.waitForFunction(()=>window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled===false&&!window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.windOn&&!window.__BP_VOLUMETRIC_FIELDS_V5992__?.state?.rfOn&&document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed')==='false'&&!document.querySelector('[aria-label="Jet stream forecast markers"]'),null,{timeout:30000});
+            await page.evaluate(()=>document.querySelector('[data-bpv-action="volumetric"]').click());
+            await page.waitForFunction(()=>window.__BP_WIND_RF_GLOBAL_V1__?.state?.enabled===true&&document.querySelectorAll('button[aria-label^="Jet stream "]').length>0&&document.querySelector('[data-bpv-action="volumetric"]').getAttribute('aria-pressed')==='true',null,{timeout:60000});
+            assert.equal(errors.length,0,errors.join('\n'));
+            console.log('WIND_RF_MOBILE_ON_OFF_ON_3D_CARD_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live wind tunnel upgrade and preserved NEO EMRF and globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_WIND_TUNNEL_VISUAL_LIVE_PASS
