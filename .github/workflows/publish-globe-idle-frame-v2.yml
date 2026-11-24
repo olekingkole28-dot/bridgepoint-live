@@ -1,4 +1,4 @@
-name: Publish BridgePoint Idle Globe Frame Stability V2
+name: Publish BridgePoint Verified WebGL Frame Stability V3
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-idle-frame-globe-publisher-v2
+  group: bridgepoint-idle-frame-globe-publisher-v3
   cancel-in-progress: false
 
 jobs:
@@ -94,8 +94,8 @@ jobs:
                       for p in site.rglob('*') if p.is_file()
                       and p.relative_to(site).as_posix() not in touched}
           before=snapshot()
-          key='idleframe-20261123-v2'
-          entry='idleframe-20261123-entry-v2'
+          key='idleframe-20261123-v3'
+          entry='idleframe-20261123-entry-v3'
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
               (site/rel).write_bytes(Path('release-v2300/world-v2300-map.js').read_bytes())
           for rel in ('landing.js','app.js'):
@@ -161,8 +161,8 @@ jobs:
           done
           cmp "$out/world-v2300-map_js" release-v2300/world-v2300-map.js
           cmp "$out/app_world-v2300-map_js" release-v2300/world-v2300-map.js
-          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v2' "$out/landing_js"
-          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v2' "$out/app_js"
-          grep -Fq 'landing.js?v=idleframe-20261123-entry-v2' "$out/index_html"
-          grep -Fq 'app.js?v=idleframe-20261123-entry-v2' "$out/app_"
+          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v3' "$out/landing_js"
+          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v3' "$out/app_js"
+          grep -Fq 'landing.js?v=idleframe-20261123-entry-v3' "$out/index_html"
+          grep -Fq 'app.js?v=idleframe-20261123-entry-v3' "$out/app_"
           echo 'BRIDGEPOINT_IDLE_WEBGL_FRAMEBUFFER_STABILITY_PUBLISHED_ROOT_AND_APP'
