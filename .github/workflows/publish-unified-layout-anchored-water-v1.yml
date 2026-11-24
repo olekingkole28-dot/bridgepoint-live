@@ -175,7 +175,7 @@ jobs:
             const shaderBuilder=water.slice(a,b)+'return {vertexSource,fragmentSource};}';
             const report=await page.evaluate(src=>{
               const build=new Function(src+';return buildShaders;')();
-              const shaders=build(null,{vertexShaderPrelude:'vec4 projectTileFor3D(vec2 p,float h){return vec4(p,h*0.00001,1.0);}',define:''});
+              const shaders=build(null,{vertexShaderPrelude:'vec4 projectTile(vec2 p){return vec4(p,0.0,1.0);} vec4 projectTileFor3D(vec2 p,float h){return vec4(p,h*0.00001,1.0);}',define:''});
               const gl=document.createElement('canvas').getContext('webgl2');
               if(!gl)throw Error('WebGL2 unavailable');
               function compile(type,source){const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;}
