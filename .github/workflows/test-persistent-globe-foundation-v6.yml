@@ -1,0 +1,26 @@
+name: Verify Persistent Globe Foundation V6 On Real MapLibre Globe
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-map.js'
+      - 'scripts/test-persistent-globe-foundation-v6.cjs'
+      - '.github/workflows/test-persistent-globe-foundation-v6.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify basemap remains visible through both high-resolution satellite source failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          CHROME="$(command -v google-chrome || command -v chromium-browser || command -v chromium)"
+          mkdir -p "$RUNNER_TEMP/bp-foundation-deps"
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/bp-foundation-deps" puppeteer-core@24
+          CHROME_PATH="$CHROME" NODE_PATH="$RUNNER_TEMP/bp-foundation-deps/node_modules" node scripts/test-persistent-globe-foundation-v6.cjs
