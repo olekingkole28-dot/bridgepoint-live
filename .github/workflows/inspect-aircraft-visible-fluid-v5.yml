@@ -1,0 +1,32 @@
+name: Verify Visible Fluid Aircraft V5
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Publish BridgePoint Visible Fluid Aircraft V5']
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare browser
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium)
+          echo "CHROME_PATH=$CHROME" >> "$GITHUB_ENV"
+          cd /tmp
+          npm install puppeteer-core@24 --no-audit --no-fund
+      - name: Inspect actual public website and capture renders
+        run: node tests/inspect-aircraft-visible-fluid-v5.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aircraft-visible-fluid-v5-browser
+          path: /tmp/bp-aircraft-one-tap/
