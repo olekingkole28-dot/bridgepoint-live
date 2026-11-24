@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {contains,shoreStrength,bandWorld,buildCoastalSurface} from './bp-coastal-mesh-v10.mjs';
+const xy=(lon,lat)=>[(lon+180)/360,(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2];
+assert(contains(...xy(-11,39)));assert(!contains(...xy(-8,39)));
+assert(contains(...xy(-179,0)));assert(contains(...xy(179,0)));
+const a=xy(-12,40),b=xy(-8,38);
+const data=[];const r=buildCoastalSurface({x0:a[0],x1:b[0],y0:a[1],y1:b[1]},7,{latitude:39,maxVertices:50000},(...v)=>data.push(v));
+assert(r.count>0&&r.shoreVertices>0&&data.length===r.count);
+assert(data.every(p=>p[0]>=a[0]-1e-8&&p[0]<=b[0]+1e-8&&p[1]>=a[1]-1e-8&&p[1]<=b[1]+1e-8&&p[2]>=0&&p[2]<=1));
+assert(shoreStrength(...xy(-40,20),bandWorld(7,20))===0);
+console.log('COASTAL_CLIPPED_GEOMETRY_AND_SURF_PASS',r);
