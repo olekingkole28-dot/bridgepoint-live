@@ -53,18 +53,8 @@ async function main(){
       gpuClearCalls[key]=(gpuClearCalls[key]||0)+1;
       return originalClear(bits);
     };
-    gpu.drawArrays=function(...a){
-      const key=String(new Error().stack||'').split('\\n').slice(1,4).join('|').slice(0,170);
-      gpuRenderCalls[key]=(gpuRenderCalls[key]||0)+1;
-      return originalDrawArrays(...a);
-    };
-    gpu.drawElements=function(...a){
-      const key=String(new Error().stack||'').split('\\n').slice(1,4).join('|').slice(0,170);
-      gpuRenderCalls[key]=(gpuRenderCalls[key]||0)+1;
-      return originalDrawElements(...a);
-    };
     m.on('render',()=>{
-      if(gpuFrames.length>=120)return;
+      if(gpuFrames.length>=20)return;
       try{
         const w=gpu.drawingBufferWidth,h=gpu.drawingBufferHeight,sz=36;
         if(w<100||h<100)return;
@@ -90,7 +80,7 @@ async function main(){
   });
   console.log('PROBE_BOOT',mobile?'MOBILE':'DESKTOP',JSON.stringify(before));
   if(before.map && (!before.policy?.contextAttributesVerified || !before.policy?.contextAttributesForced || before.bufferPreserved!==true))throw new Error('LIVE_GLOBE_WEBGL_BUFFER_NOT_RETAINED '+JSON.stringify(before));
-  await sleep(20000);
+  await sleep(6500);
   const initial=await page.evaluate(()=>({url:location.href,hasMap:!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),probe:!!window.__BP_IDLE_FLICKER_PROBE__,gate:!!document.querySelector('[data-surface="account"]')}));console.log('PROBE_INIT',JSON.stringify(initial));
   const samples=[];
   for(let i=0;i<0;i++){
