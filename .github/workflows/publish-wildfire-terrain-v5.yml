@@ -1,0 +1,115 @@
+name: Publish BridgePoint Wildfire Terrain and Atmosphere V5
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-wildfire-terrain-v5.yml'
+      - 'scripts/overlay_wildfire_terrain_v5.py'
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download latest confirmed earthquake V3 production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bridgepoint-v5000-1
+          run-id: 45439880107
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/baseline
+      - name: Apply wildfire-only terrain and atmosphere patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          mkdir -p "$SITE"
+          ARCHIVE="$(find "$RUNNER_TEMP/baseline" -type f -name artifact.tar -print -quit)"
+          test -n "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C "$SITE"
+          python3 -m py_compile scripts/overlay_wildfire_terrain_v5.py
+          python3 scripts/overlay_wildfire_terrain_v5.py "$SITE"
+          for f in bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-wildfires-volumetric-v1.js landing.js app.js; do
+            node --input-type=module --check < "$SITE/$f"
+          done
+          grep -Fq 'bp-usgs-seismic-ripple-crests-v3' "$SITE/world-v2300-seismic-layer-v1.js"
+          grep -Fq 'beginFlightFollow' "$SITE/bridgepoint-drone-awareness-v1.js"
+          grep -Fq 'sampleSeaSurface' "$SITE/world-v2300-water.js"
+      - name: Exercise real wildfire geometry and atmosphere buffers
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BP_SITE="$RUNNER_TEMP/bp-liquid-site"
+          node --experimental-default-type=module --input-type=module <<'JS'
+          import {pathToFileURL} from 'node:url';
+          import assert from 'node:assert/strict';
+          const root=process.env.BP_SITE;
+          const T=await import(pathToFileURL(root+'/vendor/three.module.js'));
+          const M=await import(pathToFileURL(root+'/bridgepoint-wildfire-realistic-mesh-v4.js'));
+          const map={queryTerrainElevation:(p,options)=>{assert.equal(options.exaggerated,true);return 100+(p[1]-40)*111320*.5;}};
+          const fire={coordinates:[-75,40],radiusM:300,count:4,frp:22};
+          for(const quality of [0,1,2]){
+            const e=M.createBridgePointWildfireVolumeV4(T,{map,fire,quality});
+            assert(e.groupCount>=100&&e.particleCount>500&&e.terrainTriangles>500);
+            assert.equal(e.terrainAnchorElevation,100);
+            const flame=e.scene.children[0].children[0],p=flame.geometry.attributes.position;
+            assert(p.count>10000&&Array.from(p.array).every(Number.isFinite));
+            const points=e.scene.children[0].children.filter(x=>x.isPoints);
+            assert.equal(points.length,3);
+            for(const x of points)assert(x.geometry.attributes.position.count>100);
+            const z=points[0].geometry.attributes.position;
+            assert(Array.from(z.array).filter((v,i)=>i%3===2).some(v=>v>250));
+            assert(Array.from(z.array).filter((v,i)=>i%3===2).some(v=>v< -250));
+            assert(e.uniforms.every(x=>x.uTime));e.dispose();
+          }
+          console.log('WILDFIRE_TERRAIN_ATMOSPHERE_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-liquid-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then echo "Indexed artifact $ID"; sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live files
+        shell: bash
+        run: |
+          set -euo pipefail
+          O=https://bridgepointintelligence.online
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          for p in bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-wildfires-volumetric-v1.js bridgepoint-view-v5917.js app.js landing.js index.html app/index.html world-v2300-seismic-layer-v1.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js world-v2300-water.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$O/$p?wildfire=$GITHUB_SHA" -o "$RUNNER_TEMP/wildfire-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wildfire-live"
+          done
+          echo BRIDGEPOINT_WILDFIRE_TERRAIN_V5_LIVE_PASS
