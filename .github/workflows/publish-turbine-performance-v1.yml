@@ -1,0 +1,264 @@
+name: Publish BridgePoint Turbine Performance Only V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-turbine-performance-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful turbine icon release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45471993679 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45471993679 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Optimize only turbine icon and model scheduling
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);name='bridgepoint-wind-turbines-v1.js'
+          allowed={name,'app/'+name,'landing.js','app.js','index.html','app/index.html'}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('TURBINE_PERF_ANCHOR',a[:140],s.count(a))
+              return s.replace(a,b,1)
+          block=r'''// Keep full source inventory in memory; submit bounded, real-location icon sets.
+          const TURBINE_GLOBAL_BUDGET=600,TURBINE_VIEW_BUDGET=1200;
+          function turbineThin(rows,cell,budget){
+            const picked=new Map();
+            for(const f of rows){
+              const c=f.geometry.coordinates,key=Math.floor(c[0]/cell)+':'+Math.floor(c[1]/cell);
+              if(!picked.has(key))picked.set(key,f);
+            }
+            const out=[...picked.values()];
+            if(out.length<=budget)return out;
+            return Array.from({length:budget},(_,i)=>out[Math.floor(i*out.length/budget)]);
+          }
+          function indexTurbineIcons(state){
+            state.spatial=new Map();
+            for(const f of state.collection.features){
+              const c=f.geometry.coordinates,key=Math.floor(c[0])+':'+Math.floor(c[1]);
+              let bucket=state.spatial.get(key);if(!bucket)state.spatial.set(key,bucket=[]);bucket.push(f);
+            }
+            state.globalIcons={type:'FeatureCollection',features:turbineThin(state.collection.features,1.25,TURBINE_GLOBAL_BUDGET)};
+            state.viewportKey='';state.globalPublished=false;
+          }
+          function turbineViewportRows(state){
+            const b=state.map.getBounds?.();
+            if(!b||!state.spatial)return [];
+            const w=b.getWest(),e=b.getEast(),s=b.getSouth(),n=b.getNorth();
+            const span=e>=w?e-w:e+360-w,padX=Math.max(.005,span*.18),padY=Math.max(.005,(n-s)*.18);
+            const minY=Math.max(-90,s-padY),maxY=Math.min(90,n+padY);
+            const out=[],seen=new Set();
+            for(let x=Math.floor(w-padX);x<=Math.floor(w+Math.min(360,span+padX));x++){
+              const xx=((x+180)%360+360)%360-180;
+              for(let y=Math.floor(minY);y<=Math.floor(maxY);y++){
+                for(const f of state.spatial.get(xx+':'+y)||[]){
+                  if(seen.has(f.id))continue;
+                  const c=f.geometry.coordinates,dx=((c[0]-w+padX)%360+360)%360;
+                  if(c[1]<minY||c[1]>maxY||dx>span+2*padX)continue;
+                  seen.add(f.id);out.push(f);
+                }
+              }
+            }
+            return out;
+          }
+          function syncTurbineIconSources(state,force=false){
+            if(!state.enabled||!state.spatial)return;
+            const m=state.map,g=m.getSource(GLOBAL_ICON_SOURCE_ID),l=m.getSource(SOURCE_ID);
+            if(g&&(!state.globalPublished||force)){g.setData(state.globalIcons);state.globalPublished=true;}
+            const z=m.getZoom(),b=m.getBounds?.();
+            const key=z<4?'overview':b?[Math.floor(z*2),b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map((v,i)=>i===0?v:Math.round(v*Math.pow(2,Math.max(0,Math.floor(z)-5))*10)).join(':'):'empty';
+            if(!l||(!force&&state.viewportKey===key))return;
+            const rows=z<4?[]:turbineViewportRows(state);
+            const cell=Math.max(.00003,2.0*Math.pow(2,4-z));
+            const selected=rows.length<=TURBINE_VIEW_BUDGET?rows:turbineThin(rows,cell,TURBINE_VIEW_BUDGET);
+            state.localIcons={type:'FeatureCollection',features:selected};state.viewportKey=key;
+            l.setData(state.localIcons);state.stats.iconUpdates=(state.stats.iconUpdates||0)+1;
+          }
+          function scheduleTurbineViewport(state){
+            if(state.viewportTimer)clearTimeout(state.viewportTimer);
+            if(!state.enabled||state.dead)return;
+            state.viewportTimer=setTimeout(()=>{
+              state.viewportTimer=0;if(!state.enabled||state.dead)return;
+              if(state.map.isMoving?.()){scheduleTurbineViewport(state);return;}
+              syncTurbineIconSources(state);ensureTurbineModels(state);
+              if(state.map.getZoom()>=MIN_MODEL_ZOOM)rebuildModels(state);
+            },140);
+          }
+          function ensureTurbineModels(state){
+            if(!state.enabled||state.dead||state.map.getZoom()<MIN_MODEL_ZOOM)return;
+            if(state.THREE){installModelLayer(state);return;}
+            if(state.threeLoading)return;
+            state.threeLoading=true;
+            loadThree().then(THREE=>{
+              state.threeLoading=false;if(state.dead)return;state.THREE=THREE;
+              if(state.enabled&&state.map.getZoom()>=MIN_MODEL_ZOOM){installModelLayer(state);rebuildModels(state);state.map.triggerRepaint?.();}
+            }).catch(error=>{state.threeLoading=false;state.stats.lastError=String(error?.message||error);});
+          }
+          '''
+          for rel in (name,'app/'+name):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              s=one(s,'function addFeatures(state,rows) {',block+'\nfunction addFeatures(state,rows) {')
+              a=s.index('    const source = state.map.getSource(SOURCE_ID);',s.index('function addFeatures'))
+              b=s.index('    state.stats.total',a)
+              s=s[:a]+'    indexTurbineIcons(state);syncTurbineIconSources(state,true);\n'+s[b:]
+              s=one(s,"type:'geojson',data:state.collection,cluster:true,clusterRadius:24,clusterMaxZoom:4,","type:'geojson',data:state.localIcons||EMPTY,cluster:false,maxzoom:18,buffer:32,")
+              s=one(s,"type:'geojson',data:state.collection,cluster:false,maxzoom:4,buffer:32,","type:'geojson',data:state.globalIcons||EMPTY,cluster:false,maxzoom:6,buffer:32,")
+              s=one(s,"minzoom:0,maxzoom:4.05,","minzoom:0,maxzoom:5.5,")
+              s=one(s,"if (state.THREE) installModelLayer(state);\n    setVisibility(state,state.enabled);","if (state.THREE&&state.enabled&&map.getZoom()>=MIN_MODEL_ZOOM) installModelLayer(state);\n    setVisibility(state,state.enabled);")
+              a=s.index('function modelCandidates(state)');b=s.index('function rebuildModels(state)',a)
+              s=s[:a]+s[a:b].replace('for (const f of state.collection.features)','for (const f of turbineViewportRows(state))')+s[b:]
+              a=s.index('  for (const item of state.models) {',s.index('function rebuildModels(state)'))
+              b=s.index('  state.stats.models = state.models.length;',a)
+              s=s[:a]+'''  const old=new Map(state.models.map(item=>[String(item.featureId),item])),next=[];
+            for(const feature of rows){
+              const id=String(feature.id);let item=old.get(id);
+              if(item)old.delete(id);
+              else try{item=addTurbineModel(state.THREE,feature);item.featureId=id;state.scene.add(item.root);}catch(error){console.warn('BridgePoint turbine model skipped',id,error);}
+              if(item)next.push(item);
+            }
+            for(const item of old.values()){state.scene.remove(item.root);disposeObject(item.root);}
+            state.models=next;state.modelSignature=signature;
+          '''+s[b:]
+              a=s.index('    if (state.THREE) installModelLayer(state);',s.index('async function setEnabled(state,on)'))
+              b=s.index('    void loadInitialData(state);',a)
+              s=s[:a]+'    syncTurbineIconSources(state);ensureTurbineModels(state);scheduleTurbineViewport(state);\n'+s[b:]
+              s=one(s,"  } else {\n    if (state.popup) {state.popup.remove();state.popup = null;}","  } else {\n    clearTimeout(state.viewportTimer);state.viewportTimer=0;\n    if (state.popup) {state.popup.remove();state.popup = null;}")
+              a=s.index("  map.on('moveend',()=>{",s.index('function bindInteractions'))
+              b=s.index('\n}\nfunction install(map,state)',a)
+              s=s[:a]+"  map.on('moveend',()=>scheduleTurbineViewport(state));"+s[b:]
+              s=one(s,"    if (state.THREE) installModelLayer(state);\n    if (!state.globalLoaded) void loadInitialData(state);","    ensureTurbineModels(state);\n    if (!state.globalLoaded) void loadInitialData(state);")
+              a=s.index('  state.persist=');b=s.index('  if (map.isStyleLoaded',a)
+              s=s[:a]+'''  state.persist=()=>{
+            if(state.dead||!state.enabled||state.repairFrame)return;
+            // Normal zoom and idle events need no source/layer reinstallation.
+            if(map.getSource(SOURCE_ID)&&map.getSource(GLOBAL_ICON_SOURCE_ID)&&map.getLayer(GLOBAL_ICON_ID)&&map.getLayer(MARKER_ID)&&map.hasImage('bp-wind-turbine-icon-v1'))return;
+            state.repairFrame=requestAnimationFrame(()=>{
+              state.repairFrame=0;
+              if(!state.dead&&state.enabled&&(!map.isStyleLoaded||map.isStyleLoaded())){install(map,state);syncTurbineIconSources(state,true);}
+            });
+          };
+          for(const eventName of ['styledata','idle','moveend'])map.on(eventName,state.persist);
+          '''+s[b:]
+              s=one(s,"    get features(){return state.collection.features.length;},","    get features(){return state.collection.features.length;},\n    get iconPerformance(){return {global:state.globalIcons?.features.length||0,local:state.localIcons?.features.length||0,updates:state.stats.iconUpdates||0,modelReady:!!state.THREE};},")
+              s=one(s,"      state.dead=true;","      state.dead=true;clearTimeout(state.viewportTimer);if(state.repairFrame)cancelAnimationFrame(state.repairFrame);for(const eventName of ['styledata','idle','moveend'])map.off(eventName,state.persist);")
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(bridgepoint-wind-turbines-v1\.js)\?[^"\']+',r'\1?v=4-viewport-turbine-performance-20261124',s);assert n>=1
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\s\']+)',lambda m:m[1]+'&turbineperf=20261124v1',s);assert n>=1
+              assert 'turbineicons=20261124v1' in s and 'singlenasa=20261124v1' in s
+              p.write_text(s)
+          assert before==snap(),'Unexpected unrelated asset changed'
+          print('TURBINE_PERFORMANCE_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          for f in bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js landing.js app.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Test actual mobile turbine button and rendered map icons
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/turbine-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            let errors=0;page.on('pageerror',e=>{if(errors++<6)console.log('PAGE_ERROR',e.message)});
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
+              if(rel===''||rel==='index.html'||rel==='app/'||rel==='app/index.html'||rel==='landing.js'||rel==='app.js'||rel.endsWith('bridgepoint-wind-turbines-v1.js')||rel.endsWith('bridgepoint-drone-awareness-v1.js')){
+                const f=path.join(process.env.BP_SITE,rel===''?'index.html':rel==='app/'?'app/index.html':rel);
+                if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.js')?'text/javascript':'text/html',body:fs.readFileSync(f)});
+              }
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?turbine-perf-verify=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>window.__BP_MOBILE_CARD_V2__?.ready&&window.__BP_WIND_TURBINES_V1__?.map&&document.getElementById('bp-wind-turbines-toggle-v1'),null,{timeout:120000});
+            await page.evaluate(()=>{const a=window.__BP_WIND_TURBINES_V1__;a.map.jumpTo({center:[-98,38],zoom:2.3,pitch:0});const b=document.getElementById('bp-wind-turbines-toggle-v1');document.querySelector('[data-bpv-v2-tab="'+b.dataset.bpvV2Category+'"]')?.click();b.click()});
+            await page.waitForFunction(()=>{const a=window.__BP_WIND_TURBINES_V1__,m=a.map;return a.enabled&&a.features>1000&&m.getLayer('bp-wind-turbines-global-icons-v1')&&m.getLayoutProperty('bp-wind-turbines-global-icons-v1','visibility')==='visible'&&m.queryRenderedFeatures({layers:['bp-wind-turbines-global-icons-v1','bp-wind-turbines-global-dots-v2']}).length>0},null,{timeout:150000}).catch(async e=>{console.log('TURBINE_DIAGNOSTIC',await page.evaluate(()=>{const a=window.__BP_WIND_TURBINES_V1__;return {stats:a.stats,status:a.status,enabled:a.enabled,zoom:a.map.getZoom()}}));throw e});
+            const result=await page.evaluate(()=>{const a=window.__BP_WIND_TURBINES_V1__,m=a.map;return {records:a.features,icons:m.queryRenderedFeatures({layers:['bp-wind-turbines-global-icons-v1']}).length,dots:m.queryRenderedFeatures({layers:['bp-wind-turbines-global-dots-v2']}).length}});
+            console.log('TURBINE_GLOBAL_RENDER',JSON.stringify(result));assert(result.icons>0);
+            const budget=await page.evaluate(()=>window.__BP_WIND_TURBINES_V1__.iconPerformance);console.log('TURBINE_BUDGET',JSON.stringify(budget));assert(budget.global>0&&budget.global<=600&&budget.local===0&&!budget.modelReady);
+            await page.evaluate(()=>window.__BP_WIND_TURBINES_V1__.map.easeTo({center:[-100,33],zoom:6,pitch:0,duration:1500}));
+            await page.waitForFunction(()=>{const m=window.__BP_WIND_TURBINES_V1__.map;return m.getLayoutProperty('bp-wind-turbines-markers-v1','visibility')==='visible'&&m.queryRenderedFeatures({layers:['bp-wind-turbines-markers-v1']}).length>0},null,{timeout:90000});
+            const local=await page.evaluate(()=>window.__BP_WIND_TURBINES_V1__.iconPerformance);console.log('TURBINE_LOCAL_BUDGET',JSON.stringify(local));assert(local.local>0&&local.local<=1200&&!local.modelReady);
+            await page.evaluate(()=>document.getElementById('bp-wind-turbines-toggle-v1').click());
+            await page.waitForFunction(()=>{const a=window.__BP_WIND_TURBINES_V1__;return !a.enabled&&a.map.getLayoutProperty('bp-wind-turbines-global-icons-v1','visibility')==='none'&&a.map.getLayoutProperty('bp-wind-turbines-markers-v1','visibility')==='none'},null,{timeout:30000});
+            console.log('TURBINE_GLOBAL_LOCAL_ON_OFF_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live turbine performance and preserved globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js world-v2300-time-slider.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_TURBINE_PERFORMANCE_LIVE_PASS
