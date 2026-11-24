@@ -43,6 +43,39 @@ async function main(){
     }
     let renders=0,idles=0,sourceData=0,move=0;const sources={};
     m.on('render',()=>renders++);m.on('idle',()=>idles++);m.on('sourcedata',e=>{sourceData++;const key=String(e?.sourceId||'unknown')+':'+String(e?.sourceDataType||'');sources[key]=(sources[key]||0)+1});m.on('move',()=>move++);
+    const gpuFrames=[],gpuClearCalls={},gpuRenderCalls={};
+    const gpu=m.getCanvas().getContext('webgl2')||m.getCanvas().getContext('webgl');
+    const originalClear=gpu.clear.bind(gpu);
+    const originalDrawArrays=gpu.drawArrays.bind(gpu);
+    const originalDrawElements=gpu.drawElements.bind(gpu);
+    gpu.clear=function(bits){
+      const key=String(new Error().stack||'').split('\\n').slice(1,4).join('|').slice(0,220);
+      gpuClearCalls[key]=(gpuClearCalls[key]||0)+1;
+      return originalClear(bits);
+    };
+    gpu.drawArrays=function(...a){
+      const key=String(new Error().stack||'').split('\\n').slice(1,4).join('|').slice(0,170);
+      gpuRenderCalls[key]=(gpuRenderCalls[key]||0)+1;
+      return originalDrawArrays(...a);
+    };
+    gpu.drawElements=function(...a){
+      const key=String(new Error().stack||'').split('\\n').slice(1,4).join('|').slice(0,170);
+      gpuRenderCalls[key]=(gpuRenderCalls[key]||0)+1;
+      return originalDrawElements(...a);
+    };
+    m.on('render',()=>{
+      if(gpuFrames.length>=120)return;
+      try{
+        const w=gpu.drawingBufferWidth,h=gpu.drawingBufferHeight,sz=36;
+        if(w<100||h<100)return;
+        const pixels=new Uint8Array(sz*sz*4);
+        gpu.readPixels((w-sz)>>1,(h-sz)>>1,sz,sz,gpu.RGBA,gpu.UNSIGNED_BYTE,pixels);
+        let light=0,alpha=0;
+        for(let k=0;k<pixels.length;k+=4){light+=(pixels[k]+pixels[k+1]+pixels[k+2])/3;alpha+=pixels[k+3];}
+        gpuFrames.push({at:Math.round(performance.now()),brightness:Math.round(light/(sz*sz)),alpha:Math.round(alpha/(sz*sz)),zoom:+m.getZoom().toFixed(2),bearing:+m.getBearing().toFixed(2),err:gpu.getError()});
+      }catch(e){gpuFrames.push({error:String(e).slice(0,130)})}
+    });
+    window.__BP_GPU_DIAG__={gpuFrames,gpuClearCalls,gpuRenderCalls};
     const canvas=m.getCanvas();
     const cssHistory=[];
     let prior='',canvasSizes=[];
@@ -57,7 +90,7 @@ async function main(){
   });
   console.log('PROBE_BOOT',mobile?'MOBILE':'DESKTOP',JSON.stringify(before));
   if(before.map && (!before.policy?.contextAttributesVerified || !before.policy?.contextAttributesForced || before.bufferPreserved!==true))throw new Error('LIVE_GLOBE_WEBGL_BUFFER_NOT_RETAINED '+JSON.stringify(before));
-  await sleep(10000);
+  await sleep(20000);
   const initial=await page.evaluate(()=>({url:location.href,hasMap:!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),probe:!!window.__BP_IDLE_FLICKER_PROBE__,gate:!!document.querySelector('[data-surface="account"]')}));console.log('PROBE_INIT',JSON.stringify(initial));
   const samples=[];
   for(let i=0;i<0;i++){
@@ -91,6 +124,7 @@ async function main(){
       stats:p.getStats(),isMoving:m.isMoving(),zoom:m.getZoom(),diagnostics};
   });
   console.log('PROBE_RESULT',mobile?'MOBILE':'DESKTOP',JSON.stringify(after).slice(0,23000));
+  const gpuInfo=await page.evaluate(()=>window.__BP_GPU_DIAG__||null);console.log('PROBE_GPU',JSON.stringify(gpuInfo).slice(0,15000));
   console.log('PROBE_SCREENS',mobile?'MOBILE':'DESKTOP',JSON.stringify(samples).slice(0,20000));
   console.log('PROBE_ERRORS',mobile?'MOBILE':'DESKTOP',JSON.stringify(errors));
   await page.close();
