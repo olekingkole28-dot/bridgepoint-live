@@ -118,7 +118,7 @@ for rel in ("landing.js","app.js"):
 for rel,entry in (("index.html","landing.js"),("app/index.html","app.js")):
     p=site/rel
     s=p.read_text(encoding="utf-8")
-    s,n=re.subn(r'('+re.escape(entry)+r'\?v=)[^&"\'\s]+',r'\g<1>named-earthquake-raised-wavefronts-v3',s)
+    s,n=re.subn(r'('+re.escape(entry)+r'\?v=[^&"\'\s]+)',r'\g<1>-named-earthquake-raised-wavefronts-v3',s)
     assert n>0,(rel,n)
     p.write_text(s,encoding="utf-8")
 after=hashes()
