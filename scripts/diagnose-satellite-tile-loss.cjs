@@ -8,10 +8,18 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const failed=[],status={},resources=[];
   page.on('requestfailed',r=>{if(failed.length<60)failed.push({url:r.url().slice(0,200),error:r.failure()?.errorText})});
   page.on('response',r=>{const u=r.url();if(/earthdata.nasa.gov|arcgisonline.com|nationalmap.gov|hotosm.org/.test(u)){status[r.status()]=(status[r.status()]||0)+1;if(r.status()>=400&&resources.length<80)resources.push({status:r.status(),url:u.slice(0,240)})}});
+  await page.setRequestInterception(true);
+  page.on('request',request=>{
+   if(request.isNavigationRequest()&&request.frame()===page.mainFrame()&&request.url().startsWith('https://bridgepointintelligence.online/')){
+    const html=String.raw`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><link rel="stylesheet" href="/vendor/maplibre-gl.css"></head><body style="margin:0;background:#000"><div id="liveMap" style="position:fixed;inset:0;width:100vw;height:100vh"></div><script src="/vendor/maplibre-gl.js?v=524-v5945"></script><script type="module">import {initWorld} from '/world-v2300-map.js?v=atomic-globe-v20261123-v5';window.__BP_STANDALONE_WORLD__=initWorld({containerId:'liveMap',center:[35,-15],zoom:3.0,pitch:0,bearing:0});console.log('SAT_STANDALONE_STARTED',!!window.__BP_STANDALONE_WORLD__?.map);</script></body></html>`;
+    return request.respond({status:200,contentType:'text/html',body:html});
+   }
+   return request.continue();
+  });
   await page.goto('https://bridgepointintelligence.online/?satellite_diag='+Date.now(),{waitUntil:'domcontentloaded',timeout:50000});
-  await page.waitForFunction(()=>!!(window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),{timeout:25000});
+  await page.waitForFunction(()=>!!(window.__BP_STANDALONE_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map),{timeout:25000});
   await page.evaluate(()=>{
-   const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map;
+   const m=window.__BP_STANDALONE_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map;
    for(const name of ['jumpTo','easeTo','flyTo','rotateTo','panTo','zoomTo','setZoom','setCenter','setBearing','setPitch']){
     const fn=m[name];if(typeof fn!=='function')continue;
     m[name]=function(...args){if(window.__BP_SAT_PROBE_MANUAL__===true)return fn.apply(this,args);return this;}
@@ -20,7 +28,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
    window.__BP_SAT_PROBE_LOCKED__=true;
   });
   const introspection=await page.evaluate(()=>{
-   const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map;
+   const m=window.__BP_STANDALONE_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map;
    const st=m.style,source=m.getSource('esri');
    const all=Object.getOwnPropertyNames(st),cached=all.filter(k=>/source|tile|cache|style|image|terrain/i.test(k));
    const srckeys=Object.getOwnPropertyNames(source||{});
@@ -34,7 +42,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   });
   console.log('SAT_INTROSPECT',JSON.stringify(introspection));
   await page.evaluate(()=>{
-   const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map;
+   const m=window.__BP_STANDALONE_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD?.map;
    const gl=m.getCanvas().getContext('webgl2')||m.getCanvas().getContext('webgl'),pixels=new Uint8Array(40*40*4);
    const rows=[];
    m.on('render',()=>{
@@ -45,14 +53,14 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
      let br=0;for(let i=0;i<pixels.length;i+=4)br+=(pixels[i]+pixels[i+1]+pixels[i+2])/3;
      const st=m.style;
      let sourceCaches={};
-     for(const k of Object.getOwnPropertyNames(st).filter(k=>/cache/i.test(k))){
-      const v=st[k];if(!v||typeof v!=='object')continue;
-      for(const id of ['nasa','esri','usgs','oam']){
-       let cache=v[id]||v['raster '+id]||null;
-       if(!cache)continue;
-       const tiles=Object.values(cache._tiles||{});
-       sourceCaches[id]={state:cache._source?.loaded,tiles:tiles.length,loaded:tiles.filter(t=>t.state==='loaded').length,states:tiles.map(t=>t.state).slice(0,12)}
-      }
+     for(const id of ['nasa','esri','usgs','oam']){
+      const cache=st?.tileManagers?.[id];if(!cache)continue;
+      const inView=cache._inViewTiles;
+      const tiles=inView instanceof Map?[...inView.values()]:Object.values(inView||{});
+      const states=tiles.map(t=>t?.state||t?.tile?.state||'unknown');
+      sourceCaches[id]={tiles:tiles.length,loaded:states.filter(n=>n==='loaded').length,
+       states:states.slice(0,18),cacheSize:cache._outOfViewCache?.size||0,
+       sourceLoaded:cache._source?._loaded||false}
      }
      rows.push({t:Math.round(performance.now()),br:Math.round(br/1600),zoom:+m.getZoom().toFixed(3),
       moving:m.isMoving(),st:m.isStyleLoaded(),sourceLoaded:['nasa','esri'].map(id=>m.isSourceLoaded(id)),
