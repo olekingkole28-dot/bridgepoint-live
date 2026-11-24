@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><script type="module">
+import * as T from './vendor/three.module.js';
+import {electricMesh} from './effect.mjs';
+try {
+ const p={rings:[[[-75.01,39.99],[-74.99,39.99],[-74.99,40.01],[-75.01,40.01],[-75.01,39.99]]]};
+ const site={p,coord:[-75,40],seed:12,dx:.00012,dy:.00012,spacing:10};
+ const map={queryTerrainElevation:()=>100};
+ const effect=electricMesh(T,map,[site]);
+ if(!effect.scenes.length)throw Error('no scene');
+ const renderer=new T.WebGLRenderer({antialias:false,preserveDrawingBuffer:true});
+ renderer.setSize(256,256);renderer.setClearColor(0,1);
+ let errors=0;renderer.debug.checkShaderErrors=true;renderer.debug.onShaderError=()=>{errors++};
+ const camera=new T.PerspectiveCamera(50,1,.1,200);camera.position.set(16,24,22);camera.lookAt(0,0,0);
+ const scene=effect.scenes[0].scene;
+ const core=scene.children.find(x=>x.isLineSegments), mesh=scene.children.find(x=>x.isMesh);
+ if(!core||!mesh)throw Error('missing render objects');
+ const target=new T.WebGLRenderTarget(256,256);renderer.setRenderTarget(target);
+ function render(t){effect.uniforms.uTime.value=t;renderer.render(scene,camera);const px=new Uint8Array(256*256*4);renderer.readRenderTargetPixels(target,0,0,256,256,px);return px;}
+ function lit(px){let n=0;for(let i=0;i<px.length;i+=4)if(Math.max(px[i],px[i+1],px[i+2])>8)n++;return n;}
+ core.visible=false;
+ const a=render(.7),b=render(1.4);
+ let diff=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>8)diff++;
+ if(errors||lit(a)<10||lit(b)<10||diff<5)throw Error('shader pixels '+lit(a)+' '+lit(b)+' changed '+diff+' errors '+errors);
+ core.visible=true;mesh.visible=false;
+ const c=render(1.0);if(lit(c)<10||errors)throw Error('fallback pixels '+lit(c)+' errors '+errors);
+ document.getElementById('result').textContent='POWER_OUTAGE_WEBGL_PIXEL_PASS';
+ effect.dispose();target.dispose();renderer.dispose();
+} catch(e){document.getElementById('result').textContent='FAIL '+e.stack;}
+</script></head><body><pre id="result">PENDING</pre></body></html>
