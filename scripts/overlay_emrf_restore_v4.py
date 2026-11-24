@@ -17,8 +17,8 @@ def once(s,a,b):
     return s.replace(a,b,1)
 def star(s):
     s=once(s,"const OMM='/starlink-orbits-v2.json';","const OMM='/starlink-orbits-v2.json?emrf-restore=20261124-v4';")
-    s=once(s,"if(now-state.lastPaint>15000||state.recompute)","if(now-state.lastPaint>15000||state.recompute||state.lastMatrixZoom!==map.getZoom()||state.lastProjectionType!==map.getProjection?.()?.type)")
-    s=once(s,"state.recompute=false;updateMatrices();state.lastPaint=now;","state.recompute=false;state.lastMatrixZoom=map.getZoom();state.lastProjectionType=map.getProjection?.()?.type;updateMatrices();state.lastPaint=now;")
+    s=once(s,"if(now-state.lastPaint>15000||state.recompute)","if(now-state.lastPaint>15000||state.recompute||state.lastMatrixZoom!==Math.round(map.getZoom()*4)||state.lastProjectionType!==map.getProjection?.()?.type)")
+    s=once(s,"state.recompute=false;updateMatrices();state.lastPaint=now;","state.recompute=false;state.lastMatrixZoom=Math.round(map.getZoom()*4);state.lastProjectionType=map.getProjection?.()?.type;updateMatrices();state.lastPaint=now;")
     s=once(s,"if(!state.beams.count)return;","if(!state.beams.count){if(state.positions.length){state.recompute=true;map.triggerRepaint?.();}return;}")
     s=once(s,"// Other BridgePoint atmosphere layers can drive repaint; when static use\n    // slow re-render rather than running thousands of per-frame JS transforms.","// Draw each requested frame; independent animation must not depend on other overlays.\n    if(state.enabled&&state.positions.length)map.triggerRepaint?.();")
     s=once(s,"else void loadCatalog();","else await loadCatalog();")
