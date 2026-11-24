@@ -1,0 +1,177 @@
+name: Publish BridgePoint Turbine Icons Only V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-turbine-icons-only-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful single NASA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45470782893 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45470782893 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore only turbine global and close-zoom icons and visibility
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);name='bridgepoint-wind-turbines-v1.js';gate='bridgepoint-drone-awareness-v1.js'
+          allowed={name,'app/'+name,gate,'app/'+gate,'landing.js','app.js','index.html','app/index.html'}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          approved=(Path('rebuild-v5000')/name).read_text()
+          assert all(k in approved for k in ('GLOBAL_ICON_SOURCE_ID','GLOBAL_DOT_ID','GLOBAL_ICON_ID','state.persist='))
+          def one(s,a,b):
+              assert s.count(a)==1,('TURBINE_ANCHOR',a[:140],s.count(a))
+              return s.replace(a,b,1)
+          def transplant(s,start,end):
+              a=s.index(start);b=s.index(end,a+len(start));c=approved.index(start);d=approved.index(end,c+len(start))
+              return s[:a]+approved[c:d]+s[b:]
+          for rel in (name,'app/'+name):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              if 'const GLOBAL_ICON_SOURCE_ID' not in s:
+                  a=approved.index('const GLOBAL_ICON_SOURCE_ID');b=approved.index('const HALO_ID',a)
+                  s=one(s,'const HALO_ID',approved[a:b]+'const HALO_ID')
+              s=transplant(s,'function addFeatures(state,rows)','function modelCandidates(state)')
+              s=transplant(s,'function bindInteractions(state)','function install(map,state)')
+              # Keep existing model geometry and animation untouched. Persist the icon
+              # layers through style/camera changes and keep icons at close zoom.
+              s=one(s,'minzoom:4,maxzoom:MIN_MODEL_ZOOM+0.2,','minzoom:4,maxzoom:24,')
+              s=s.replace("'icon-pitch-alignment':'map','icon-rotation-alignment':'map'","'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'")
+              s=one(s,"'icon-size':['interpolate',['linear'],['zoom'],4,0.15,7,0.24,10,0.42,11.6,0.56]","'icon-size':['interpolate',['linear'],['zoom'],4,0.24,7,0.32,10,0.42,11.6,0.56,24,0.56]")
+              s=one(s,"'icon-size':['interpolate',['linear'],['zoom'],0,0.22,2,0.25,4,0.28]","'icon-size':['interpolate',['linear'],['zoom'],0,0.30,2,0.35,4,0.40]")
+              s=one(s,"if (state.map.getLayer(id)) state.map.setLayoutProperty(id,'visibility',on?'visible':'none');","if (state.map.getLayer(id)&&state.map.getLayoutProperty(id,'visibility')!==(on?'visible':'none')) state.map.setLayoutProperty(id,'visibility',on?'visible':'none');")
+              s=one(s,"if (state.map.getLayer(GLOBAL_ICON_ID)) state.map.setLayoutProperty(GLOBAL_ICON_ID,'visibility',on?'visible':'none');","if (state.map.getLayer(GLOBAL_ICON_ID)&&state.map.getLayoutProperty(GLOBAL_ICON_ID,'visibility')!==(on?'visible':'none')) state.map.setLayoutProperty(GLOBAL_ICON_ID,'visibility',on?'visible':'none');")
+              if 'state.persist=' not in s:
+                  a=approved.index('  state.persist=');b=approved.index('  if (map.isStyleLoaded',a)
+                  s=one(s,'  if (map.isStyleLoaded && map.isStyleLoaded()) ready();',approved[a:b]+'  if (map.isStyleLoaded && map.isStyleLoaded()) ready();')
+              s=one(s,'    get enabled(){return state.enabled;},','    get map(){return state.map;},\n    get enabled(){return state.enabled;},')
+              p.write_text(s)
+          for rel in (gate,'app/'+gate):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              s=one(s,"function layerAllowed(id){","function layerAllowed(id){\n  if(String(id).startsWith('bp-wind-turbines-'))return window.__BP_WIND_TURBINES_V1__?.enabled===true;")
+              s,n=re.subn(r"(function categoryForTarget\(target\)\{\s*if\(!target\)return null;)",r"\1\n if(target.id==='bp-wind-turbines-toggle-v1')return 'windturbines';",s);assert n==1
+              s=one(s,"energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i,","energy:/solar|wind[-_]?turbine|offshore[-_]?energy|renewable|energy-field/i,\n windturbines:/^bp-wind-turbines-/i,")
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(bridgepoint-wind-turbines-v1\.js)\?[^"\']+',r'\1?v=3-persistent-turbine-icons-20261124',s);assert n>=1,(rel,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              for script in (entry,gate):
+                  s,n=re.subn(r'('+re.escape(script)+r'\?[^"\s\']+)',lambda m:m[1]+'&turbineicons=20261124v1',s)
+                  assert n>=1,(rel,script,n)
+              assert all(k in s for k in ('timelinefooter=20261124v1','aircraftrestore=20261124v1','windbright=20261124v1','nooceanbutton=20261124v1','singlenasa=20261124v1'))
+              p.write_text(s)
+          assert before==snap(),'Unexpected unrelated asset changed'
+          print('TURBINE_ICONS_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          for f in bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js landing.js app.js; do node --input-type=module --check < "$SITE/$f"; done
+          node --check "$SITE/bridgepoint-drone-awareness-v1.js"
+          test -s "$SITE/data/bridgepoint-uswtdb-turbines-v9_1.json"
+      - name: Test actual mobile turbine button and rendered map icons
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/turbine-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            let errors=0;page.on('pageerror',e=>{if(errors++<6)console.log('PAGE_ERROR',e.message)});
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
+              if(rel===''||rel==='index.html'||rel==='app/'||rel==='app/index.html'||rel==='landing.js'||rel==='app.js'||rel.endsWith('bridgepoint-wind-turbines-v1.js')||rel.endsWith('bridgepoint-drone-awareness-v1.js')){
+                const f=path.join(process.env.BP_SITE,rel===''?'index.html':rel==='app/'?'app/index.html':rel);
+                if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.js')?'text/javascript':'text/html',body:fs.readFileSync(f)});
+              }
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?turbine-icons-verify=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>window.__BP_MOBILE_CARD_V2__?.ready&&window.__BP_WIND_TURBINES_V1__?.map&&document.getElementById('bp-wind-turbines-toggle-v1'),null,{timeout:120000});
+            await page.evaluate(()=>{const a=window.__BP_WIND_TURBINES_V1__;a.map.jumpTo({center:[-98,38],zoom:2.3,pitch:0});const b=document.getElementById('bp-wind-turbines-toggle-v1');document.querySelector('[data-bpv-v2-tab="'+b.dataset.bpvV2Category+'"]')?.click();b.click()});
+            await page.waitForFunction(()=>{const a=window.__BP_WIND_TURBINES_V1__,m=a.map;return a.enabled&&a.features>1000&&m.getLayer('bp-wind-turbines-global-icons-v1')&&m.getLayoutProperty('bp-wind-turbines-global-icons-v1','visibility')==='visible'&&m.queryRenderedFeatures({layers:['bp-wind-turbines-global-icons-v1','bp-wind-turbines-global-dots-v2']}).length>0},null,{timeout:150000}).catch(async e=>{console.log('TURBINE_DIAGNOSTIC',await page.evaluate(()=>{const a=window.__BP_WIND_TURBINES_V1__;return {stats:a.stats,status:a.status,enabled:a.enabled,zoom:a.map.getZoom()}}));throw e});
+            const result=await page.evaluate(()=>{const a=window.__BP_WIND_TURBINES_V1__,m=a.map;return {records:a.features,icons:m.queryRenderedFeatures({layers:['bp-wind-turbines-global-icons-v1']}).length,dots:m.queryRenderedFeatures({layers:['bp-wind-turbines-global-dots-v2']}).length}});
+            console.log('TURBINE_GLOBAL_RENDER',JSON.stringify(result));assert(result.icons>0);
+            await page.evaluate(()=>window.__BP_WIND_TURBINES_V1__.map.jumpTo({center:[-100,33],zoom:6,pitch:0}));
+            await page.waitForFunction(()=>{const m=window.__BP_WIND_TURBINES_V1__.map;return m.getLayoutProperty('bp-wind-turbines-markers-v1','visibility')==='visible'&&m.queryRenderedFeatures({layers:['bp-wind-turbines-markers-v1']}).length>0},null,{timeout:90000});
+            await page.evaluate(()=>document.getElementById('bp-wind-turbines-toggle-v1').click());
+            await page.waitForFunction(()=>{const a=window.__BP_WIND_TURBINES_V1__;return !a.enabled&&a.map.getLayoutProperty('bp-wind-turbines-global-icons-v1','visibility')==='none'&&a.map.getLayoutProperty('bp-wind-turbines-markers-v1','visibility')==='none'},null,{timeout:30000});
+            console.log('TURBINE_GLOBAL_LOCAL_ON_OFF_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live turbine icons and preserved globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js world-v2300-time-slider.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_TURBINE_ICONS_LIVE_PASS
