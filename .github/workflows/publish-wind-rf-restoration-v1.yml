@@ -64,7 +64,8 @@ jobs:
               assert 'async function toggleUnifiedWindRfJets(button)' in s
               old="if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}"
               if old in s:
-                  s=one(s,old,"if(a==='volumetric'){if(b.disabled)return;b.disabled=true;void toggleUnifiedWindRfJets(b).catch(e=>{console.warn('BridgePoint Wind/RF/Jets unavailable',e);showActionNotice('Wind / RF / Jets could not activate: '+String(e?.message||e))}).finally(()=>{b.disabled=false});return}")
+                  assert 1<=s.count(old)<=2, ('WIND_BUTTON_HANDLERS',s.count(old))
+                  s=s.replace(old,"if(a==='volumetric'){if(b.disabled)return;b.disabled=true;void toggleUnifiedWindRfJets(b).catch(e=>{console.warn('BridgePoint Wind/RF/Jets unavailable',e);showActionNotice('Wind / RF / Jets could not activate: '+String(e?.message||e))}).finally(()=>{b.disabled=false});return}")
               else:
                   assert 'toggleUnifiedWindRfJets(b)' in s
               # Preserve all other button handlers; only change this module's import cache.
