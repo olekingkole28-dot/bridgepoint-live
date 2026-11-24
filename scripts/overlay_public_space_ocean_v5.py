@@ -25,7 +25,7 @@ s=one(s,"function syncMapCanvas(distanceRatio, earthProjection) {","""function s
         return 1;
       }""")
 # Actual solar system control stays visible and out of the existing map buttons.
-s=one(s,"style.textContent = STYLE;","""style.textContent = STYLE + \`
+s=one(s,"style.textContent = STYLE;","""style.textContent = STYLE + `
       #bpWelcomeGateV1.bp-public-earth-overview{z-index:4!important;pointer-events:none!important}
       #bpWelcomeGateV1.bp-public-earth-overview .bpw-space-renderer-canvas{pointer-events:none!important}
       #bpWelcomeGateV1.bp-public-earth-overview .bpw-space-controls{top:clamp(72px,13vh,112px)!important;right:12px!important;z-index:100!important;pointer-events:auto!important;opacity:1!important}
@@ -34,7 +34,7 @@ s=one(s,"style.textContent = STYLE;","""style.textContent = STYLE + \`
       #bpWelcomeGateV1.bp-public-earth-overview .bpw-celestial-system{pointer-events:none!important}
       #bpAppSpaceToggleV1{display:inline-flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
       @media(max-width:620px){#bpWelcomeGateV1.bp-public-earth-overview .bpw-space-controls{top:76px!important;right:7px!important;max-width:55vw!important}}
-      \`;""")
+      `;""")
 # Startup does NOT call focusGlobalMapForSpace or the distant solar-cosmos camera.
 s=one(s,"async function openExplorer() {","""async function openExplorer(options={}) {
       publicOverview=options.publicOverview===true;""")
