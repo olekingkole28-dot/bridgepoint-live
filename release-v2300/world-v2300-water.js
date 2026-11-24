@@ -530,6 +530,53 @@ function buildShaders(gl, shaderDescription) {
   return { program, uniforms, attributes };
 }
 
+
+/* The ocean is a MapLibre custom layer sharing its WebGL context with imagery,
+ * weather, icons and every other custom renderer.  Never leave our blend/depth,
+ * shader, vertex-array, or vertex-buffer bindings in the map's next draw. */
+function captureWaterGLState(gl, locations, isolatedVao) {
+  const param = name => { try { return gl.getParameter(name); } catch (_) { return null; } };
+  const attrs = isolatedVao ? [] : [...new Set(locations.filter(n => Number.isInteger(n) && n >= 0))].map(location => {
+    try {
+      return { location, enabled: !!gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
+        buffer: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
+        size: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+        type: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+        normalized: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+        stride: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+        offset: gl.getVertexAttribOffset(location, gl.VERTEX_ATTRIB_ARRAY_POINTER) };
+    } catch (_) { return null; }
+  }).filter(Boolean);
+  return { program: param(gl.CURRENT_PROGRAM), arrayBuffer: param(gl.ARRAY_BUFFER_BINDING),
+    blend: gl.isEnabled(gl.BLEND), depthMask: param(gl.DEPTH_WRITEMASK),
+    srcRgb: param(gl.BLEND_SRC_RGB), dstRgb: param(gl.BLEND_DST_RGB),
+    srcAlpha: param(gl.BLEND_SRC_ALPHA), dstAlpha: param(gl.BLEND_DST_ALPHA),
+    vertexArray: isolatedVao ? param(gl.VERTEX_ARRAY_BINDING) : null,
+    isolatedVao: !!isolatedVao, attrs };
+}
+function restoreWaterGLState(gl, state) {
+  if (!state) return;
+  try { if (state.isolatedVao) gl.bindVertexArray(state.vertexArray); } catch (_) {}
+  if (!state.isolatedVao) for (const a of state.attrs) {
+    try {
+      if (a.buffer) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, a.buffer);
+        gl.vertexAttribPointer(a.location, a.size, a.type, !!a.normalized, a.stride, a.offset);
+      }
+      if (a.enabled) gl.enableVertexAttribArray(a.location);
+      else gl.disableVertexAttribArray(a.location);
+    } catch (_) {}
+  }
+  try { if (state.blend) gl.enable(gl.BLEND); else gl.disable(gl.BLEND); } catch (_) {}
+  try {
+    if ([state.srcRgb, state.dstRgb, state.srcAlpha, state.dstAlpha].every(v => v != null))
+      gl.blendFuncSeparate(state.srcRgb, state.dstRgb, state.srcAlpha, state.dstAlpha);
+  } catch (_) {}
+  try { if (state.depthMask != null) gl.depthMask(state.depthMask); } catch (_) {}
+  try { gl.useProgram(state.program); } catch (_) {}
+  try { gl.bindBuffer(gl.ARRAY_BUFFER, state.arrayBuffer); } catch (_) {}
+}
+
 function createLayer(api, map) {
   return {
     id: LAYER_ID,
@@ -541,6 +588,7 @@ function createLayer(api, map) {
     map,
     buffer: null,
     flowBuffer: null,
+    waterVao: null,
     surfaceData: new Float32Array(0),
     flowData: new Float32Array(0),
     surfaceVertexCount: 0,
@@ -557,6 +605,7 @@ function createLayer(api, map) {
       this.gl = gl;
       this.buffer = gl.createBuffer();
       this.flowBuffer = gl.createBuffer();
+      this.waterVao = typeof gl.createVertexArray === 'function' ? gl.createVertexArray() : null;
       this.upload();
       api.contextReady = true;
       api.glContextShared = true;
@@ -572,11 +621,15 @@ function createLayer(api, map) {
     upload() {
       if (!this.gl || !this.buffer || !this.flowBuffer) return;
       const gl = this.gl;
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-      gl.bufferData(gl.ARRAY_BUFFER, this.surfaceData, gl.STATIC_DRAW);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.flowBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, this.flowData, gl.STATIC_DRAW);
-      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      const priorBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
+      try {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.surfaceData, gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.flowBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.flowData, gl.STATIC_DRAW);
+      } finally {
+        gl.bindBuffer(gl.ARRAY_BUFFER, priorBuffer);
+      }
     },
     setGeometry(surfaceValues, flowValues) {
       this.surfaceData = new Float32Array(surfaceValues);
@@ -607,11 +660,13 @@ function createLayer(api, map) {
     render(gl, args) {
       if (!this.enabled || (!this.surfaceVertexCount && !this.flowVertexCount) || !api.active) return;
       const now = performance.now();
-      let info;
+      let info, savedWaterState = null;
       try {
         const program = this.getShader(gl, args.shaderData);
         info = this.shaderInfo.get(args.shaderData.variantName);
         if (!info) return;
+        savedWaterState = captureWaterGLState(gl, Object.values(info.attributes), !!this.waterVao);
+        if (this.waterVao) gl.bindVertexArray(this.waterVao);
         gl.useProgram(program);
         this.applyProjection(gl, info.uniforms, args);
         const scene = this.scene();
@@ -694,10 +749,7 @@ function createLayer(api, map) {
           this.bindAttributes(gl, info.attributes, this.flowBuffer);
           gl.drawArrays(gl.TRIANGLES, 0, this.flowVertexCount);
         }
-        gl.depthMask(true);
-        // Leave blending enabled for later translucent MapLibre style layers.
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        gl.useProgram(null);
+        // State restoration belongs in finally, even if drawing or scheduling fails.
         this.lastRender = now;
         api.lastDrawAt = Date.now();
         if (api.active && !document.hidden && !this.frameTimer) {
@@ -712,6 +764,12 @@ function createLayer(api, map) {
         api.shaderError = this.shaderError;
         this.enabled = false;
         console.warn('BridgePoint GPU water shader unavailable; native water remains enabled', error);
+      } finally {
+        restoreWaterGLState(gl, savedWaterState);
+        if (savedWaterState) {
+          api.glStateRestoredFrames = (api.glStateRestoredFrames || 0) + 1;
+          api.lastGLStateRestoredAt = Date.now();
+        }
       }
     },
     onRemove(mapRef, gl) {
@@ -719,6 +777,8 @@ function createLayer(api, map) {
       try { if (this.buffer) gl.deleteBuffer(this.buffer); } catch (_) {}
       try { if (this.flowBuffer) gl.deleteBuffer(this.flowBuffer); } catch (_) {}
       for (const program of this.shaderMap.values()) { try { gl.deleteProgram(program); } catch (_) {} }
+      try { if (this.waterVao) gl.deleteVertexArray(this.waterVao); } catch (_) {}
+      this.waterVao = null;
       this.shaderMap.clear();
       this.shaderInfo.clear();
       this.buffer = this.flowBuffer = null;
@@ -759,7 +819,7 @@ export function initWaterEngine(mapOrWorld, options = {}) {
   const low = Number(navigator.deviceMemory || 4) <= 3 || Number(navigator.hardwareConcurrency || 4) <= 4;
   const api = {
     version: VERSION, surfaceRenderRevision: SURFACE_RENDER_REVISION, waveModel: 'three-component-gerstner-vertex-displacement', map, options, enabled: true, active: true, mobile, low,
-    contextReady: false, glContextShared: true, shaderError: null, lastDrawAt: 0, animationTimeSeconds: 0,
+    contextReady: false, glContextShared: true, glStateIsolated: true, glStateRestoredFrames: 0, lastGLStateRestoredAt: null, shaderError: null, lastDrawAt: 0, animationTimeSeconds: 0,
     waterPolygonCells: 0, oceanFallbackCells: 0, flowSegments: 0, surfaceVertexCount: 0, flowVertexCount: 0,
     flowSegmentsWithSourceVelocity: 0, flowSegmentsUsingVisualFallback: 0, maxSourceStreamVelocityMps: 0,
     flowVelocityDataPolicy: 'Explicit unit-labelled velocity fields are consumed as source speed; absent measurements use clearly marked visual-only class fallback.',

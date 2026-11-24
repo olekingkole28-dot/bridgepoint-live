@@ -2,15 +2,6 @@ name: Publish BridgePoint Always-On Liquid Water v1
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-always-on-water-v1.yml'
-      - 'release-v2300/world-v2300-water.js'
-      - 'release-v2300/world-v2300-sensor-layers.js'
-      - 'rebuild-v5000/app.js'
-      - 'rebuild-v5000/landing.js'
-      - 'scripts/overlay_always_on_water_v1.py'
 
 permissions:
   contents: read
