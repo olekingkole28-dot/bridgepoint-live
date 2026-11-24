@@ -1,0 +1,168 @@
+name: Publish BridgePoint Idle Globe Frame Stability V2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-globe-idle-frame-v2.yml'
+      - 'release-v2300/world-v2300-map.js'
+      - 'tests/globe-idle-frame-buffer-v2.test.mjs'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify idle framebuffer compositing policy and preserved world effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-map.js
+          node tests/globe-idle-frame-buffer-v2.test.mjs
+
+      - name: Select the newest successful complete production snapshot
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          set -euo pipefail
+          RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=success&branch=main&per_page=100" --jq '.workflow_runs[].id')"
+          for run_id in $RUNS; do
+            candidate="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]? | select((.expired|not) and (.name | startswith("bridgepoint-v5000-"))) | .name' | head -n 1 || true)"
+            if [ -n "$candidate" ]; then
+              echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+              echo "artifact_name=$candidate" >> "$GITHUB_OUTPUT"
+              echo "PRESERVED_LATEST_PRODUCTION run=$run_id artifact=$candidate"
+              exit 0
+            fi
+          done
+          echo "No complete production snapshot; refusing unsafe full rebuild" >&2
+          exit 1
+
+      - name: Download the preserved production snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{ steps.baseline.outputs.artifact_name }}"
+          run-id: "${{ steps.baseline.outputs.run_id }}"
+          repository: "${{ github.repository }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          path: "${{ runner.temp }}/bp-preserved"
+
+      - name: Change only core MapLibre idle framebuffer options and module cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="$RUNNER_TEMP/bp-globe-idle-frame-site"
+          mkdir -p "$site"
+          archive="$(find "$RUNNER_TEMP/bp-preserved" -type f -name artifact.tar -print -quit)"
+          test -n "$archive"
+          tar -xf "$archive" -C "$site"
+          test -s "$site/index.html"
+          test -s "$site/app/index.html"
+          test -s "$site/landing.js"
+          test -s "$site/app.js"
+          test -s "$site/world-v2300-map.js"
+          test -s "$site/app/world-v2300-map.js"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, os, re
+          site=Path(os.environ['RUNNER_TEMP'])/'bp-globe-idle-frame-site'
+          touched={'index.html','app/index.html','landing.js','app.js',
+                   'world-v2300-map.js','app/world-v2300-map.js'}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                      for p in site.rglob('*') if p.is_file()
+                      and p.relative_to(site).as_posix() not in touched}
+          before=snapshot()
+          key='idleframe-20261123-v2'
+          entry='idleframe-20261123-entry-v2'
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+              (site/rel).write_bytes(Path('release-v2300/world-v2300-map.js').read_bytes())
+          for rel in ('landing.js','app.js'):
+              path=site/rel
+              original=path.read_text(encoding='utf-8')
+              updated, count=re.subn(r'world-v2300-map\.js\?v=[^\s\x22\x27)]+',
+                  'world-v2300-map.js?v='+key, original)
+              if count<1: raise SystemExit('MISSING_MAP_LOADER: '+rel)
+              if updated.replace('world-v2300-map.js?v='+key,
+                  'world-v2300-map.js?v=') == original:
+                  raise SystemExit('MAP_CACHE_KEY_NOT_CHANGED: '+rel)
+              path.write_text(updated,encoding='utf-8')
+              print('MAP_IMPORT_CACHE_REFRESH',rel,count)
+          for rel,stem in (('index.html','landing.js'),('app/index.html','app.js')):
+              path=site/rel
+              html=path.read_text(encoding='utf-8')
+              # Replace only the main entry v= token, preserving all remaining query args.
+              pattern=r'('+re.escape(stem)+r'\?v=)[^&\s\x22\x27]+'
+              updated,count=re.subn(pattern,lambda m:m.group(1)+entry,html,count=1)
+              if count!=1: raise SystemExit('ENTRY_SCRIPT_NOT_FOUND: '+rel)
+              path.write_text(updated,encoding='utf-8')
+              print('ENTRY_SCRIPT_CACHE_REFRESH',rel)
+          if snapshot()!=before: raise SystemExit('UNRELATED_PRODUCTION_FILE_CHANGED')
+          for marker in ('bridgepoint-neo-watch-v1.js','bridgepoint-conflict-zones-v1.js',
+                         'bridgepoint-earth-protection-v1.js'):
+              if not (site/marker).is_file():
+                  raise SystemExit('LATEST_FEATURE_MISSING_FROM_BASELINE: '+marker)
+          print('OTHER_PRODUCTION_FILES_BYTE_PRESERVED',len(before))
+          print('ONLY_MAP_FRAMEBUFFER_AND_ENTRY_CACHE_KEYS_CHANGED')
+          PY
+          node --input-type=module --check < "$site/world-v2300-map.js"
+          node --check "$site/landing.js"
+          node --check "$site/app.js"
+          cmp "$site/world-v2300-map.js" "$site/app/world-v2300-map.js"
+          cmp "$site/world-v2300-map.js" release-v2300/world-v2300-map.js
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload existing production with retained idle map framebuffer
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: "${{ runner.temp }}/bp-globe-idle-frame-site"
+          include-hidden-files: true
+
+      - name: Deploy same BridgePoint GitHub Pages production
+        id: deployment
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: node scripts/deploy-pages-extended.mjs
+
+      - name: Verify retained globe frame renderer and refreshed imports publicly live
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          out="$RUNNER_TEMP/bp-globe-idle-frame-live"
+          mkdir -p "$out"
+          for spec in "index.html" "app/" "landing.js" "app.js" "world-v2300-map.js" "app/world-v2300-map.js"; do
+            label="$(printf '%s' "$spec" | tr '/.' '__')"
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL \
+              -H 'Cache-Control: no-cache' "$ORIGIN/$spec?verify=$GITHUB_SHA-idleframe" -o "$out/$label"
+          done
+          cmp "$out/world-v2300-map_js" release-v2300/world-v2300-map.js
+          cmp "$out/app_world-v2300-map_js" release-v2300/world-v2300-map.js
+          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v2' "$out/landing_js"
+          grep -Fq 'world-v2300-map.js?v=idleframe-20261123-v2' "$out/app_js"
+          grep -Fq 'landing.js?v=idleframe-20261123-entry-v2' "$out/index_html"
+          grep -Fq 'app.js?v=idleframe-20261123-entry-v2' "$out/app_"
+          echo 'BRIDGEPOINT_IDLE_WEBGL_FRAMEBUFFER_STABILITY_PUBLISHED_ROOT_AND_APP'
