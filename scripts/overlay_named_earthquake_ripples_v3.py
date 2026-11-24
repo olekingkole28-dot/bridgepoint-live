@@ -108,7 +108,12 @@ function buildRippleFrame(geojson, now, shakemapCache = null) {
     return s
 for rel in ("world-v2300-seismic-layer-v1.js","app/world-v2300-seismic-layer-v1.js"):
     p=site/rel
-    p.write_text(patch(p.read_text(encoding="utf-8")),encoding="utf-8")
+    live=p.read_text(encoding="utf-8")
+    if "const RIPPLE_LAYER_ID = 'bp-usgs-seismic-ripple-lines-v1';" not in live:
+        assert "source-reported epicenter points only" in live and "export function initUSGSSeismicLayer(world)" in live, ("Unexpected deployed seismic module", rel)
+        live=Path("release-v2300/world-v2300-seismic-layer-v1.js").read_text(encoding="utf-8")
+        print("Restoring repository V2 impact boundary functions into points-only production module",rel)
+    p.write_text(patch(live),encoding="utf-8")
 for rel in ("landing.js","app.js"):
     p=site/rel
     s=p.read_text(encoding="utf-8")
