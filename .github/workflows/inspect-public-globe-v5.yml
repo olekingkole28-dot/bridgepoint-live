@@ -1,6 +1,9 @@
 name: Inspect Public Globe and Ocean in Chromium
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ['Publish BridgePoint Real Space and Moving Ocean Recovery V5']
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -10,6 +13,7 @@ permissions:
   contents: read
 jobs:
   inspect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
