@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const map=readFileSync(new URL('../release-v2300/world-v2300-map.js',import.meta.url),'utf8');
+const constructor=map.match(/const map=new maplibregl\.Map\(\{[^\n]+/);
+assert.ok(constructor,'existing MapLibre globe initializer retained');
+assert.match(constructor[0],/preserveDrawingBuffer:true/,'keep the last fully rendered frame for GPU compositor at idle');
+assert.match(constructor[0],/refreshExpiredTiles:false/,'expired raster cache swaps cannot interrupt stationary globe');
+assert.match(constructor[0],/cancelPendingTileRequestsWhileZooming:false/,'normal navigation keeps in-flight imagery');
+assert.match(constructor[0],/renderWorldCopies:false/,'globe projection continuity retained');
+assert.match(map,/__BP_IDLE_GLOBE_FRAME_V2__=/,'diagnostic policy exposed to device inspector');
+for(const id of ['gta-nasa','gta-esri','gta-usgs','gta-oam'])assert.ok(map.includes("id:'"+id+"'"),'satellite raster retained: '+id);
+assert.match(map,/map\.on\('render',\(\)=>keepSatelliteRasterLayersVisible\('render'\)\)/,'previous satellite guard retained');
+assert.match(map,/const space=null/,'existing Earth/space module ownership unaffected');
+assert.match(map,/\bsolarTimer=setInterval\(updateWorldLight,300000\)/,'day-night cycle preserved');
+console.log('BRIDGEPOINT_IDLE_FRAMEBUFFER_GPU_COMPOSITING_TEST_PASS');
