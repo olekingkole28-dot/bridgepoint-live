@@ -22,7 +22,6 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/publish-persistent-overlay-visibility-v1.yml'
       - 'rebuild-v5000/bridgepoint-drone-awareness-v1.js'
       - 'rebuild-v5000/bridgepoint-subsurface-wells-v1.js'
       - 'rebuild-v5000/bridgepoint-underground-scan-scenes-v2.js'
@@ -34,7 +33,6 @@ on:
       - 'tests/vessel-awareness.test.mjs'
       - 'tests/underground-scan-scenes-v2.test.mjs'
       - 'tests/globe-renderer-recovery.test.mjs'
-      - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-seismic-layer-v1.js'
       - 'patches/lighthouse-v3/bridgepoint-lighthouses-v1.js'
       - 'tests/lighthouse-hotfix-v3.test.mjs'
