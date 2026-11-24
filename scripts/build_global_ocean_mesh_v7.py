@@ -45,7 +45,7 @@ for j in range(N):
 assert len(raw)%12==0 and 10000<len(raw)<1800000,len(raw)
 assert area/ocean.area>.999,('coverage area',area/ocean.area)
 tree=STRtree(triangles)
-for lon,lat in [(-40,20),(-150,20),(150,-25),(80,-20),(0,-50),(-100,-50),(175,55),(-175,55),(30,80),(0,0),(-179,0),(179,0),(60,-55),(-130,45)]:
+for lon,lat in [(-40,20),(-150,20),(160,-25),(80,-20),(0,-50),(-100,-50),(175,55),(-175,55),(0,82),(0,0),(-179,0),(179,0),(60,-55),(-130,45)]:
     p=Point(*merc(lon,lat))
     assert any(triangles[k].covers(p) for k in tree.query(p)),('missing ocean sample',lon,lat)
 for lon,lat in [(-100,40),(-55,-10),(20,10),(90,45),(135,-25),(15,50)]:
