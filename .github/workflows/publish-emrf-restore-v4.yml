@@ -1,0 +1,119 @@
+name: Publish BridgePoint Global EMRF Restore V4
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-emrf-restore-v4.yml'
+      - 'scripts/overlay_emrf_restore_v4.py'
+      - 'scripts/test_emrf_restore_v4.mjs'
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download latest confirmed power outage V7 production artifact with bounded retries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45449617249 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then
+              echo "Verified outage V7 baseline downloaded"
+              exit 0
+            fi
+            echo "Baseline download attempt $attempt failed; retrying"
+            sleep 5
+          done
+          exit 1
+      - name: Restore only EMRF files and refresh real orbital catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 scripts/build_starlink_catalog_v2.py "$RUNNER_TEMP/starlink-fresh.json"
+          python3 scripts/overlay_emrf_restore_v4.py "$SITE" "$RUNNER_TEMP/starlink-fresh.json"
+          for f in bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js app/bridgepoint-emrf-starlink-global-v2.js; do node --input-type=module --check < "$SITE/$f"; done
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          grep -Fq "if(value.startsWith('bp-emrf-')" "$SITE/bridgepoint-drone-awareness-v1.js"
+      - name: Verify actual refreshed orbit propagation and native globe activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          export BP_SITE="$SITE"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const root=process.env.BP_SITE;
+          const source=fs.readFileSync(root+'/bridgepoint-emrf-starlink-global-v2.js','utf8');
+          const m=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+          const doc=JSON.parse(fs.readFileSync(root+'/starlink-orbits-v2.json','utf8'));
+          assert(doc.record_count>=2500&&doc.recent_72h>=2000);
+          const positions=m.selectStarlinkCatalogV2(doc.records,2800).map(x=>m.propagateStarlinkOmmV2(x)).filter(Boolean);
+          assert(positions.length>=2000);
+          assert(positions.every(x=>Number.isFinite(x.altitudeM)&&x.altitudeM>90000));
+          console.log('EMRF_SOURCE_ORBITS_PASS',positions.length);
+          JS
+          TEST="$RUNNER_TEMP/emrf-browser"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          cp scripts/test_emrf_restore_v4.mjs "$TEST/test.mjs"
+          python3 -m http.server 8769 --bind 127.0.0.1 --directory "$SITE" > "$TEST/server.log" 2>&1 &
+          SERVER=$!
+          trap 'kill "$SERVER" || true' EXIT
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:8769/index.html >/dev/null && break; sleep 1; done
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bp-liquid-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then echo "Indexed artifact $ID"; sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live files
+        shell: bash
+        run: |
+          set -euo pipefail
+          O=https://bridgepointintelligence.online
+          SITE="$RUNNER_TEMP/bp-liquid-site"
+          for p in bridgepoint-emrf-starlink-global-v2.js app/bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js starlink-orbits-v2.json bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-wildfires-volumetric-v1.js bridgepoint-view-v5917.js app.js landing.js index.html app/index.html world-v2300-seismic-layer-v1.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js world-v2300-water.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "$O/$p?wildfire=$GITHUB_SHA" -o "$RUNNER_TEMP/wildfire-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wildfire-live"
+          done
+          echo BRIDGEPOINT_EMRF_RESTORE_V4_LIVE_PASS
