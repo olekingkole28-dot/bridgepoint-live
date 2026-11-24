@@ -1,0 +1,157 @@
+name: Publish BridgePoint Independent Building Card V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-independent-building-card-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact successful turbine performance release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45473677961 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 150s gh run download 45473677961 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Move only existing building inspectors outside the bottom dock
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          export SITE
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);name='bridgepoint-view-v5917.js'
+          allowed={name,'app/'+name,'index.html','app/index.html'}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('BUILDING_CARD_ANCHOR',a[:140],s.count(a))
+              return s.replace(a,b,1)
+          for rel in (name,'app/'+name):
+              p=site/rel
+              if not p.exists():continue
+              s=p.read_text()
+              s=one(s,"const propertySlot=$('#bpv-property-card-slot');if(propertySlot&&previewCard.parentElement!==propertySlot)propertySlot.appendChild(previewCard);","if(previewCard.parentElement!==document.body)document.body.appendChild(previewCard);previewCard.classList.add('bpv-independent-building-card');if(!previewCard.querySelector('#bpv-close-public-building')){const close=document.createElement('button');close.id='bpv-close-public-building';close.type='button';close.textContent='×';close.setAttribute('aria-label','Close building details');close.addEventListener('click',()=>{previewCard.hidden=true});previewCard.prepend(close);}")
+              s=one(s,"const propertySlot=$('#bpv-property-card-slot');if(bp&&propertySlot&&bp.parentElement!==propertySlot)propertySlot.appendChild(bp);","if(bp){if(bp.parentElement!==document.body)document.body.appendChild(bp);bp.classList.add('bpv-independent-building-card');}")
+              p.write_text(s)
+          css="""<style id="bpv-independent-building-card-css">
+          body.bpv-home #previewCard.bpv-independent-building-card,body.bpv-app #buildingPanel.bpv-independent-building-card{position:fixed!important;z-index:calc(var(--bpv-ui-z,1200) + 30)!important;top:max(76px,env(safe-area-inset-top))!important;bottom:auto!important;right:12px!important;left:auto!important;width:min(430px,calc(100vw - 24px))!important;max-height:calc(100dvh - 100px)!important;height:auto!important;overflow:auto!important;overscroll-behavior:contain;box-sizing:border-box;pointer-events:auto}
+          body #previewCard.bpv-independent-building-card[hidden],body #buildingPanel.bpv-independent-building-card[hidden]{display:none!important}
+          #bpv-close-public-building{float:right;position:sticky;top:0;z-index:2;min-width:36px;min-height:36px;font-size:22px!important;padding:0!important;margin:0 0 6px 8px;border-radius:10px}
+          @media(max-width:700px){body.bpv-home #previewCard.bpv-independent-building-card,body.bpv-app #buildingPanel.bpv-independent-building-card{top:max(64px,env(safe-area-inset-top))!important;left:8px!important;right:8px!important;width:auto!important;max-height:calc(100dvh - 88px)!important}}
+          </style>"""
+          for rel in ('index.html','app/index.html'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'((?:data-bp-deferred-src|src)=["\'][^"\']*bridgepoint-view-v5917\.js[^"\']*)(["\'])',lambda m:m[1]+('&' if '?' in m[1] else '?')+'buildingcard=20261124v1'+m[2],s);assert n>=1,(rel,n)
+              assert s.count('</head>')==1
+              s=s.replace('</head>',css+'\n</head>',1)
+              assert all(k in s for k in ('turbineperf=20261124v1','turbineicons=20261124v1','singlenasa=20261124v1','timelinefooter=20261124v1'))
+              p.write_text(s)
+          assert before==snap(),'Unexpected unrelated asset changed'
+          print('BUILDING_CARD_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-view-v5917.js"
+      - name: Verify mobile independent building card and original contents
+        run: |
+          set -euo pipefail
+          TEST="$RUNNER_TEMP/building-card-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          export BP_SITE="$RUNNER_TEMP/wind-site"
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+            await page.route('https://bridgepointintelligence.online/**',async route=>{
+              const u=new URL(route.request().url()),rel=u.pathname.replace(/^\//,'');
+              if(rel===''||rel==='index.html'||rel==='app/'||rel==='app/index.html'||rel.endsWith('bridgepoint-view-v5917.js')){
+                const f=path.join(process.env.BP_SITE,rel===''?'index.html':rel==='app/'?'app/index.html':rel);
+                if(fs.existsSync(f))return route.fulfill({status:200,contentType:rel.endsWith('.js')?'text/javascript':'text/html',body:fs.readFileSync(f)});
+              }
+              return route.continue();
+            });
+            await page.goto('https://bridgepointintelligence.online/?building-card-verify=20261124v1',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>window.__BP_MOBILE_CARD_V2__?.ready&&document.querySelector('#previewCard.bpv-independent-building-card #bpv-home-property-slots'),null,{timeout:120000});
+            // Exercise the same inspector visibility transition used by the existing building hit handler.
+            // No external property backend is required to verify the mount and layout contract.
+            const r=await page.evaluate(()=>{
+              const c=document.getElementById('previewCard'),d=document.getElementById('bpv-dock');
+              if(d.hidden)document.getElementById('bpv-dock-reopen')?.click();
+              const before=d.getBoundingClientRect().height;
+              c.hidden=false;const rect=c.getBoundingClientRect(),style=getComputedStyle(c);
+              return {outside:c.parentElement===document.body&&!d.contains(c),fixed:style.position==='fixed',visible:rect.width>0&&rect.height>0,withinViewport:rect.left>=0&&rect.right<=innerWidth+1&&rect.bottom<=innerHeight+1,aboveDock:Number(style.zIndex)>Number(getComputedStyle(d).zIndex),tabs:c.querySelectorAll('[data-preview-cap]').length,slots:!!c.querySelector('#bpv-home-property-slots'),details:!!c.querySelector('#previewTitle')&&!!c.querySelector('#previewMeta'),dockUnchanged:before===d.getBoundingClientRect().height};
+            });
+            console.log('INDEPENDENT_PUBLIC_BUILDING_CARD',JSON.stringify(r));assert(r.outside&&r.fixed&&r.visible&&r.withinViewport&&r.aboveDock&&r.tabs>=8&&r.slots&&r.details&&r.dockUnchanged);
+            await page.evaluate(()=>document.getElementById('bpv-close-public-building').click());
+            assert(await page.evaluate(()=>document.getElementById('previewCard').hidden&&getComputedStyle(document.getElementById('previewCard')).display==='none'));
+            // The authenticated inspector uses the same independent mount; verify the exact
+            // shipped app DOM contract without signing into or altering an account.
+            const app=fs.readFileSync(path.join(process.env.BP_SITE,'app/index.html'),'utf8');
+            const view=fs.readFileSync(path.join(process.env.BP_SITE,'bridgepoint-view-v5917.js'),'utf8');
+            assert(app.includes('id="buildingPanel"')&&app.includes('id="closeBuilding"')&&app.includes('bpv-independent-building-card-css')&&view.includes("document.body.appendChild(bp);bp.classList.add('bpv-independent-building-card')")&&view.includes('installAppSlots()'));
+            console.log('BUILDING_CARD_STANDALONE_MOBILE_PASS');
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wind-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live standalone building card and preserved globe
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/wind-site"
+          for p in bridgepoint-wind-turbines-v1.js app/bridgepoint-wind-turbines-v1.js world-v2300-time-slider.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js bridgepoint-view-v5917.js bridgepoint-volumetric-fields-v5978.js app/bridgepoint-volumetric-fields-v5978.js bridgepoint-global-wind-rf-v1.js app/bridgepoint-global-wind-rf-v1.js wind-rf-global-v1.json index.html app/index.html bridgepoint-neo-watch-v1.js bridgepoint-emrf-starlink-global-v2.js bridgepoint-emrf-spectrogram-v1.js world-v2300-water.js bridgepoint-drone-awareness-v1.js bridgepoint-vessel-awareness-v1.js bridgepoint-power-outages-v1.js bridgepoint-wildfire-realistic-mesh-v4.js world-v2300-seismic-layer-v1.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?wind=$GITHUB_SHA" -o "$RUNNER_TEMP/wind-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/wind-live"
+          done
+          echo BRIDGEPOINT_INDEPENDENT_BUILDING_CARD_LIVE_PASS
