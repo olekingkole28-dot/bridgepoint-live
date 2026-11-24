@@ -2,12 +2,6 @@ name: Publish BridgePoint Correct Solar Night Terminator V4
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-solar-terminator-nightshade-v4.yml'
-      - 'release-v2300/world-v2300-map.js'
-      - 'tests/solar-terminator-nightshade-flash-v4.test.mjs'
 
 permissions:
   contents: read
