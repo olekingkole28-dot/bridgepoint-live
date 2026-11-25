@@ -1,0 +1,107 @@
+name: Publish BridgePoint Top Packages V1 Only
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-top-packages-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact verified Temperature typography release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45557393776 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45557393776 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Add isolated top Packages card and preserve unrelated files
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 - <<'PY'
+          import os, hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          module='bridgepoint-top-packages-v1.js'
+          htmls=('index.html','app/index.html')
+          allowed={module,*htmls}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          assert not (site/module).exists()
+          assert b'bp-public-account-v4' in (site/'vendor/bp-public-globe-v4.mjs').read_bytes()
+          (site/module).write_bytes(Path('rebuild-v5000',module).read_bytes())
+          for rel in htmls:
+              p=site/rel
+              old=p.read_bytes()
+              tag=b'<script defer src="/bridgepoint-top-packages-v1.js?v=20261125v1"></script>\n'
+              assert old.count(b'</body>')==1 and module.encode() not in old
+              new=old.replace(b'</body>',tag+b'</body>',1)
+              assert new.replace(tag,b'',1)==old
+              p.write_bytes(new)
+          assert before==snapshot(),'Unrelated production file changed'
+          print('TOP_PACKAGES_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-top-packages-v1.js"
+          node --check "$SITE/bridgepoint-temperature-v1.js"
+          node tests/temperature-v1.test.mjs
+          node tests/rain-glass-v5.test.mjs
+          node --check "$SITE/bridgepoint-rain-3d-v1.js"
+          node --check "$SITE/bridgepoint-bottom-card-mobile-v2.js"
+          node --check "$SITE/bridgepoint-bottom-card-categories-v1.js"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site with Packages only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify Packages and preserved production files online
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in index.html app/index.html bridgepoint-top-packages-v1.js vendor/bp-public-globe-v4.mjs bridgepoint-temperature-v1.js bp-temperature-grid-v1.json bp-temperature-admin2-v1.json bridgepoint-rain-3d-v1.js bp-rain-observations-v1.json bridgepoint-bottom-card-categories-v1.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js app/horizon/survival/index.html world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-bottom-card-mobile-v2.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?horizon=$GITHUB_SHA" -o "$RUNNER_TEMP/horizon-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/horizon-live"
+          done
+          echo TOP_PACKAGES_ONLY_LIVE_PASS
