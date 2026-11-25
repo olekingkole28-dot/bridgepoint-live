@@ -30,7 +30,8 @@ function classify(h={}){
  return cores>=8?7:6;
 }
 const hints={cores:navigator.hardwareConcurrency,memory:navigator.deviceMemory,mobile:matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)};
-let level=classify(hints),ceiling=Math.min(10,level+2),targetRefresh=60,lastFPS=null,slow=0,fast=0,lastChange=-Infinity,activeMap=null,appliedRatio=null,pending=false,lastRender=0,renderTimes=[],windowStart=0,changedAt=Date.now();
+const capability=classify(hints),initialLevel=Math.min(capability,hints.mobile?2:4);
+let level=initialLevel,ceiling=capability,targetRefresh=60,lastFPS=null,slow=0,fast=0,lastChange=-Infinity,activeMap=null,appliedRatio=null,pending=false,lastRender=0,renderTimes=[],windowStart=0,changedAt=Date.now(),lastTick=performance.now(),stallCount=0,activeSince=0,observedBusyUntil=0;
 const listeners=new Set();
 function pixelRatio(p=getProfile(level),w=innerWidth,h=innerHeight,device=window.devicePixelRatio||1){
  // Keep large displays inside an explicit GPU fill-rate budget.
@@ -45,53 +46,62 @@ function announce(){
  pending=true;apply();
 }
 function apply(){
- if(!pending||!activeMap||activeMap.isMoving?.())return;
- pending=false;
+ if(!pending||!activeMap)return;
  const ratio=pixelRatio();
+ // Downgrades must not wait for the gesture that is overloading the GPU.
+ // Upgrades still wait until the camera settles.
+ if(activeMap.isMoving?.()&&(appliedRatio===null||ratio>=appliedRatio-.045))return;
+ pending=false;
  if(typeof activeMap.setPixelRatio==='function'&&(appliedRatio===null||Math.abs(appliedRatio-ratio)>.045)){
   try{activeMap.setPixelRatio(ratio);appliedRatio=ratio}catch(e){console.warn('BridgePoint adaptive pixel ratio',e)}
  }
 }
 function evaluate(fps,now=performance.now(),busy=true){
- if(!busy||!Number.isFinite(fps)||fps<=0)return level;
+ if(!busy||!Number.isFinite(fps)||fps<0)return level;
  lastFPS=Math.round(fps*10)/10;
  const target=Math.min(targetRefresh,getProfile(level).targetFps);
  if(fps<target*.78){slow++;fast=0;}
  else if(fps>=target*.95){fast++;slow=0;}
  else{slow=0;fast=0;}
- if(slow>=2&&level>1&&now-lastChange>=8000){
-  level=Math.max(1,level-(fps<target*.45?2:1));slow=fast=0;lastChange=now;announce();
- }else if(fast>=6&&level<ceiling&&now-lastChange>=24000){
+ const severe=fps<target*.4;
+ if(level>1&&(severe||slow>=2)&&now-lastChange>=(severe?1000:2500)){
+  level=Math.max(1,level-(severe?3:1));slow=fast=0;lastChange=now;announce();
+ }else if(fast>=20&&level<ceiling&&now-lastChange>=45000&&!activeMap?.isMoving?.()){
   level++;slow=fast=0;lastChange=now;announce();
  }
  return level;
 }
 function bind(map){
  if(!map||activeMap===map)return;
- if(activeMap){activeMap.off?.('render',onRender);activeMap.off?.('moveend',apply);}
- activeMap=map;appliedRatio=pixelRatio();pending=false;renderTimes=[];lastRender=0;windowStart=0;
- map.on?.('render',onRender);map.on?.('moveend',apply);
+ if(activeMap){activeMap.off?.('render',onRender);activeMap.off?.('moveend',apply);activeMap.off?.('movestart',onMoveStart);}
+ activeMap=map;appliedRatio=pixelRatio();pending=false;renderTimes=[];lastRender=0;windowStart=0;lastTick=performance.now();activeSince=0;observedBusyUntil=0;
+ map.on?.('render',onRender);map.on?.('moveend',apply);map.on?.('movestart',onMoveStart);
 }
+function onMoveStart(){activeSince=performance.now();observedBusyUntil=activeSince+2500;}
 function onRender(){
  const t=performance.now();
  if(document.hidden)return;
- if(lastRender&&t-lastRender>1000){renderTimes=[];windowStart=0;}
+ if(lastRender&&t-lastRender<150)observedBusyUntil=t+1500;
  lastRender=t;
  if(!windowStart)windowStart=t;
  renderTimes.push(t);
  if(renderTimes.length>600)renderTimes.shift();
 }
 setInterval(()=>{
- if(document.hidden||!activeMap){renderTimes=[];windowStart=0;slow=fast=0;return;}
- const now=performance.now(),times=renderTimes;renderTimes=[];windowStart=0;
- if(times.length>=4&&now-lastRender<550){
-  const span=times[times.length-1]-times[0];
-  // Idle on-demand rendering is not a low-FPS signal; sustained animation or active
-  // map gestures are. Never generate artificial repaint work to benchmark a device.
-  if(span>=850&&(activeMap.isMoving?.()||times.length>=20))evaluate((times.length-1)*1000/span,now,true);
- }else if(activeMap.isMoving?.()&&times.length>0){evaluate(Math.max(1,times.length/2.5),now,true);}
+ const now=performance.now(),elapsed=Math.max(1,now-lastTick);lastTick=now;
+ if(document.hidden||!activeMap){renderTimes=[];windowStart=0;slow=fast=0;observedBusyUntil=0;return;}
+ const times=renderTimes;renderTimes=[];windowStart=0;
+ const moving=!!activeMap.isMoving?.();
+ const busy=moving||times.length>=12||now<=observedBusyUntil;
+ if(busy){
+  // Count all elapsed time, not just gaps between surviving renders.
+  // A blocked main thread will report the real delay when it recovers.
+  const fps=times.length*1000/elapsed;
+  if((moving||now<=observedBusyUntil)&&(elapsed>1800||times.length===0)){stallCount++;evaluate(0,now,true);}
+  else if(moving||times.length>=12)evaluate(fps,now,true);
+ }else{slow=fast=0;}
  apply();
-},2500);
+},1000);
 let stamps=[],start=performance.now();
 function detectRefresh(t){
  if(stamps.length)stamps.push(t);else stamps=[t];
@@ -101,11 +111,12 @@ function detectRefresh(t){
 }
 requestAnimationFrame(detectRefresh);
 window.addEventListener('resize',()=>{pending=true;apply();},{passive:true});
-document.addEventListener('visibilitychange',()=>{renderTimes=[];windowStart=0;slow=fast=0;});
+document.addEventListener('visibilitychange',()=>{renderTimes=[];windowStart=0;slow=fast=0;lastTick=performance.now();lastRender=0;observedBusyUntil=0;});
 window.__BP_DEVICE_QUALITY_V1__=Object.freeze({
  profiles,classify,pixelRatio,bind,subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},
  get profile(){return getProfile(level);},
- get state(){return {level,profile:getProfile(level),initialLevel:classify(hints),ceiling,displayRefreshHz:targetRefresh,targetFps:Math.min(targetRefresh,getProfile(level).targetFps),measuredFps:lastFPS,pixelRatio:pixelRatio(),appliedRatio,changedAt,featuresDisabled:0};}
+ get waterBudget(){const i=level-1;return Object.freeze({minFrameDelay:[220,180,150,125,105,90,75,65,55,45][i],gridCells:[240,320,420,540,680,850,1050,1300,1600,2000][i],marineVertices:[12000,18000,24000,32000,44000,58000,76000,96000,120000,150000][i],inlandVertices:[6000,8500,12000,16000,22000,30000,40000,52000,68000,85000][i],coastalVertices:[12000,18000,24000,32000,44000,58000,76000,96000,120000,150000][i],flowSegments:[18,24,32,40,50,60,75,90,110,130][i],sliceMs:level<=3?2:level<=6?3:4});},
+ get state(){return {level,profile:getProfile(level),initialLevel,capability,stallCount,ceiling,displayRefreshHz:targetRefresh,targetFps:Math.min(targetRefresh,getProfile(level).targetFps),measuredFps:lastFPS,pixelRatio:pixelRatio(),appliedRatio,changedAt,featuresDisabled:0};}
 });
 announce();
 })();
