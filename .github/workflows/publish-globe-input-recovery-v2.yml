@@ -51,7 +51,7 @@ jobs:
           import os,re,hashlib,json
           from pathlib import Path
           site=Path(os.environ['SITE'])
-          allowed={'world-v2300-map.js','app/world-v2300-map.js','vendor/bp-ocean-relief-v4.mjs','world-v2300-water.js','app/world-v2300-water.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs'}
+          allowed={'world-v2300-map.js','app/world-v2300-map.js','vendor/bp-ocean-relief-v4.mjs','world-v2300-water.js','app/world-v2300-water.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs','world-v2300-sensor-layers.js','app/world-v2300-sensor-layers.js'}
           def snapshot():
               return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
           before=snapshot()
@@ -74,21 +74,48 @@ jobs:
           s=one(s,"tiles:[installUnifiedTerrain()?'bp-topobathy://relief/{z}/{x}/{y}.png':'bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:15,attribution:TERRAIN_ATTRIBUTION","tiles:['bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:12,attribution:'Mapzen / Tilezen terrain · ETOPO1 bathymetry'")
           p.write_text(s)
           for rel in ('world-v2300-water.js','app/world-v2300-water.js'):
-              p=site/rel;s=p.read_text();s=one(s,"bp-ocean-relief-v4.mjs?v=startup1","bp-ocean-relief-v4.mjs?v=inputrecovery2");p.write_text(s)
+              p=site/rel;s=p.read_text();s=one(s,"bp-ocean-relief-v4.mjs?v=startup1","bp-ocean-relief-v4.mjs?v=inputrecovery3");p.write_text(s)
+          for rel in ('world-v2300-sensor-layers.js','app/world-v2300-sensor-layers.js'):
+              p=site/rel;s=p.read_text()
+              assert 'lastSubmergeCheck=0' not in s and 'autoDiveArmed=true,autoDivePending=false' not in s
+              s=one(s,' function currentCameraBed(){',' let lastSubmergeCheck=0,autoDiveArmed=true,autoDivePending=false;\n function currentCameraBed(){')
+              # Do not mutate the style or run camera transitions inside MapLibre's
+              # synchronous render/source event queue. Coalesce the work in a task.
+              a=s.index(' function autoOceanDive(){')
+              s=s[:a]+r''' let submergeTimer=0,autoDiveRequested=false;
+           function scheduleSubmergence(event){
+            if(dead)return;
+            if(event?.type==='moveend')autoDiveRequested=true;
+            if(submergeTimer)return;
+            submergeTimer=setTimeout(()=>{
+             submergeTimer=0;if(dead)return;
+             const auto=autoDiveRequested;autoDiveRequested=false;
+             try{if(auto)autoOceanDive();else updateSubmergence()}
+             catch(error){console.warn('BridgePoint underwater camera update',error)}
+            },80);
+           }
+          '''+s[a:]
+              s=one(s,"const onDiveTerrainData=e=>{if(e?.sourceId===D||e?.sourceId==='dem')updateSubmergence()};","const onDiveTerrainData=e=>{if(e?.sourceId===D||e?.sourceId==='dem')scheduleSubmergence(e)};")
+              s=one(s,"map.on('move',updateSubmergence);map.on('moveend',autoOceanDive);","map.on('move',scheduleSubmergence);map.on('moveend',scheduleSubmergence);")
+              s=one(s,"map.off('move',updateSubmergence);map.off('moveend',autoOceanDive);","clearTimeout(submergeTimer);map.off('move',scheduleSubmergence);map.off('moveend',scheduleSubmergence);")
+              # Avoid querying terrain on every global globe render. Auto-dive only
+              # activates at close zoom; explicit dives remain supported at any zoom.
+              s=one(s,'const altitude=cameraAltitude();if(altitude===null)return;','if(map.getZoom()<13&&!state.diving&&!state.autoSubmerged&&!Number(window.__BP_WATER_SUBMERGENCE_V2__||0))return;\n  const altitude=cameraAltitude();if(altitude===null)return;')
+              p.write_text(s)
           for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
               p=site/rel;s=p.read_text()
-              s,n=re.subn(r'(world-v2300-(?:map|water)\.js\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v2',s)
+              s,n=re.subn(r'(world-v2300-(?:map|water|sensor-layers)\.js\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v3',s)
               if rel!='vendor/bp-public-globe-v4.mjs':assert n>=2,(rel,n)
               p.write_text(s)
           for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
-              p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v2',s);assert n>=1;p.write_text(s)
+              p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v3',s);assert n>=1;p.write_text(s)
           assert before==snapshot(),'UNRELATED FILE CHANGED'
           roof=json.loads((site/'data/bp-nyc-rooftop-cooling-v2.geojson').read_text())
           manifest=json.loads((site/'data/bp-nyc-terrain-v1/manifest.json').read_text())
           assert len(roof['features'])==15321 and manifest['count']==403
           print('DIRECT_DEM_RECOVERY_AND_ASSETS_PRESERVED',len(before),len(roof['features']),manifest['count'])
           PY
-          for p in vendor/bp-ocean-relief-v4.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          for p in vendor/bp-ocean-relief-v4.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
           TEST="$RUNNER_TEMP/input-smoke"
           mkdir -p "$TEST"
           npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
@@ -100,7 +127,7 @@ jobs:
           const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
           try{
            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});
-           const errors=[];page.on('pageerror',e=>{errors.push(String(e));console.log('PAGE_ERROR',String(e))});
+           const errors=[];page.on('pageerror',e=>{errors.push(String(e));if(errors.length<=20)console.log('PAGE_ERROR',e.stack||String(e))});
            page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost/.test(m.text()))console.log(m.text().slice(0,400))});
            // Serve the candidate artifact under the real origin, so absolute paths
            // and startup behavior are the same. External tile requests remain real.
@@ -129,6 +156,7 @@ jobs:
            await page.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.2},before.z,{timeout:12000});
            const after=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return {lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks};});
            assert(after.ticks>before.ticks,'Main thread heartbeat failed');
+           assert(!errors.some(e=>/lastSubmergeCheck|autoDiveArmed|autoDivePending|Attempting to run\(\), but is already running/.test(e)),JSON.stringify(errors.slice(0,10)));
            console.log('REAL_MOBILE_TOUCH_AND_ZOOM_PASS',JSON.stringify({before,after,errors:errors.slice(0,8)}));
           }finally{await browser.close()}
           JS
