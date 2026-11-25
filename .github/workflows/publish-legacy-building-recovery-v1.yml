@@ -1,0 +1,239 @@
+name: Publish BridgePoint legacy building recovery V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-legacy-building-recovery-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact current successful source geometry V3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45663279664 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45663279664 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore native buildings and bounded facade materials
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 - <<'PY'
+          import os,re,hashlib,json
+          from pathlib import Path
+          site=Path(os.environ['SITE']);world='world-v2300-map.js';quality='bridgepoint-device-quality-v1.js'
+          allowed={world,'app/'+world,quality,'index.html','app/index.html','landing.js','app.js','data/manhattan-photo-reference-v1.json'}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('LEGACY_BUILDING_ANCHOR',a[:130],s.count(a))
+              return s.replace(a,b,1)
+          for rel in (world,'app/'+world):
+              p=site/rel;s=p.read_text()
+              # Keep the production geometry sources and all original source limits.
+              assert 'bpDeviceQuality.bind(map)' in s and 'gta-bp-buildings' in s and 'gta-context-buildings' in s
+              s=one(s,"vis(map,'gta-context-buildings',z>=11.2&&!cityReady&&(!bpReady||bpPartial));","vis(map,'gta-context-buildings',z>=11.2&&!cityReady&&!bpReady);")
+              s,n=re.subn(r'\n\s*let bpPartial=false;\s*if\(bpReady&&z>=12&&z<19\)\{[\s\S]*?\n\s*\}', '',s,count=1)
+              assert n==1,('PARTIAL_DUPLICATION',rel)
+              # Stop forcing detailed layers at middle zoom on the lowest device tiers.
+              s=one(s,'next.facadeMin=Math.min(next.facadeMin,16.6);','next.facadeMin=Math.max(next.facadeMin,MOBILE?17.2:16.4);')
+              s=one(s,'next.roofMin=Math.min(next.roofMin,16.1);','next.roofMin=Math.max(next.roofMin,MOBILE?13.8:12.7);')
+              s=one(s,'next.partsMin=Math.min(next.partsMin,17.0);','next.partsMin=Math.max(next.partsMin,MOBILE?17.2:16.0);')
+              # A small bounded atlas, not 128 versions of each facade at every zoom.
+              s=one(s,'const facadeVariant=seed(127,128);','const facadeVariant=seed(127,4);')
+              # Photo-referenced landmark material choices, applied only to explicit
+              # name matches. No invented coordinates or replacement building shapes.
+              s=one(s,"const facadeDetail=['case',","""const bpPhotoBuildingName=['downcase',['to-string',['coalesce',['get','name'],['get','name_en'],['get','name:en'],'']]];
+           const facadeDetail=['case',
+            ['in',bpPhotoBuildingName,['literal',['one world trade center','1 world trade center','freedom tower','lever house','seagram building']]],'glass-blue',
+            ['in',bpPhotoBuildingName,['literal',['30 rockefeller plaza','30 rock','rockefeller center','empire state building','chrysler building','woolworth building','flatiron building']]],'civic-limestone',""")
+              # Maintain pattern size in map pixels while doubling texture sampling
+              # resolution; all of the old material families and variants are retained.
+              a=s.index('function facadePatternImage(id){');b=s.index('function nightWindowPatternImage(',a)
+              block=s[a:b]
+              block=one(block,"cv.width=size;cv.height=size;const x=cv.getContext('2d');","cv.width=size*2;cv.height=size*2;const x=cv.getContext('2d');x.scale(2,2);")
+              block=block.replace('x.getImageData(0,0,size,size)','x.getImageData(0,0,size*2,size*2)')
+              a1=block.index('const win=');b1=block.index("\n if(mode===",a1)
+              block=block[:a1]+"""const win=(xx,yy,w,h,lit=false)=>{
+                const dw=(variant%3)-1;xx=Math.max(2,Math.min(size-8,xx));w=Math.max(6,Math.min(size-xx-2,w+dw));h=Math.max(7,h);
+                x.fillStyle=p[3];x.fillRect(xx-1.5,yy-1.5,w+3,h+3);
+                x.fillStyle=p[2];x.fillRect(xx-1,yy-1,w+2,h+2);
+                const g=x.createLinearGradient(xx,yy,xx+w,yy+h);
+                g.addColorStop(0,lit?'#8b9da8':'#6d8798');g.addColorStop(.34,'#3b566a');g.addColorStop(1,'#172b3a');
+                x.fillStyle=g;x.fillRect(xx,yy,w,h);
+                x.fillStyle='rgba(210,232,242,.38)';x.fillRect(xx+.5,yy+.5,w-1,1.1);
+                x.fillStyle='rgba(18,27,34,.83)';x.fillRect(xx+w*.49,yy,.65,h);
+                x.fillStyle=p[2];x.fillRect(xx-1,yy+h+.4,w+2,1.6);
+              };"""+block[b1:]
+              # Reflective glass appearance from a baked gradient (not raytraced).
+              g0=block.index(" } else if(mode==='glass'){");g1=block.index(" } else if(mode==='industrial'){",g0)
+              block=block[:g0]+""" } else if(mode==='glass'){
+                for(let y=0;y<size;y+=16)for(let xx=0;xx<size;xx+=16){
+                  const g=x.createLinearGradient(xx,y,xx+16,y+16);
+                  g.addColorStop(0,'#91a9b9');g.addColorStop(.28,'#59778b');g.addColorStop(.67,p[0]);g.addColorStop(1,'#253b4c');
+                  x.fillStyle=g;x.fillRect(xx+.75,y+.75,14.5,14.5);
+                  x.fillStyle='rgba(215,231,239,.32)';x.fillRect(xx+1,y+1,13.5,1);
+                  x.fillStyle='rgba(19,30,38,.75)';x.fillRect(xx+7.7,y+1,.8,14);
+                }
+                x.strokeStyle=p[3];x.lineWidth=.85;
+                for(let y=0;y<size;y+=16){x.beginPath();x.moveTo(0,y);x.lineTo(size,y);x.stroke()}
+                for(let xx=0;xx<size;xx+=16){x.beginPath();x.moveTo(xx,0);x.lineTo(xx,size);x.stroke()}
+          """+block[g1:]
+              s=s[:a]+block+s[b:]
+              s=one(s,"map.addImage(id,facadePatternImage(id),{pixelRatio:2})","map.addImage(id,facadePatternImage(id),{pixelRatio:4})")
+              # Directly texture the existing native geometry instead of drawing a second,
+              # coincident extrusion. Preserve all existing filters and source selection.
+              anchor="  const opportunitiesOn=window.__BP_OPPORTUNITY_OVERLAY_ENABLED__===true;"
+              s=one(s,anchor,"""  const nativePairs=[
+              ['gta-context-buildings','gta-context-facade-detail'],
+              ['gta-bp-buildings','gta-bp-facade-detail'],
+              ['gta-exact-building','gta-exact-facade-detail']
+            ];
+            const textureOn=detailSettled&&z>=lod.facadeMin;
+            const textureKey=String(textureOn)+':'+String(map.getStyle()?.layers?.length||0);
+            if(map.__bpNativeFacadeKey!==textureKey){
+              map.__bpNativeFacadeKey=textureKey;
+              for(const [body,detail] of nativePairs){
+                if(!map.getLayer(body)||!map.getLayer(detail))continue;
+                const pattern=map.getPaintProperty(detail,'fill-extrusion-pattern');
+                if(pattern)paint(map,body,'fill-extrusion-pattern',textureOn?pattern:null);
+              }
+            }
+            for(const [,detail] of nativePairs)vis(map,detail,false);
+            if(textureOn){
+              for(const id of ['gta-context-floor-lines','gta-bp-floor-lines','gta-exact-floor-lines'])vis(map,id,false);
+            }
+            // Existing roof and building-part geometries, no new mesh or remote scan.
+            const roofTextureOn=textureOn&&z>=Math.max(lod.roofMin,17);
+            const roofKey=String(roofTextureOn)+':'+String(map.getStyle()?.layers?.length||0);
+            if(map.__bpNativeRoofKey!==roofKey){
+              map.__bpNativeRoofKey=roofKey;
+              const rp=window.__BP_REALISM_ROOF_PATTERN_EXPR_V5910__;
+              if(rp)for(const id of ['gta-context-roofs','gta-bp-roofs','gta-city-roofs','gta-exact-roof']){
+                if(map.getLayer(id))paint(map,id,'fill-extrusion-pattern',roofTextureOn?rp:null);
+              }
+            }
+            window.__BP_LEGACY_BUILDING_MATERIAL_V1__={textureOn,roofTextureOn,originalGeometry:true,overlayMeshes:false,adaptiveTier:lod.tier};
+          """+anchor)
+              p.write_text(s)
+          # Adaptation still has ten profiles; reduce initial pressure and upper
+          # automatic ceiling conservatively. All feature switches remain intact.
+          p=site/quality;s=p.read_text()
+          s=one(s,'initialLevel=Math.min(capability,hints.mobile?2:4)','initialLevel=Math.min(capability,hints.mobile?1:3)')
+          s=one(s,'ceiling=capability,targetRefresh=60','ceiling=Math.min(capability,hints.mobile?4:8),targetRefresh=60')
+          p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&legacybuildings=20261125v1',s);assert n>=1,(rel,n);p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              # This is the single automatic scan module added during the scan experiment.
+              # Explicit named-layer viewers and every scan/catalog asset stay on disk.
+              s,n=re.subn(r'<script\b[^>]*\bsrc=["\x27]/bridgepoint-auto-reality-v1\.js[^"\x27]*["\x27][^>]*>\s*</script>\s*','',s,flags=re.I)
+              assert n==1,('AUTO_SCAN_STARTUP_TAG',rel,n)
+              for key in (entry,quality):
+                  s,n=re.subn(r'('+re.escape(key)+r'\?[^"\'\s]+)',lambda m:m[1]+'&legacybuildings=20261125v1',s);assert n>=1,(rel,key,n)
+              assert 'bridgepoint-auto-reality-v1.js' not in s
+              p.write_text(s)
+          # Explicitly document the photo reference scope. These are source references,
+          # not claimed texture projections or individually reconstructed buildings.
+          refs={'status':'reference starter set; no photo projection or all-building coverage claimed','references':[
+           {'building':'One World Trade Center','material':'blue glass curtain wall','url':'https://commons.wikimedia.org/wiki/File:One_World_Trade_Center_Facade.jpg','license':'CC BY-SA 4.0','author':'Epiphinot'},
+           {'building':'30 Rockefeller Plaza','material':'limestone Art Deco','url':'https://commons.wikimedia.org/wiki/Category:Exterior_of_30_Rockefeller_Plaza','license':'per image'},
+           {'building':'Lever House','material':'glass curtain wall','url':'https://commons.wikimedia.org/wiki/Category:Lever_House_(Manhattan)','license':'per image'},
+           {'building':'Manhattan building materials','url':'https://commons.wikimedia.org/wiki/Category:Buildings_in_Manhattan,_New_York_City','license':'per image'}
+           ]}
+          (site/'data/manhattan-photo-reference-v1.json').write_text(json.dumps(refs,indent=2))
+          assert before==snap(),'UNRELATED RELEASE FILE CHANGED'
+          print('LEGACY_BUILDING_RESTORE_SCOPE_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-device-quality-v1.js"
+          for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const site=process.env.SITE;
+          for(const rel of ['index.html','app/index.html'])assert(!fs.readFileSync(site+'/'+rel,'utf8').includes('bridgepoint-auto-reality-v1.js'));
+          for(const rel of ['world-v2300-map.js','app/world-v2300-map.js']){
+           const s=fs.readFileSync(site+'/'+rel,'utf8');
+           assert(s.includes('bpDeviceQuality.bind(map)')&&s.includes('gta-bp-buildings')&&s.includes('gta-context-buildings'));
+           assert(s.includes('map.__bpNativeFacadeKey')&&s.includes('facadeVariant=seed(127,4)')&&s.includes('x.createLinearGradient'));
+           assert(s.includes('overlayMeshes:false'));
+          }
+          assert(fs.existsSync(site+'/assets/manhattan-photogrammetry-v1/registration.json'));
+          assert(fs.existsSync(site+'/assets/manhattan-photogrammetry-v1/source-architecture-v3.glb'));
+          console.log('LEGACY_BUILDINGS_NO_AUTO_SCAN_AND_NATIVE_TEXTURE_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
