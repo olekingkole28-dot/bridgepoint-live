@@ -1,0 +1,183 @@
+name: Publish BridgePoint continuous source-clipped water coverage V3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-water-continuous-fill-v3.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful adaptive and shoreline recovery V2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45652481926 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45652481926 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Apply continuous source-clipped water coverage
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          water='world-v2300-water.js'
+          allowed={water,'app/'+water,'index.html','app/index.html','landing.js','app.js'}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          def one(s,a,b):
+              assert s.count(a)==1,('WATER_COVERAGE_ANCHOR',a[:130],s.count(a))
+              return s.replace(a,b,1)
+          for rel in (water,'app/'+water):
+              p=site/rel;s=p.read_text()
+              assert 'window.__BP_DEVICE_QUALITY_V1__?.waterBudget' in s and 'const useCoastalMesh=z<12&&' in s
+              # Native vector tiles supply ALL water polygons including holes, independent of
+              # the JS mesh's vertex and feature limits. Never replace this with a rectangular sheet.
+              s=one(s,"'fill-color':'#0b3859','fill-opacity':.16","'fill-color':'#0b3859','fill-opacity':1")
+              s=one(s,"const target=wet>.02?.32:.16;","const close=map.getZoom()>=11;\n      const target=wet>.02?.32:close?1:.16;")
+              s=one(s,"else if(pattern)map.setPaintProperty(OCEAN_COVER_ID,'fill-pattern',null);","""else if(close){
+                  if(pattern!==OCEAN_PATTERN_ID)map.setPaintProperty(OCEAN_COVER_ID,'fill-pattern',OCEAN_PATTERN_ID);
+                  // Reuse the existing ripple texture; no high-frequency texture uploads on phones.
+                  if(!map.isMoving?.()&&now-(api.closeCoverTextureAt||0)>900){
+                    api.closeCoverTextureAt=now;
+                    map.updateImage(OCEAN_PATTERN_ID,oceanFallbackTexture(128,now/1000,0));
+                  }
+                }else if(pattern)map.setPaintProperty(OCEAN_COVER_ID,'fill-pattern',null);""")
+              # Native raster stack may be re-ordered by the basemap controller. Keep BOTH
+              # the polygon fill and the animated surface above those imagery layers,
+              # below roads, buildings, and labels. Only repair actual order changes.
+              anchor="}else if(map.getLayoutProperty(OCEAN_COVER_ID,'visibility')!==visibility)map.setLayoutProperty(OCEAN_COVER_ID,'visibility',visibility);"
+              s=one(s,anchor,anchor+"""
+              if(!hidden&&map.getZoom()>=11&&map.getLayer(LAYER_ID)){
+                const ids=(map.getStyle()?.layers||[]).map(l=>l.id);
+                const rasterLast=Math.max(...['gta-foundation','gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>ids.indexOf(id)));
+                const coverIndex=ids.indexOf(OCEAN_COVER_ID),surfaceIndex=ids.indexOf(LAYER_ID);
+                const coast=ids.indexOf('gta-coast-edge');
+                if(coast>rasterLast&&(coverIndex<=rasterLast||surfaceIndex<=coverIndex||surfaceIndex>=coast)){
+                  map.moveLayer(LAYER_ID,'gta-coast-edge');
+                  map.moveLayer(OCEAN_COVER_ID,LAYER_ID);
+                }
+                // Apply the opaque polygon fallback immediately on crossing the zoom
+                // threshold, rather than waiting on the procedural mesh rebuild.
+                const wet=Number(window.__BP_WATER_SUBMERGENCE_V2__||0);
+                if(wet<=.02&&map.getPaintProperty(OCEAN_COVER_ID,'fill-opacity')!==1)map.setPaintProperty(OCEAN_COVER_ID,'fill-opacity',1);
+                if(wet<=.02&&map.hasImage(OCEAN_PATTERN_ID)&&map.getPaintProperty(OCEAN_COVER_ID,'fill-pattern')!==OCEAN_PATTERN_ID)map.setPaintProperty(OCEAN_COVER_ID,'fill-pattern',OCEAN_PATTERN_ID);
+                api.closeWaterCoverage={source:'ofm:water',allSourcePolygons:true,budgetIndependent:true,aboveRaster:true};
+              }
+          """)
+              # At street zoom reject cached offscreen features before they consume the
+              # mesh budget. The visible bounds are already overscanned by the builder.
+              s=one(s,"const top = mercY(maxLat), bottom = mercY(minLat), pad = 0.025;","const top = mercY(maxLat), bottom = mercY(minLat), pad = Math.min(.025,Math.max(1e-7,Math.max(bounds.x1-bounds.x0,bounds.y1-bounds.y0)*.2));")
+              # Reserve base geometry for later tile fragments rather than spending the
+              # entire vertex allowance subdividing the first large body of water.
+              anchor="const r=buildOceanPolygonMesh(f.parts,{maxVertices:marineBudget-marineVertices,step:Math.max(dx,dy)*.50,shoreAt},"
+              s=one(s,anchor,"""const remaining=marineBudget-marineVertices;
+                const baseNeed=f.parts.reduce((n,part)=>n+part.reduce((m,ring)=>m+ring.length*3,0),0);
+                const allowance=z>=11?Math.min(remaining,Math.max(baseNeed,Math.floor(remaining/Math.max(1,Math.min(12,waterFeatures.length))))):remaining;
+                const r=buildOceanPolygonMesh(f.parts,{maxVertices:allowance,step:Math.max(dx,dy)*(z>=11?1.25:.50),shoreAt},""")
+              anchor="const result=buildOceanPolygonMesh(f.parts,{maxVertices:inlandBudget-inlandVertices,step:Math.max(dx,dy)*.35},"
+              s=one(s,anchor,"""const remaining=inlandBudget-inlandVertices;
+                            const baseNeed=f.parts.reduce((n,part)=>n+part.reduce((m,ring)=>m+ring.length*3,0),0);
+                            const allowance=z>=11?Math.min(remaining,Math.max(baseNeed,Math.floor(remaining/Math.max(1,Math.min(12,waterFeatures.length))))):remaining;
+                            const result=buildOceanPolygonMesh(f.parts,{maxVertices:allowance,step:Math.max(dx,dy)*(z>=11?1.1:.35)},""")
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-water\.js\?[^"\'\s]+)',lambda m:m[1]+'&fillcoverage=20261125v3',s);assert n>=1,(rel,n);p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&fillcoverage=20261125v3',s);assert n>=1,(rel,n);p.write_text(s)
+          assert before==snapshot(),'UNRELATED RELEASE FILE CHANGED'
+          print('CONTINUOUS_SOURCE_WATER_SCOPE_PASS',len(before))
+          PY
+          for p in world-v2300-water.js app/world-v2300-water.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+          const s=fs.readFileSync(process.env.SITE+'/world-v2300-water.js','utf8');
+          const start=s.indexOf('function syncOceanCover(){'),end=s.indexOf('let lastOceanPattern=',start);
+          assert(start>=0&&end>start);
+          const layer='bp-test-surface',cover='bp-liquid-ocean-cover-v2',pattern='bp-test-pattern';
+          let zoom=15,opacity=.16,texture=null,vis='visible',order=[cover,layer,'gta-esri','gta-coast-edge','gta-context-buildings'],moves=0;
+          const map={getZoom:()=>zoom,getSource:()=>({}),getLayer:id=>order.includes(id)?{}:null,getStyle:()=>({layers:order.map(id=>({id}))}),getLayoutProperty:()=>vis,setLayoutProperty:(_id,_p,v)=>vis=v,hasImage:()=>true,getPaintProperty:(_id,p)=>p==='fill-opacity'?opacity:texture,setPaintProperty:(_id,p,v)=>{if(p==='fill-opacity')opacity=v;else texture=v},moveLayer:(id,before)=>{order=order.filter(x=>x!==id);order.splice(order.indexOf(before),0,id);moves++}};
+          const api={enabled:true},g={map,api,window:{},OCEAN_COVER_ID:cover,OCEAN_PATTERN_ID:pattern,LAYER_ID:layer};
+          vm.createContext(g);vm.runInContext(s.slice(start,end).trim()+'\nsyncOceanCover();',g);
+          assert.equal(opacity,1);assert.equal(texture,pattern);
+          assert(order.indexOf('gta-esri')<order.indexOf(cover)&&order.indexOf(cover)<order.indexOf(layer)&&order.indexOf(layer)<order.indexOf('gta-context-buildings'));
+          vm.runInContext('syncOceanCover()',g);assert.equal(moves,2,'stable order must not churn');
+          assert.equal(api.closeWaterCoverage.budgetIndependent,true);
+          console.log('NATIVE_WATER_COVERAGE_ORDER_AND_OPACITY_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
