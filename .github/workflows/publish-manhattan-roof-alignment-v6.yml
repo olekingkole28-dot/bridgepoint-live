@@ -236,7 +236,7 @@ jobs:
               p=site/rel;s=p.read_text()
               s=one(s,"const bpNativeManhattanRoot='/assets/manhattan-native-v5/';","const bpNativeManhattanRoot='/assets/manhattan-native-v6/';\n const bpManhattanBoundary="+boundary+";")
               s=one(s,"const bpNativeManhattanNear=()=>{const c=map.getCenter();return c.lng>=-74.04&&c.lng<=-73.89&&c.lat>=40.68&&c.lat<=40.89};",r'''const bpNativeManhattanNear=()=>{const c=map.getCenter();if(c.lng < -74.04||c.lng > -73.89||c.lat < 40.68||c.lat > 40.89)return false;const polygons=bpManhattanBoundary.type==='Polygon'?[bpManhattanBoundary.coordinates]:bpManhattanBoundary.coordinates;function inside(r){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a[1]>c.lat)!==(b[1]>c.lat)&&c.lng<(b[0]-a[0])*(c.lat-a[1])/(b[1]-a[1])+a[0])yes=!yes}return yes}return polygons.some(p=>inside(p[0])&&!p.slice(1).some(inside))};''')
-              s=one(s,"let bpNativeManhattanImages=null,bpNativeManhattanReady=false,bpNativeManhattanPending=false,bpNativeManhattanLast=false;","let bpNativeManhattanImages=null,bpNativeManhattanReady=false,bpNativeManhattanPending=false,bpNativeManhattanLast=false;\n let bpAlignedActive=false;const bpAlignedOriginalFilters=new Map(),bpAlignedBody='bp-manhattan-surveyed-body-v6',bpAlignedCap='bp-manhattan-surveyed-cap-v6';")
+              s=one(s,"let bpNativeManhattanImages=null,bpNativeManhattanReady=false,bpNativeManhattanPending=false,bpNativeManhattanLast=false;","let bpNativeManhattanImages=null,bpNativeManhattanReady=false,bpNativeManhattanPending=false,bpNativeManhattanLast=false;\n let bpAlignedActive=false,bpAlignedCheckAt=0,bpAlignedProbe=null,bpAlignedRetry=0;const bpAlignedOriginalFilters=new Map(),bpAlignedBody='bp-manhattan-surveyed-body-v6',bpAlignedCap='bp-manhattan-surveyed-cap-v6';")
               a=s.index('            function bpNativeManhattanSync(){') if '            function bpNativeManhattanSync(){' in s else s.index('function bpNativeManhattanSync(){')
               b=s.index("map.on('moveend',bpNativeManhattanSync);",a)
               s=s[:a]+r'''
@@ -248,7 +248,7 @@ jobs:
                 if(on){
                   const f=map.getFilter(id)||null;bpAlignedOriginalFilters.set(id,f);
                   const outside=['>', ['distance',bpManhattanBoundary], .5];
-                  map.setFilter(id,f?['all',f,outside]:outside);
+                  try{map.setFilter(id,f?['all',f,outside]:outside)}catch(e){console.warn('Manhattan boundary filter',id,String(e));throw e}
                 }else if(bpAlignedOriginalFilters.has(id))map.setFilter(id,bpAlignedOriginalFilters.get(id));
               }
               if(!on)bpAlignedOriginalFilters.clear();
@@ -261,15 +261,17 @@ jobs:
                 try{
                   map.addSource(bpNativeManhattanSource,{type:'vector',tiles:[location.origin+bpNativeManhattanRoot+'tiles/{z}/{x}/{y}.pbf'],minzoom:16,maxzoom:17,bounds:[-74.04,40.68,-73.89,40.89],attribution:'NYC Open Data surveyed building footprints and rooftop features'});
                   const before=map.getLayer('gta-water-label')?'gta-water-label':undefined;
-                  map.addLayer({id:bpAlignedBody,type:'fill-extrusion',source:bpNativeManhattanSource,'source-layer':'buildings',minzoom:15.6,paint:{'fill-extrusion-base':0,'fill-extrusion-height':['get','h'],'fill-extrusion-color':'#a9a39a','fill-extrusion-opacity':0,'fill-extrusion-vertical-gradient':true}},before);
-                  map.addLayer({id:bpAlignedCap,type:'fill-extrusion',source:bpNativeManhattanSource,'source-layer':'buildings',minzoom:15.6,paint:{'fill-extrusion-base':['+', ['get','h'],.025],'fill-extrusion-height':['+', ['get','h'],.14],'fill-extrusion-color':'#a3a5a3','fill-extrusion-opacity':0,'fill-extrusion-vertical-gradient':false}},before);
+                  map.addLayer({id:bpAlignedBody,type:'fill-extrusion',source:bpNativeManhattanSource,'source-layer':'buildings',minzoom:15.6,paint:{'fill-extrusion-base':0,'fill-extrusion-height':['get','h'],'fill-extrusion-color':'#a9a39a','fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}},before);
+                  map.addLayer({id:bpAlignedCap,type:'fill-extrusion',source:bpNativeManhattanSource,'source-layer':'buildings',minzoom:15.6,paint:{'fill-extrusion-base':['+', ['get','h'],.025],'fill-extrusion-height':['+', ['get','h'],.14],'fill-extrusion-color':'#a3a5a3','fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},before);
                   map.addLayer({id:bpNativeManhattanLayer,type:'fill-extrusion',source:bpNativeManhattanSource,'source-layer':'rooftops',minzoom:15.6,paint:{'fill-extrusion-base':['get','b'],'fill-extrusion-height':['get','h'],'fill-extrusion-color':['get','c'],'fill-extrusion-opacity':0,'fill-extrusion-vertical-gradient':false}},before);
                 }catch(e){console.warn('Manhattan aligned roof tile setup',e)}
               }
               if(map.getLayer(bpAlignedBody)){
                 for(const id of [bpAlignedBody,bpAlignedCap,bpNativeManhattanLayer])vis(map,id,on);
-                let ready=false;
-                try{ready=!!map.isSourceLoaded(bpNativeManhattanSource)}catch(_){}
+                let ready=bpAlignedActive;
+                if(on&&!ready&&!map.isMoving?.()&&performance.now()-bpAlignedCheckAt>450){
+                  bpAlignedCheckAt=performance.now();try{const canvas=map.getCanvas(),w=canvas.clientWidth,h=canvas.clientHeight;const hits=map.queryRenderedFeatures([[0,0],[w,h]],{layers:[bpAlignedBody]});ready=hits.length>0;bpAlignedProbe={hits:hits.length,loaded:map.isSourceLoaded(bpNativeManhattanSource),zoom:z}}catch(e){bpAlignedProbe={error:String(e)}}
+                }
                 if(!on||!map.isMoving?.()&&(ready||bpAlignedActive)){
                   const show=on&&(ready||bpAlignedActive);
                   bpAlignedHandoff(show);
@@ -283,16 +285,18 @@ jobs:
                   }
                 }
               }
-              window.__BP_MANHATTAN_NATIVE_V5__={visible:on&&bpAlignedActive,materials:bpNativeManhattanReady,native:true,customRenderer:false,sharedHost:true};
+              window.__BP_MANHATTAN_NATIVE_V5__={visible:on&&bpAlignedActive,materials:bpNativeManhattanReady,native:true,customRenderer:false,sharedHost:true,near,zoom:z,probe:bpAlignedProbe,source:!!map.getSource(bpNativeManhattanSource),body:!!map.getLayer(bpAlignedBody),moving:!!map.isMoving?.()};
+              if(on&&!bpAlignedActive&&!bpAlignedRetry){bpAlignedRetry=setTimeout(()=>{bpAlignedRetry=0;if(!map.isMoving?.())bpNativeManhattanSync()},600)}
             }
-            map.on('sourcedata',e=>{if(e.sourceId===bpNativeManhattanSource&&e.isSourceLoaded&&!bpAlignedActive&&!map.isMoving?.())bpNativeManhattanSync()});
+            map.on('sourcedata',e=>{if(e.sourceId===bpNativeManhattanSource&&!bpAlignedActive&&!map.isMoving?.()&&!bpAlignedRetry)bpAlignedRetry=setTimeout(()=>{bpAlignedRetry=0;bpNativeManhattanSync()},600)});
+            map.on('remove',()=>clearTimeout(bpAlignedRetry));
             '''+s[b:]
-              s=one(s,"map.on('style.load',()=>{bpNativeManhattanImages=null;bpNativeManhattanReady=false;bpNativeManhattanSync()});","map.on('style.load',()=>{bpAlignedActive=false;bpAlignedOriginalFilters.clear();map.__bpAlignedTexturesV6=false;bpNativeManhattanImages=null;bpNativeManhattanReady=false;bpNativeManhattanSync()});")
+              s=one(s,"map.on('style.load',()=>{bpNativeManhattanImages=null;bpNativeManhattanReady=false;bpNativeManhattanSync()});","map.on('style.load',()=>{bpAlignedActive=false;bpAlignedCheckAt=0;bpAlignedProbe=null;clearTimeout(bpAlignedRetry);bpAlignedRetry=0;bpAlignedOriginalFilters.clear();map.__bpAlignedTexturesV6=false;bpNativeManhattanImages=null;bpNativeManhattanReady=false;bpNativeManhattanSync()});")
               # New layer participates in existing building hit-testing.
               s=s.replace("['gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']","['bp-manhattan-surveyed-body-v6','gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']")
               p.write_text(s)
           for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs','index.html','app/index.html'):
-              p=site/rel;p.write_text(p.read_text().replace('manhattanroofdetail=8','manhattanroofdetail=9'))
+              p=site/rel;p.write_text(p.read_text().replace('manhattanroofdetail=8','manhattanroofdetail=10'))
           assert snap()==before,'unrelated asset changed'
           PY
           for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
@@ -307,10 +311,10 @@ jobs:
           const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
           try{
            const page=await browser.newPage({serviceWorkers:'block',viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});
-           page.on('requestfailed',r=>{if(/manhattan-roof-detail|three\.module/.test(r.url()))console.log('ROOF_REQUEST_FAILED',r.url(),r.failure())});
+           page.on('requestfailed',r=>{if(/manhattan-roof-detail|manhattan-native-v6|three\.module/.test(r.url()))console.log('ROOF_REQUEST_FAILED',r.url(),r.failure())});
            page.on('response',r=>{if(/manhattan-roof-detail|three\.module/.test(r.url()))console.log('ROOF_RESPONSE',r.status(),r.url())});
            const errors=[];page.on('pageerror',e=>{errors.push(String(e));if(errors.length<=20)console.log('PAGE_ERROR',e.stack||String(e))});
-           page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost|Manhattan/.test(m.text()))console.log(m.text().slice(0,400))});
+           page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost|Manhattan|distance|filter|bp-manhattan/.test(m.text()))console.log(m.text().slice(0,500))});
            // Serve the candidate artifact under the real origin, so absolute paths
            // and startup behavior are the same. External tile requests remain real.
            await page.route(origin+'/**',async route=>{
@@ -367,7 +371,7 @@ jobs:
             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,d=window.__BP_MANHATTAN_NATIVE_V5__;
             if(!d?.visible||!d.materials||!d.sharedHost||!m.getLayer('bp-manhattan-native-roof-v5')||!m.getLayer('bp-manhattan-surveyed-body-v6'))return false;
             try{return m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length>0&&m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length>0&&m.queryRenderedFeatures({layers:['gta-bp-buildings','gta-context-buildings']}).length===0}catch(e){return false}
-           },null,{timeout:90000});
+           },null,{timeout:90000}).catch(async e=>{console.log('ALIGNMENT_BROWSER_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const ids=['bp-manhattan-native-roof-v5','bp-manhattan-surveyed-body-v6','bp-manhattan-surveyed-cap-v6','gta-bp-buildings','gta-context-buildings'];return {state:window.__BP_MANHATTAN_NATIVE_V5__,center:m.getCenter(),layers:ids.map(id=>{try{return {id,exists:!!m.getLayer(id),visibility:m.getLayoutProperty(id,'visibility'),opacity:m.getPaintProperty(id,'fill-extrusion-opacity'),rendered:m.queryRenderedFeatures({layers:[id]}).length,filter:JSON.stringify(m.getFilter(id)||null).slice(0,140)}}catch(e){return {id,error:String(e)}}})}})));throw e});
            console.log('NATIVE_ROOF_TILES_RENDERED',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return {state:window.__BP_MANHATTAN_NATIVE_V5__,features:m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length,customLayer:!!m.getLayer('bp-manhattan-roof-detail-v1')}})));
            const close=await page.evaluate(()=>{
             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,canvas=m.getCanvas(),r=canvas.getBoundingClientRect(),c=m.getCenter();
