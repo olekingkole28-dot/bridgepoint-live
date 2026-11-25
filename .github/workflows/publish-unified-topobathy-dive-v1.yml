@@ -1,0 +1,425 @@
+name: Publish BridgePoint unified topobathy and dive V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-unified-topobathy-dive-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful native height and interaction V3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45673659301 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45673659301 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Install shared terrain worker, regional bare-earth data and underwater fixes
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 -m pip install --quiet numpy rasterio pillow
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);world='world-v2300-map.js';sensor='world-v2300-sensor-layers.js';water='world-v2300-water.js';relief='vendor/bp-ocean-relief-v4.mjs'
+          allowed={world,'app/'+world,sensor,'app/'+sensor,water,'app/'+water,relief,'vendor/bp-unified-topobathy-v1.mjs','vendor/bp-unified-topobathy-worker-v1.js','index.html','app/index.html','landing.js','app.js','vendor/bp-public-globe-v4.mjs'}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed and not p.relative_to(site).as_posix().startswith('data/bp-nyc-terrain-v1/')}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('TOPOBATHY_ANCHOR',a[:130],s.count(a))
+              return s.replace(a,b,1)
+          for rel in (world,'app/'+world):
+              p=site/rel;s=p.read_text()
+              assert 'bpNativeHeight()' in s and 'overlayMeshes:false' in s
+              s="import {unifiedTerrainURL,TERRAIN_ATTRIBUTION} from '/vendor/bp-unified-topobathy-v1.mjs';\n"+s
+              s=one(s,"tiles:[DEM],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Mapzen Terrain Tiles · AWS Open Data'","tiles:[unifiedTerrainURL(DEM)],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:TERRAIN_ATTRIBUTION")
+              # Never enforce the surface-camera safety correction during a deliberate
+              # dive. The signed seabed remains the same native terrain source.
+              s=one(s,'if(groundCameraBusy||!terrainOn||typeof map.queryTerrainElevation', 'if(isUnderwaterDiveActive()||groundCameraBusy||!terrainOn||typeof map.queryTerrainElevation')
+              # Heavy idle geometry should not compete with a new gesture. Preserve
+              # building, tree, water and sidewalk controls and their cached geometry.
+              s=one(s,'const refreshStartedAt=performance.now();','const refreshStartedAt=performance.now();\n    if(window.__BP_UNDERWATER_DIVE_TRANSITION__===true||map.isMoving?.())return false;')
+              p.write_text(s)
+          for rel in (sensor,'app/'+sensor):
+              p=site/rel;s=p.read_text()
+              # Older versions accidentally waited for the deleted GEBCO raster source.
+              a=s.index(' async function waitForDepthSource(');b=s.index(' function waitForMapMove(',a)
+              s=s[:a]+""" async function waitForDepthSource(timeout=10000){
+            const until=Date.now()+timeout;
+            while(Date.now()<until&&!dead){
+             if(map.getSource('dem')&&map.getLayer(B)&&map.getTerrain?.()?.source==='dem')return true;
+             if(map.getSource('dem')&&!map.isMoving?.()){try{addDepth()}catch(_){}}
+             await pause(180);
+            }
+            return !!(map.getSource('dem')&&map.getLayer(B)&&map.getTerrain?.()?.source==='dem');
+           }
+          """+s[b:]
+              # Native signed terrain already exists; do not wait for every imagery
+              # tile before allowing the camera to move beneath water.
+              s=one(s,"const clearance=Math.min(35,Math.max(2,Math.abs(bed)*.08)),targetAltitude=Math.min(-3,Math.max(-95,bed+clearance));","const clearance=Math.min(35,Math.max(1.0,Math.abs(bed)*.08)),targetAltitude=Math.min(-.8,Math.max(-95,bed+clearance));")
+              # Verify actual camera altitude, not merely a requested altitude or
+              # zoom. Keep original rollback on an unsuccessful dive.
+              marker="const actualCenter=map.getCenter?.(),actualPitch="
+              assert marker in s
+              s=s.replace(marker,"const actualCameraAltitude=cameraAltitude();\n    "+marker,1)
+              s=one(s,"if(!centerMatches||!Number.isFinite(actualPitch)","if(!centerMatches||(Number.isFinite(actualCameraAltitude)&&actualCameraAltitude>=-.2)||!Number.isFinite(actualPitch)")
+              # The center can shift a little with a tilted camera. Use the original
+              # verified bed point if the target center tile is still being loaded.
+              s=one(s,"actualBed=map.queryTerrainElevation?.(actualCenter,{exaggerated:true});","actualBed=map.queryTerrainElevation?.(point,{exaggerated:true});")
+              s=s.replace("source:'GEBCO',bedMeters:bed,cameraAltitudeMeters:targetAltitude","source:'Unified signed terrain (GEBCO/Mapzen/regional survey where available)',bedMeters:bed,cameraAltitudeMeters:Number.isFinite(actualCameraAltitude)?actualCameraAltitude:targetAltitude")
+              # MapLibre versions expose different camera altitude methods; try
+              # all supported variants without inventing a measured altitude.
+              a=s.index(' function cameraAltitude(){');b=s.index('\n function ',a+2)
+              s=s[:a]+""" function cameraAltitude(){try{
+            const t=map.transform||map._transform;
+            for(const v of [map.getFreeCameraOptions?.()?.position?.toAltitude?.(),t?.getCameraAltitude?.(),t?.getCameraPosition?.()?.altitude]){
+             if(Number.isFinite(v))return v;
+            }
+            const loc=t?.getCameraPosition?.();if(loc&&Number.isFinite(loc.z)&&typeof loc.toAltitude==='function')return loc.toAltitude();
+            return null
+           }catch(_){return null}}
+          """+s[b:]
+              # Do not require a deep ocean trench before entering shallow mapped
+              # coastal water. Unknown or insufficient depth still blocks a dive.
+              s=s.replace('bed<-25){','bed<-4.5){').replace('z>=14.5&&alt!==null&&alt>=0&&alt<55','z>=14.5&&alt!==null&&alt>=0&&alt<75')
+              # Existing moving underwater light and particles are retained. Add
+              # subtle blue light and reduce the particle render rate on slow phones.
+              s=s.replace("function drawDiveParticles(time){","function drawDiveParticles(time){\n  if(window.innerWidth<=700&&time-(window.__BP_DIVE_LAST_FX_FRAME__||0)<40){diveRaf=requestAnimationFrame(drawDiveParticles);return}window.__BP_DIVE_LAST_FX_FRAME__=time;")
+              p.write_text(s)
+          p=site/relief;s=p.read_text()
+          s="import {installUnifiedTerrain,TERRAIN_ATTRIBUTION} from '/vendor/bp-unified-topobathy-v1.mjs';\n"+s
+          # Existing protocol remains the fallback for unsupported browsers. The
+          # same signed grid and cache drives both native terrain and shaded floor.
+          s=one(s,"tiles:['bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:12,attribution:'Mapzen / Tilezen terrain · ETOPO1 bathymetry'","tiles:[installUnifiedTerrain()?'bp-topobathy://relief/{z}/{x}/{y}.png':'bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:15,attribution:TERRAIN_ATTRIBUTION")
+          p.write_text(s)
+          for rel in (water,'app/'+water):
+              p=site/rel;s=p.read_text()
+              s=one(s,"from '/vendor/bp-ocean-relief-v4.mjs'","from '/vendor/bp-ocean-relief-v4.mjs?v=unifiedtopobathy1'")
+              # Keep continuous polygon-clipped coverage while above water.
+              # Underwater the existing animated native fill becomes a translucent
+              # blue caustic layer draped directly on the shared seabed.
+              s,n=re.subn(r'const target=wet>\.02\?\.32:close\?1:\.16;', 'const target=wet>.02?.26:close?1:.16;',s)
+              assert n==1,('UNDERWATER_COVER_OPACITY',rel,n)
+              s=s.replace('if(now-lastOceanPattern<190)return;','if(now-lastOceanPattern<(Number(window.__BP_WATER_SUBMERGENCE_V2__||0)>.02?420:190))return;')
+              p.write_text(s)
+          for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
+              p=site/rel;s=p.read_text()
+              for key in (world,sensor,water):
+                  s,n=re.subn(r'('+re.escape(key)+r'\?[^"\'\s]+)',lambda m:m[1]+'&topobathy=20261125v1',s)
+                  if rel in ('landing.js','app.js') and key!=sensor:assert n>=1,(rel,key,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&topobathy=20261125v1',s);assert n>=1;p.write_text(s)
+          assert before==snap(),'UNRELATED RELEASE FILE CHANGED'
+          print('UNIFIED_TOPOBATHY_SCOPE_PASS',len(before))
+          PY
+          BUILD="$RUNNER_TEMP/terrain-worker-build"
+          mkdir -p "$BUILD"
+          cat > "$BUILD/worker.mjs" <<'JS'
+          import {fromUrl} from 'geotiff';
+          const S=256,MAX=32,cache=new Map(),pending=new Map(),gebcoCache=new Map(),gebcoPending=new Map();
+          const aws=(z,x,y)=>'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/'+z+'/'+x+'/'+y+'.png';
+          const mt=(z,x,y)=>'https://tiles.mapterhorn.com/'+z+'/'+x+'/'+y+'.webp';
+          const cogURL='https://data.source.coop/ausantarctic/gebco/GEBCO_2026.tif';
+          const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),latAt=y=>Math.atan(Math.sinh(Math.PI*(1-2*y)))*180/Math.PI;
+          const mix=(a,b,t)=>a+(b-a)*t,smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a),0,1);return t*t*(3-2*t)};
+          let cogPromise=null,cogBackoff=0,landBackoff=0,nycManifestPromise=null;
+          function lru(m,k,v,n=MAX){m.delete(k);m.set(k,v);while(m.size>n)m.delete(m.keys().next().value);return v}
+          async function fetchLimited(url,ms=4500){
+           const r=await fetch(url,{signal:AbortSignal.timeout(ms)});if(!r.ok)throw Error('HTTP '+r.status);return r;
+          }
+          async function imageTile(url){
+           const r=await fetchLimited(url),img=await createImageBitmap(await r.blob(),{colorSpaceConversion:'none',premultiplyAlpha:'none'});
+           try{
+            const cv=new OffscreenCanvas(img.width,img.height),ct=cv.getContext('2d',{willReadFrequently:true});ct.drawImage(img,0,0);
+            const d=ct.getImageData(0,0,img.width,img.height).data,e=new Float32Array(img.width*img.height);
+            for(let i=0;i<e.length;i++){const j=i*4;e[i]=d[j+3]<128?NaN:d[j]*256+d[j+1]+d[j+2]/256-32768;}
+            return {e,w:img.width,h:img.height};
+           }finally{img.close()}
+          }
+          function sample(t,x,y){
+           const fx=clamp(x*t.w-.5,0,t.w-1),fy=clamp(y*t.h-.5,0,t.h-1),ix=Math.floor(fx),iy=Math.floor(fy),jx=Math.min(t.w-1,ix+1),jy=Math.min(t.h-1,iy+1),a=t.e[iy*t.w+ix],b=t.e[iy*t.w+jx],c=t.e[jy*t.w+ix],d=t.e[jy*t.w+jx];
+           return [a,b,c,d].every(Number.isFinite)?mix(mix(a,b,fx-ix),mix(c,d,fx-ix),fy-iy):Number.isFinite(a)?a:NaN;
+          }
+          async function gebcoParent(z,x,y){
+           const key=z+'/'+x+'/'+y;if(gebcoCache.has(key))return gebcoCache.get(key);if(gebcoPending.has(key))return gebcoPending.get(key);
+           if(Date.now()<cogBackoff)return null;
+           const task=(async()=>{try{
+            const signal=AbortSignal.timeout(6000);
+            if(!cogPromise)cogPromise=fromUrl(cogURL,{allowFullFile:false,blockSize:65536,cacheSize:64},signal).catch(e=>{cogPromise=null;throw e});
+            const tif=await cogPromise,n=2**z,left=x/n*360-180,right=(x+1)/n*360-180,top=latAt(y/n),bottom=latAt((y+1)/n);
+            const g=await tif.readRasters({bbox:[left,bottom,right,top],width:S,height:S,resampleMethod:'bilinear',interleave:true,signal});
+            if(g.length!==S*S)throw Error('Invalid GEBCO grid size');
+            const e=new Float32Array(S*S),src={e:g,w:S,h:S};
+            for(let j=0;j<S;j++){const f=(top-latAt((y+(j+.5)/S)/n))/(top-bottom);for(let i=0;i<S;i++)e[j*S+i]=sample(src,(i+.5)/S,f)}
+            return lru(gebcoCache,key,{e,w:S,h:S},16);
+           }catch(e){cogBackoff=Date.now()+30000;return null}})();
+           gebcoPending.set(key,task);try{return await task}finally{gebcoPending.delete(key)}
+          }
+          async function regional(z,x,y){
+           if(z<12)return null;
+           const n=2**z,left=x/n*360-180,right=(x+1)/n*360-180,top=latAt(y/n),bottom=latAt((y+1)/n);
+           if(right<-74.06||left>-73.88||top<40.67||bottom>40.9)return null;
+           if(!nycManifestPromise)nycManifestPromise=fetchLimited('/data/bp-nyc-terrain-v1/manifest.json').then(r=>r.json()).catch(()=>({tiles:[]}));
+           const manifest=await nycManifestPromise,key=z+'/'+x+'/'+y;
+           if(!manifest.tiles?.includes(key))return null;
+           return imageTile('/data/bp-nyc-terrain-v1/'+key+'.png').catch(()=>null);
+          }
+          async function elevation(z,x,y){
+           const key=z+'/'+x+'/'+y;if(cache.has(key))return cache.get(key);if(pending.has(key))return pending.get(key);
+           const task=(async()=>{
+            const a=await imageTile(aws(z,x,y));if(a.w!==S||a.h!==S)throw Error('Base terrain dimensions');
+            let land=0,sea=0;for(const h of a.e){if(h>2)land++;if(h<-25)sea++}
+            const gz=Math.min(9,z),factor=2**(z-gz),gx=Math.floor(x/factor),gy=Math.floor(y/factor);
+            const [l,g,r]=await Promise.all([
+             land>64&&z>=6&&Date.now()>=landBackoff?imageTile(mt(z,x,y)).catch(()=>{landBackoff=Date.now()+10000;return null}):null,
+             sea>64?gebcoParent(gz,gx,gy):null,regional(z,x,y)
+            ]);
+            const out=new Float32Array(S*S);let usedLand=0,usedSea=0,usedRegional=0;
+            for(let j=0;j<S;j++)for(let i=0;i<S;i++){
+             const k=j*S+i,old=a.e[k],u=(i+.5)/S,v=(j+.5)/S;let h=old;
+             if(!Number.isFinite(old)){out[k]=0;continue}
+             if(l){const q=sample(l,u,v);if(Number.isFinite(q)&&q>=0&&old>=0&&q<9000){const w=smooth(0,12,Math.min(old,q));h=mix(h,q,w);if(w>0)usedLand++}}
+             if(g){const q=sample(g,(x/factor-gx)+u/factor,(y/factor-gy)+v/factor);if(Number.isFinite(q)&&q<-15&&old<-15&&q>=-12000){const w=smooth(15,110,-old)*smooth(15,110,-q);h=mix(h,q,w);if(w>0)usedSea++}}
+             // Local tile alpha is the feather mask. Use surveyed negative heights
+             // as well as positive heights; the original signed grid fills its gaps.
+             if(r){const q=sample(r,u,v);if(Number.isFinite(q)&&q>=-150&&q<=300){const edge=Math.min(i,j,S-1-i,S-1-j);const w=1;h=mix(h,q,w);usedRegional++}}
+             out[k]=clamp(h,-12000,9000);
+            }
+            return lru(cache,key,{e:out,usedLand,usedSea,usedRegional});
+           })();
+           pending.set(key,task);try{return await task}finally{pending.delete(key)}
+          }
+          async function png(tile,z,x,y,relief){
+           const cv=new OffscreenCanvas(S,S),ctx=cv.getContext('2d'),img=ctx.createImageData(S,S),d=img.data,e=tile.e;
+           const cell=40075016.6856/(S*2**z)*Math.max(.09,Math.cos(latAt((y+.5)/2**z)*Math.PI/180));
+           for(let j=0;j<S;j++)for(let i=0;i<S;i++){
+            const k=j*S+i,o=k*4,h=e[k];
+            if(!relief){const enc=Math.round((h+32768)*256);d[o]=(enc>>16)&255;d[o+1]=(enc>>8)&255;d[o+2]=enc&255;d[o+3]=255;continue}
+            if(h>=-.25)continue;
+            const dx=(e[j*S+Math.min(S-1,i+1)]-e[j*S+Math.max(0,i-1)])/(2*cell),dy=(e[Math.min(S-1,j+1)*S+i]-e[Math.max(0,j-1)*S+i])/(2*cell),light=clamp((.83-.40*dx+.34*dy)/Math.sqrt(1+dx*dx+dy*dy),.22,1.12),depth=clamp(Math.log1p(-h/35)/Math.log1p(12000/35),0,1);
+            const gx=(x*S+i)/2**z,gy=(y*S+j)/2**z,grain=.96+.04*Math.sin(gx*318.1+gy*213.7)*Math.sin(gx*433.9-gy*150.1);
+            const lum=(.65+.60*light)*grain;
+            d[o]=clamp((120-91*depth)*lum,0,255);d[o+1]=clamp((186-112*depth)*lum,0,255);d[o+2]=clamp((191-93*depth)*lum,0,255);d[o+3]=255;
+           }
+           ctx.putImageData(img,0,0);return (await cv.convertToBlob({type:'image/png'})).arrayBuffer()
+          }
+          const queue=[],cancelled=new Set();let active=0;
+          function pump(){
+           while(active<2&&queue.length){const msg=queue.shift();if(cancelled.delete(msg.id))continue;active++;(async()=>{try{
+           const tile=await elevation(msg.z,msg.x,msg.y);if(cancelled.delete(msg.id))return;
+           const data=await png(tile,msg.z,msg.x,msg.y,msg.relief);
+           if(!cancelled.delete(msg.id))self.postMessage({id:msg.id,data,stats:{land:tile.usedLand,gebco:tile.usedSea,nyc:tile.usedRegional}},[data]);
+           }catch(e){if(!cancelled.delete(msg.id))self.postMessage({id:msg.id,error:String(e.message||e)})}finally{active--;pump()}})()}
+          }
+          self.onmessage=({data:m})=>{if(m.cancel){const i=queue.findIndex(q=>q.id===m.id);if(i>=0)queue.splice(i,1);else{cancelled.add(m.id);if(cancelled.size>256)cancelled.delete(cancelled.values().next().value)}return}if(queue.length>=64){self.postMessage({id:m.id,error:'Terrain queue saturated'});return}queue.push(m);pump()};
+          JS
+          cat > "$SITE/vendor/bp-unified-topobathy-v1.mjs" <<'JS'
+          const AWS='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/';
+          export const TERRAIN_ATTRIBUTION='Mapzen/AWS Open Data · Mapterhorn open terrain sources · GEBCO 2026 (15 arc-second) · NYC/NOAA 2017 topobathy / USGS 3DEP where available';
+          let worker=null,seq=0,installed=false;const requests=new Map();
+          function status(){return window.__BP_UNIFIED_TOPOBATHY_V1__||=( {terrainTiles:0,reliefTiles:0,landPixels:0,gebcoPixels:0,nycPixels:0,fallbackTiles:0,worker:true,source:'signed shared elevation tile grid'} )}
+          function failAll(){for(const p of requests.values())p.reject(Error('Terrain worker unavailable'));requests.clear();worker?.terminate();worker=null;}
+          function getWorker(){if(worker)return worker;worker=new Worker('/vendor/bp-unified-topobathy-worker-v1.js',{type:'module'});worker.onerror=failAll;worker.onmessage=({data:m})=>{const p=requests.get(m.id);if(!p)return;requests.delete(m.id);if(m.error)p.reject(Error(m.error));else{const s=status();s.landPixels+=m.stats.land;s.gebcoPixels+=m.stats.gebco;s.nycPixels+=m.stats.nyc;p.resolve(m.data)}};return worker}
+          export function unifiedTile(z,x,y,relief=false,signal){
+           return new Promise((resolve,reject)=>{
+            if(signal?.aborted){reject(new DOMException('Aborted','AbortError'));return}
+            const w=getWorker(),id=++seq;
+            const finish=()=>{clearTimeout(timer);signal?.removeEventListener('abort',abort);requests.delete(id)};
+            const abort=()=>{w.postMessage({id,cancel:true});finish();reject(new DOMException('Aborted','AbortError'))};
+            const timer=setTimeout(()=>{w.postMessage({id,cancel:true});finish();reject(Error('Terrain worker tile deadline'))},9500);
+            requests.set(id,{resolve:d=>{finish();resolve(d)},reject:e=>{finish();reject(e)}});
+            signal?.addEventListener('abort',abort,{once:true});w.postMessage({id,z,x,y,relief});
+           })
+          }
+          export function installUnifiedTerrain(){
+           if(installed)return true;if(!window.maplibregl?.addProtocol||!window.Worker||!window.OffscreenCanvas)return false;
+           window.maplibregl.addProtocol('bp-topobathy',async(req,abort)=>{
+            const m=req.url.match(/^bp-topobathy:\/\/(dem|relief)\/(\d+)\/(\d+)\/(\d+)(?:\.png)?$/);if(!m)throw Error('Invalid unified terrain URL');
+            const relief=m[1]==='relief',z=+m[2],x=+m[3],y=+m[4],signal=abort?.signal;
+            try{const data=await unifiedTile(z,x,y,relief,signal);status()[relief?'reliefTiles':'terrainTiles']++;return {data,cacheControl:'public,max-age=86400'}}
+            catch(e){if(signal?.aborted||relief)throw e;status().fallbackTiles++;const r=await fetch(AWS+z+'/'+x+'/'+y+'.png',{signal});if(!r.ok)throw Error('Fallback elevation HTTP '+r.status);return {data:await r.arrayBuffer(),cacheControl:'public,max-age=3600'}}
+           });installed=true;status();return true
+          }
+          export function unifiedTerrainURL(fallback){return installUnifiedTerrain()?'bp-topobathy://dem/{z}/{x}/{y}.png':fallback}
+          JS
+          npm install --prefix "$BUILD" --no-audit --no-fund geotiff@2.1.3 esbuild@0.25.12
+          "$BUILD/node_modules/.bin/esbuild" "$BUILD/worker.mjs" --bundle --format=esm --platform=browser --target=es2022 --outfile="$SITE/vendor/bp-unified-topobathy-worker-v1.js"
+          python3 - <<'PY'
+          import os, json, math, urllib.request, urllib.parse, xml.etree.ElementTree as ET, pathlib, tempfile
+          import numpy as np,rasterio
+          from rasterio.warp import reproject,Resampling
+          from rasterio.transform import from_bounds
+          from PIL import Image
+          site=pathlib.Path(os.environ['SITE']);out=site/'data/bp-nyc-terrain-v1';out.mkdir(parents=True,exist_ok=True)
+          R=20037508.342789244
+          def tilexy(lon,lat,z):
+              n=2**z;return (int((lon+180)/360*n),int((1-math.asinh(math.tan(math.radians(lat)))/math.pi)/2*n))
+          def bounds(z,x,y):
+              d=2*R/2**z;return (-R+x*d,R-(y+1)*d,-R+(x+1)*d,R-y*d)
+          # Manhattan and its immediately adjacent shorelines, in one continuous
+          # projected raster so neighboring output tiles use identical samples.
+          zmax=15;x0,y0=tilexy(-74.055,40.900,zmax);x1,y1=tilexy(-73.885,40.670,zmax)
+          west,south,_,_=bounds(zmax,x0,y1);_,_,east,north=bounds(zmax,x1,y0)
+          w=(x1-x0+1)*256;h=(y1-y0+1)*256
+          # Bound memory and service load; sample the source at a common grid.
+          w=min(w,4096);h=min(h,4096);dst=np.full((h,w),np.nan,np.float32);tr=from_bounds(west,south,east,north,w,h)
+          provider='unavailable';err=None
+          def readurl(url,timeout=35,limit=80_000_000):
+              req=urllib.request.Request(url,headers={'User-Agent':'BridgePoint terrain research tiles/1.0'})
+              with urllib.request.urlopen(req,timeout=timeout) as f:
+                  raw=f.read(limit+1)
+              if len(raw)>limit:raise ValueError('source too large')
+              return raw
+          # Use USGS bare-earth float elevation in metres. It removes the DSM
+          # building spikes seen in the screenshot. Ocean cells are not inferred.
+          try:
+              q={'bbox':','.join(map(str,(west,south,east,north))),'bboxSR':3857,'imageSR':3857,'size':f'{w},{h}','format':'tiff','pixelType':'F32','interpolation':'RSP_BilinearInterpolation','f':'image'}
+              raw=readurl('https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?'+urllib.parse.urlencode(q),75)
+              with rasterio.MemoryFile(raw) as mem,mem.open() as src:
+                  assert src.count==1 and src.crs and src.dtypes[0] in ('float32','float64')
+                  reproject(rasterio.band(src,1),dst,src_transform=src.transform,src_crs=src.crs,src_nodata=src.nodata,dst_transform=tr,dst_crs='EPSG:3857',dst_nodata=np.nan,resampling=Resampling.bilinear)
+              valid=np.isfinite(dst)&(dst>=-20)&(dst<=250);assert valid.mean()>.15
+              # USGS topography does not certify an underwater bed. Exclude water
+              # elevation zero and negatives; the shared ocean source fills those.
+              dst[~valid|(dst<=.4)]=np.nan;provider='USGS 3DEP bare-earth NAVD88 metres'
+          except Exception as e:
+              err=str(e)[:300];dst[:]=np.nan;print('NYC_3DEP_UNAVAILABLE',err,flush=True)
+          # NOAA source datum is NAVD88 US survey feet. Sample it from the VRT
+          # only when the optional subprocess can read and validate the raster.
+          noaa_status='not imported';noaa_url='https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/dem/NYC_topobathy_BE_DEM_2017_9307/'
+          import subprocess,sys
+          with tempfile.TemporaryDirectory() as tmp:
+              tmp=pathlib.Path(tmp)
+              try:
+                  vrt=ET.fromstring(readurl(noaa_url+'NYC_topobathy_BE_DEM_2017_m9307_EPSG-6539.vrt',25,2_000_000))
+                  for node in vrt.iter('SourceFilename'):
+                      name=pathlib.PurePosixPath(node.text).name
+                      if not name.endswith('.tif'):raise ValueError('unknown NOAA source path')
+                      node.text='/vsicurl/'+noaa_url+name;node.set('relativeToVRT','0')
+                  vp=tmp/'nyc.vrt';ET.ElementTree(vrt).write(vp)
+                  # GDAL reads the declared horizontal CRS only; convert vertical
+                  # feet to metres explicitly, without applying a second conversion.
+                  code="""import sys,numpy as np,rasterio
+          from rasterio.warp import reproject,Resampling
+          from rasterio.transform import from_bounds
+          p,o,w,h,*b=sys.argv[1:];w,h=int(w),int(h);b=list(map(float,b));a=np.full((h,w),np.nan,np.float32)
+          with rasterio.Env(GDAL_HTTP_TIMEOUT='12',GDAL_HTTP_MAX_RETRY='0',GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_DIR',CPL_VSIL_CURL_ALLOWED_EXTENSIONS='.tif,.vrt'):
+           with rasterio.open(p) as src:
+            reproject(rasterio.band(src,1),a,src_crs='EPSG:6539',src_transform=src.transform,src_nodata=src.nodata,dst_crs='EPSG:3857',dst_transform=from_bounds(*b,w,h),dst_nodata=np.nan,resampling=Resampling.bilinear,num_threads=2)
+          a*=1200/3937;np.save(o,a)
+          """
+                  npy=tmp/'noaa.npy';subprocess.run([sys.executable,'-c',code,str(vp),str(npy),str(w),str(h),*map(str,(west,south,east,north))],timeout=150,check=True)
+                  a=np.load(npy);good=np.isfinite(a)&(a>=-100)&(a<=250)
+                  assert good.mean()>.05 and np.count_nonzero(good&(a< -2))>100
+                  dst[good]=a[good];noaa_status='ready';provider='NOAA NYC 2017 topobathy NAVD88 US survey feet converted to metres; USGS 3DEP fills land gaps'
+              except Exception as e:
+                  noaa_status='unavailable: '+str(e)[:200];print('NYC_TOPOBATHY_OPTIONAL_UNAVAILABLE',noaa_status,flush=True)
+          tiles=[]
+          for z in range(12,16):
+              ax,ay=tilexy(-74.055,40.900,z);bx,by=tilexy(-73.885,40.670,z)
+              for x in range(ax,bx+1):
+                  for y in range(ay,by+1):
+                      arr=np.full((256,256),np.nan,np.float32)
+                      reproject(dst,arr,src_crs='EPSG:3857',src_transform=tr,src_nodata=np.nan,dst_crs='EPSG:3857',dst_transform=from_bounds(*bounds(z,x,y),256,256),dst_nodata=np.nan,resampling=Resampling.bilinear)
+                      valid=np.isfinite(arr)
+                      if valid.sum()<256:continue
+                      enc=np.round((np.where(valid,arr,0)+32768)*256).astype(np.uint32)
+                      rgba=np.stack(((enc>>16)&255,(enc>>8)&255,enc&255,valid*255),axis=-1).astype(np.uint8)
+                      p=out/str(z)/str(x)/(str(y)+'.png');p.parent.mkdir(parents=True,exist_ok=True);Image.fromarray(rgba,'RGBA').save(p,optimize=True);tiles.append(f'{z}/{x}/{y}')
+          manifest={'provider':provider,'noaa':noaa_status,'tiles':tiles,'count':len(tiles),'sourceDatum':'NAVD88; approximate MSL alignment; no exact tidal-datum claim','error':err}
+          (out/'manifest.json').write_text(json.dumps(manifest,separators=(',',':')))
+          print('NYC_REGIONAL_TERRAIN',provider,noaa_status,len(tiles),flush=True)
+          PY
+          for p in world-v2300-map.js app/world-v2300-map.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js world-v2300-water.js app/world-v2300-water.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const root=process.env.SITE;
+          for(const prefix of ['', 'app/']){
+           const map=fs.readFileSync(root+'/'+prefix+'world-v2300-map.js','utf8'),sensor=fs.readFileSync(root+'/'+prefix+'world-v2300-sensor-layers.js','utf8');
+           assert(map.includes('unifiedTerrainURL(DEM)')&&map.includes('bpNativeHeight()')&&map.includes('isUnderwaterDiveActive()||groundCameraBusy'));
+           assert(sensor.includes("map.getTerrain?.()?.source==='dem'")&&sensor.includes('actualCameraAltitude'));
+          }
+          const manifest=JSON.parse(fs.readFileSync(root+'/data/bp-nyc-terrain-v1/manifest.json'));
+          assert(manifest.count===manifest.tiles.length&&manifest.tiles.every(x=>fs.existsSync(root+'/data/bp-nyc-terrain-v1/'+x+'.png')));
+          const worker=fs.readFileSync(root+'/vendor/bp-unified-topobathy-worker-v1.js','utf8');
+          assert(worker.includes('GEBCO_2026.tif')&&worker.includes('tiles.mapterhorn.com'));
+          console.log('UNIFIED_TERRAIN_SOURCE_AND_DIVE_GUARDS_PASS',manifest.provider,manifest.count,manifest.noaa);
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
