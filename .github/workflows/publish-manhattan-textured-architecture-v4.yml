@@ -1,0 +1,328 @@
+name: Publish BridgePoint Manhattan textured architecture V4
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-manhattan-textured-architecture-v4.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful Manhattan source geometry V3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45663279664 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45663279664 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Bake facade maps and geometry details
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 -m pip install --quiet numpy pillow
+          python3 - <<'PY'
+          import os, json, struct, math, hashlib, re, io, random
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image,ImageDraw
+          site=Path(os.environ['SITE']); scan='bridgepoint-auto-reality-v1.js'
+          folder='assets/manhattan-photogrammetry-v1/'
+          asset=folder+'textured-architecture-v4.glb';info=folder+'textured-architecture-v4.json'
+          allowed={scan,'index.html','app/index.html',asset,info}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          raw=(site/(folder+'source-architecture-v3.glb')).read_bytes()
+          jlen=struct.unpack_from('<I',raw,12)[0];doc=json.loads(raw[20:20+jlen]);blob=raw[28+jlen:]
+          prim=doc['meshes'][0]['primitives'][0]
+          def read(i):
+              a=doc['accessors'][i];v=doc['bufferViews'][a['bufferView']]
+              dims={'SCALAR':1,'VEC2':2,'VEC3':3,'VEC4':4}[a['type']]
+              return np.frombuffer(blob,dtype={5126:'<f4',5125:'<u4'}[a['componentType']],count=a['count']*dims,offset=v.get('byteOffset',0)+a.get('byteOffset',0)).reshape(-1,dims)
+          P=read(prim['attributes']['POSITION']);C=read(prim['attributes']['COLOR_0']);U=read(prim['attributes']['TEXCOORD_0']);D=read(prim['attributes']['_BPDETAIL']);I=read(prim['indices']).reshape(-1,3)
+          assert len(P)>10000 and len(I)>5000
+          # Rebuild into material batches with real UVs, normals and physically separated
+          # base/storefront, wall and roof surfaces. Source vertex coordinates remain fixed.
+          groups={};rng=np.random.default_rng(20261125)
+          def group(k):
+              return groups.setdefault(k,[[],[],[],[]])
+          def emit(k,p,u,c,normal=None):
+              p=np.asarray(p,dtype=float);u=np.asarray(u,dtype=float);c=np.asarray(c,dtype=float)
+              if normal is None:normal=np.cross(p[1]-p[0],p[2]-p[0]);normal=normal/max(1e-9,np.linalg.norm(normal))
+              g=group(k);g[0].extend(p);g[1].extend(u);g[2].extend(c);g[3].extend([normal]*3)
+          def quad(k,p,uv,col,normal=None):
+              for ix in [(0,1,2),(0,2,3)]:emit(k,[p[i] for i in ix],[uv[i] for i in ix],[col]*3,normal)
+          def box(k,center,size,col):
+              x,y,z=center;a,b,c=np.array(size)/2
+              v=[(x-a,y-b,z-c),(x+a,y-b,z-c),(x+a,y+b,z-c),(x-a,y+b,z-c),(x-a,y-b,z+c),(x+a,y-b,z+c),(x+a,y+b,z+c),(x-a,y+b,z+c)]
+              for ix in [(0,3,2,1),(4,5,6,7),(0,4,7,3),(1,2,6,5),(3,7,6,2),(0,1,5,4)]:quad(k,[v[i] for i in ix],[(0,0),(1,0),(1,1),(0,1)],col)
+          def family(style):
+              return 'glass' if style in (3,11) else 'brick' if style in (0,1,2,5,7,12) else 'stone' if style in (4,8,9) else 'metal' if style in (13,14,15) else 'loft'
+          roof_centers=[];wall_count=0;roof_count=0;door_count=0;trim_count=0
+          # Existing face indices encode two triangles for every wall in adjacent order.
+          # Detect those pairs explicitly and split at the recorded base height.
+          i=0
+          while i<len(I):
+              tri=I[i];p=P[tri];d=D[tri[0]];k=family(int(round(float(d[0]))))
+              tint=np.clip(.60+.40*np.sqrt(np.clip(C[tri[0]],0,1)),.60,1.)
+              if np.ptp(p[:,1])<.0005:
+                  normal=np.array([0.,1.,0.]);tri=tri if np.cross(p[1]-p[0],p[2]-p[0])[1]>0 else tri[[0,2,1]]
+                  emit('roof',P[tri],P[tri][:,[0,2]]/8.,[tint]*3,normal)
+                  area=abs(np.cross(p[1]-p[0],p[2]-p[0])[1])*.5
+                  if area>24 and p[0,1]-d[3]>8:roof_centers.append((p.mean(0),area))
+                  roof_count+=1;i+=1;continue
+              # V3 wall pairs: [a,c,b], [a,d,c].
+              if i+1>=len(I) or I[i+1,0]!=tri[0] or I[i+1,2]!=tri[1]:
+                  emit(k,p,U[tri]/4.,[tint]*3);i+=1;continue
+              a,b,c,e=P[[tri[0],tri[2],tri[1],I[i+1,1]]]
+              length=float(np.linalg.norm(b-a));height=float(c[1]-b[1]);bays=float(U[tri[2],0]);floors=float(U[tri[1],1])
+              if height<.2 or length<.15:i+=2;continue
+              # The source polygon orientation yields an outward horizontal normal.
+              n=np.cross(c-a,b-a);n=n/max(1e-9,np.linalg.norm(n))
+              store=float(d[2]);base=float(d[3])
+              ground=min(height, max(2.7,min(5.5,store if store>0 else float(d[1]))))
+              t=ground/height;ag=a+(e-a)*t;bg=b+(c-b)*t
+              # Explicit ground-floor door/storefront maps are not repeated up the tower.
+              quad('entry_'+k,[a,ag,bg,b],[(0,0),(0,1),(max(1,bays/3),1),(max(1,bays/3),0)],tint,n)
+              door_count+=1
+              if t<.999:quad(k,[ag,e,c,bg],[(0,0),(0,(floors*(1-t))/4),(bays/4,(floors*(1-t))/4),(bays/4,0)],tint,n)
+              # Project a narrow cornice/spandrel off masonry walls. Geometry is bounded:
+              # roof edge plus a single base band rather than millions of window meshes.
+              if length>3 and height>8:
+                  outset=.12 if k=='glass' else .24
+                  for y in [ground,height-.32]:
+                      if y+.2>height:continue
+                      A=a+(e-a)*(y/height);B=b+(c-b)*(y/height)
+                      q=[A+n*outset,A+n*outset+np.array([0,.18,0]),B+n*outset+np.array([0,.18,0]),B+n*outset]
+                      quad('trim',q,[(0,0),(0,1),(length/4,1),(length/4,0)],tint*.90,n)
+                      trim_count+=1
+              wall_count+=1;i+=2
+          # Conservative illustrative rooftop equipment on large, flat source roof
+          # triangles. Actual roof shapes and heights are not altered. Avoid roof edges
+          # and keep equipment out of courtyards.
+          picked=[]
+          for p,area in sorted(roof_centers,key=lambda x:-x[1]):
+              if len(picked)>=450:break
+              if any(np.linalg.norm((p-q)[[0,2]])<12 and abs(p[1]-q[1])<4 for q in picked):continue
+              if area<45:continue
+              picked.append(p)
+              size=min(3.1,max(1.25,math.sqrt(area)*.19))
+              box('equipment',(p[0],p[1]+.66,p[2]),(size,1.32,size*.85),(.82,.82,.82))
+              # raised fan housings and vent grills
+              box('vent',(p[0],p[1]+1.38,p[2]),(size*.76,.12,size*.66),(.78,.79,.80))
+          assert wall_count>2000 and roof_count>500 and door_count==wall_count
+          # Real baked 512px repeating textures; four bays/floors per tile, with
+          # pre-baked reveal shadows, frames, spandrels, and fine material grain.
+          # Texture maps remain visible even when shader detail or device tier is low.
+          N=512
+          pal={'glass':(77,103,124),'brick':(157,111,88),'stone':(190,180,158),'metal':(151,158,160),'loft':(158,148,130),'roof':(117,121,122),'trim':(159,154,145),'equipment':(162,169,171),'vent':(93,102,108)}
+          def texture(kind):
+              entry=kind.startswith('entry_');k=kind.replace('entry_','')
+              base=np.array(pal[k],dtype=float)
+              noise=rng.normal(0,3.8,(N,N,1))
+              arr=np.clip(base+noise,0,255).astype(np.uint8);im=Image.fromarray(arr,'RGB');dr=ImageDraw.Draw(im)
+              def rect(xy,col):dr.rectangle(tuple(int(v) for v in xy),fill=tuple(int(max(0,min(255,c))) for c in col))
+              if k in ('brick','stone','loft','metal') and not entry:
+                  step=13 if k=='brick' else 64
+                  for y in range(0,N,step):
+                      rect((0,y,N,y+1),base*.76)
+                      for x in range(-40 if y//step%2 else 0,N,80 if k=='brick' else 128):rect((x,y,x+1,y+step),base*.77)
+              if k=='roof':
+                  for x in range(0,N,64):rect((x,0,x+1,N),base*.74)
+                  for y in range(0,N,128):rect((0,y,N,y+1),base*.78)
+              elif k=='vent':
+                  for x in range(22,N-20,16):rect((x,24,x+5,N-24),(36,42,46))
+              elif k=='equipment':
+                  rect((12,12,N-12,N-12),base*.92)
+                  for x in range(50,N-48,22):rect((x,65,x+5,N-65),base*.48)
+              elif k=='trim':
+                  rect((0,0,N,42),base*1.10);rect((0,N-44,N,N),base*.65)
+              else:
+                  rows=1 if entry else 4;cols=3 if entry else 4;bw=N/cols;bh=N/rows
+                  for y in range(rows):
+                      for x in range(cols):
+                          cx=(x+.5)*bw;cy=(y+.5)*bh
+                          ww=bw*(.45 if k=='glass' else .33);hh=bh*(.44 if k=='glass' or entry else .34)
+                          l,t,r,b=cx-ww,cy-hh,cx+ww,cy+hh
+                          if entry:t=bh*.12;b=bh*.99
+                          rect((l-5,t-5,r+5,b+7),base*.56);rect((l-2,t-2,r+2,b+2),base*1.18)
+                          # Pane contains sky gradient, floor interior variations and dark edges.
+                          shade=int(rng.integers(0,24));warm=bool(rng.integers(0,5)==0)
+                          for yy in range(int(t),int(b)+1):
+                              q=(yy-t)/max(1,b-t);c=np.array([67,100,126])*(1-q)+np.array([28,45,61])*q+shade
+                              if warm:c=c*.65+np.array([60,43,23])
+                              rect((l,yy,r,yy),c)
+                          rect((cx-2,t,cx+2,b),(37,47,54))
+                          if k!='glass' and not entry:rect((l,cy-2,r,cy+2),(46,53,57))
+                          rect((l-4,b+2,r+4,b+7),base*1.27)
+                          if entry:rect((cx+6,cy-3,cx+10,cy+12),(187,184,160))
+                  if k=='glass' and not entry:
+                      for y in range(0,N,128):rect((0,y,N,y+5),(54,67,76))
+              out=io.BytesIO();im.save(out,format='PNG',optimize=True);return out.getvalue()
+          buf=bytearray();views=[];acc=[];images=[];textures=[];materials=[];prims=[]
+          def addview(raw,target=None):
+              while len(buf)%4:buf.append(0)
+              v={'buffer':0,'byteOffset':len(buf),'byteLength':len(raw)}
+              if target:v['target']=target
+              buf.extend(raw);views.append(v);return len(views)-1
+          def accessor(data,typ):
+              data=np.asarray(data,dtype='<f4');a={'bufferView':addview(data.tobytes(),34962),'componentType':5126,'count':len(data),'type':typ}
+              if typ=='VEC3':a.update(min=data.min(0).tolist(),max=data.max(0).tolist())
+              acc.append(a);return len(acc)-1
+          for k,g in sorted(groups.items()):
+              if not g[0]:continue
+              image=texture(k);images.append({'bufferView':addview(image),'mimeType':'image/png','name':k})
+              textures.append({'sampler':0,'source':len(images)-1})
+              materials.append({'name':'bp_'+k,'doubleSided':True,'pbrMetallicRoughness':{'baseColorTexture':{'index':len(textures)-1},'metallicFactor':.4 if 'glass' in k else .02,'roughnessFactor':.24 if 'glass' in k else .84}})
+              p,u,c,n=g
+              prims.append({'attributes':{'POSITION':accessor(p,'VEC3'),'NORMAL':accessor(n,'VEC3'),'TEXCOORD_0':accessor(u,'VEC2'),'COLOR_0':accessor(c,'VEC3')},'material':len(materials)-1})
+          total=sum(len(g[0]) for g in groups.values());assert total<500000 and len(materials)>=12
+          while len(buf)%4:buf.append(0)
+          doc={'asset':{'version':'2.0','generator':'BridgePoint V4; Valdrada v0.7.1 source ODbL; original procedural material maps'},'scene':0,'scenes':[{'nodes':[0]}],'nodes':[{'mesh':0}],'meshes':[{'primitives':prims}],'materials':materials,'textures':textures,'images':images,'samplers':[{'magFilter':9729,'minFilter':9987,'wrapS':10497,'wrapT':10497}],'buffers':[{'byteLength':len(buf)}],'bufferViews':views,'accessors':acc}
+          j=json.dumps(doc,separators=(',',':')).encode();j+=b' '*((-len(j))%4)
+          new=struct.pack('<4sII',b'glTF',2,12+8+len(j)+8+len(buf))+struct.pack('<I4s',len(j),b'JSON')+j+struct.pack('<I4s',len(buf),b'BIN\0')+buf
+          assert len(new)<55_000_000
+          (site/asset).write_bytes(new)
+          (site/info).write_text(json.dumps({'source':'Valdrada v0.7.1 / NYC Open Data / OpenStreetMap','license':'ODbL 1.0','originalSource':'source-architecture-v3.glb','sourceGeometryPreserved':True,'textureResolution':512,'materialCount':len(materials),'wallCount':wall_count,'roofTriangles':roof_count,'entranceWalls':door_count,'trimSurfaces':trim_count,'illustrativeRoofEquipmentCount':len(picked),'triangles':total//3,'bytes':len(new),'approximation':'Procedural textures and illustrative architectural equipment, not surveyed facade imagery.'},indent=2))
+          print('TEXTURED_CITY_READY',wall_count,roof_count,door_count,trim_count,len(picked),len(materials),total//3,len(new))
+          p=site/scan;s=p.read_text()
+          a=s.index('function sourceCityMaterial(');b=s.index('async function loadSourceCity(',a)
+          s=s[:a]+r'''function sourceCityMaterial(T,m,u){
+           if(!m.map)throw Error('missing baked facade texture');
+           const glass=/glass/.test(m.name||'');
+           m.map.anisotropy=8;
+           const out=new T.MeshBasicMaterial({map:m.map,vertexColors:true,side:T.DoubleSide});
+           out.onBeforeCompile=shader=>{
+            Object.assign(shader.uniforms,u);
+            shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 bpSurfacePosition;').replace('#include <project_vertex>','#include <project_vertex>\nbpSurfacePosition=(modelMatrix*vec4(transformed,1.0)).xyz;');
+            shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 bpSurfacePosition;\nuniform vec3 bpCitySun;\nuniform vec3 bpCityView;\nuniform float bpCityDay;');
+            shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nvec3 cN=cross(dFdx(bpSurfacePosition),dFdy(bpSurfacePosition));vec3 N=normalize(cN+vec3(1e-12));if(!gl_FrontFacing)N=-N;float sun=max(dot(N,bpCitySun),0.0);float wall=1.0-smoothstep(0.2,0.8,abs(N.y));float shade=0.58+0.42*sun*bpCityDay;diffuseColor.rgb*=mix(shade,0.85+0.15*sun,1.0-wall);'+(glass?'vec3 v=normalize(bpCityView);vec3 H=normalize(bpCitySun+v+vec3(1e-6));float reflectivity=smoothstep(0.005,0.045,diffuseColor.b-diffuseColor.r);float shine=pow(max(dot(N,H),0.0),48.0)*sun*wall*bpCityDay;float fresnel=pow(1.0-clamp(dot(N,v),0.0,1.0),3.0);diffuseColor.rgb+=vec3(1.0,0.76,0.42)*shine*reflectivity*0.95+vec3(0.08,0.14,0.22)*fresnel*reflectivity*wall;':''));
+           };
+           out.customProgramCacheKey=()=>glass?'bp-textured-city-v4-glass':'bp-textured-city-v4-masonry';
+           return out;
+          }
+          '''+s[b:]
+          assert s.count("bytes('/assets/manhattan-photogrammetry-v1/source-architecture-v3.glb')")==1
+          s=s.replace("bytes('/assets/manhattan-photogrammetry-v1/source-architecture-v3.glb')","bytes('/assets/manhattan-photogrammetry-v1/textured-architecture-v4.glb')")
+          assert s.count("if(!o.geometry.getAttribute('_bpdetail'))throw Error('missing source facade attributes');")==1
+          s=s.replace("if(!o.geometry.getAttribute('_bpdetail'))throw Error('missing source facade attributes');","if(!o.geometry.getAttribute('uv')||!o.material.map)throw Error('missing baked source facade texture');")
+          s=s.replace("proceduralFacade:true,originalScanRetained:true","proceduralFacade:true,bakedFacadeTextures:true,physicalRoofDetails:true,originalScanRetained:true")
+          p.write_text(s)
+          for rel in ('index.html','app/index.html'):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'(bridgepoint-auto-reality-v1\.js\?[^"\'\s]+)',lambda m:m[1]+'&texturedarchitecture=20261125v4',s);assert n>=1;p.write_text(s)
+          assert before==snap(),'UNRELATED RELEASE FILE CHANGED'
+          print('TEXTURED_ARCHITECTURE_SCOPE_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-auto-reality-v1.js"
+          TEST="$RUNNER_TEMP/texture-architecture-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          python3 -m http.server 8769 --bind 127.0.0.1 --directory "$SITE" > "$RUNNER_TEMP/texture-http.log" 2>&1 &
+          SERVER=$!
+          trap 'kill "$SERVER" 2>/dev/null || true' EXIT
+          for i in $(seq 1 15); do if curl -fsS http://127.0.0.1:8769/vendor/three.module.js -o /dev/null; then break; fi; sleep 1; done
+          cat > "$TEST/test.mjs" <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';import {chromium} from 'playwright-core';
+          const root=process.env.SITE,s=fs.readFileSync(root+'/bridgepoint-auto-reality-v1.js','utf8');
+          const a=s.indexOf('function sourceCityMaterial('),b=s.indexOf('async function loadSourceCity(',a);
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+           const page=await browser.newPage({viewport:{width:768,height:768}});
+           await page.route('http://127.0.0.1:8769/__bp_test',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Architectural visual test</title>'}));
+           await page.goto('http://127.0.0.1:8769/__bp_test');
+           const report=await page.evaluate(async code=>{
+           const T=await import('/vendor/three.module.js'),{GLTFLoader}=await import('/vendor/GLTFLoader.bundle.js');
+           const fn=new Function(code+';return sourceCityMaterial;')();
+           const gltf=await new GLTFLoader().loadAsync('/assets/manhattan-photogrammetry-v1/textured-architecture-v4.glb');
+           const u={bpCitySun:{value:new T.Vector3(.5,.7,.5).normalize()},bpCityView:{value:new T.Vector3(.3,.2,1).normalize()},bpCityDetail:{value:0},bpCityDay:{value:1}};
+           let meshes=0,textureCount=0,glass=null;gltf.scene.traverse(o=>{if(!o.isMesh)return;if(!o.geometry.getAttribute('uv')||!o.material.map)throw Error('missing real texture');const m=o.material;if(m.map.image.width>=512)textureCount++;o.material=fn(T,m,u);if(m.name.includes('glass')&&!glass)glass=o.material;meshes++});
+           const renderer=new T.WebGLRenderer({preserveDrawingBuffer:true});renderer.setSize(768,768);document.body.append(renderer.domElement);renderer.debug.checkShaderErrors=true;const errors=[];renderer.debug.onShaderError=(gl,p,v,f)=>errors.push(gl.getProgramInfoLog(p),gl.getShaderInfoLog(v),gl.getShaderInfoLog(f));
+           const box=new T.Box3().setFromObject(gltf.scene),center=box.getCenter(new T.Vector3()),camera=new T.PerspectiveCamera(55,1,1,10000);
+           camera.position.copy(center).add(new T.Vector3(300,300,500));camera.lookAt(center);renderer.render(gltf.scene,camera);
+           const triangles=renderer.info.render.triangles;
+           // Render one real loaded facade map on a close wall at detail=0, to
+           // catch exactly the flat-color regression. Pixel variation is mandatory.
+           const g=new T.PlaneGeometry(16,16),uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*2,uv.getY(i)*2);
+           const scene=new T.Scene();scene.add(new T.Mesh(g,glass));camera.position.set(0,0,18);camera.lookAt(0,0,0);renderer.render(scene,camera);
+           const gl=renderer.getContext(),pixels=new Uint8Array(768*768*4);gl.readPixels(0,0,768,768,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+           const shades=new Set();let min=255,max=0;for(let y=250;y<520;y+=3)for(let x=250;x<520;x+=3){const i=(y*768+x)*4;const v=pixels[i]+pixels[i+1]+pixels[i+2];shades.add(v);min=Math.min(min,v/3);max=Math.max(max,v/3);}
+           return {errors,meshes,textureCount,triangles,visibleShades:shades.size,contrast:max-min};
+           },s.slice(a,b));
+           console.log('TEXTURED_CITY_REAL_WEBGL',report);assert.equal(report.errors.length,0);assert(report.meshes>=12&&report.textureCount===report.meshes&&report.triangles>15000&&report.visibleShades>30&&report.contrast>15);
+           await page.screenshot({path:process.env.RUNNER_TEMP+'/bp-textured-architecture-test.png'});
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb assets/manhattan-photogrammetry-v1/textured-architecture-v4.glb assets/manhattan-photogrammetry-v1/textured-architecture-v4.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
