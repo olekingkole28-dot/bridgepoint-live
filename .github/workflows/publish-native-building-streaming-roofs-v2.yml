@@ -218,7 +218,13 @@ jobs:
               # Retain the prior source across the gesture; on completion, invalidate
               # expensive query once, allowing the fallback to recover before detail.
               s=one(s,'lastMotionEndAt=performance.now();','lastMotionEndAt=performance.now();map.__bpPublicBuildingReadyCheck=null;')
-              s=one(s,'cancelPendingTileRequestsWhileZooming:false','cancelPendingTileRequestsWhileZooming:true')
+              # Both production map constructor paths use this option. Update every
+              # occurrence of this exact setting in the two world modules only.
+              cancellations=s.count('cancelPendingTileRequestsWhileZooming:false')
+              assert cancellations in (1,2),('TILE_CANCELLATION_OPTIONS',rel,cancellations)
+              s=s.replace('cancelPendingTileRequestsWhileZooming:false','cancelPendingTileRequestsWhileZooming:true')
+              assert 'cancelPendingTileRequestsWhileZooming:false' not in s
+              print('TILE_CANCELLATION_OPTIONS_UPDATED',rel,cancellations,flush=True)
               # The old source-burst handler reset roof base to zero, drawing an
               # overlapping full building extrusion. Keep the real roof-only geometry.
               a=s.index(' function refreshGlobalLodPaint(){');b=s.index(' function worldClientPressureBlocked()',a)
