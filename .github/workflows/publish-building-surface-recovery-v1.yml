@@ -61,7 +61,7 @@ jobs:
               return s.replace(a,b,1)
           p=site/scan;s=p.read_text()
           anchor='async function load(state,row)'
-          s=one(s,anchor,'''function cityArchitecturalMaterial(T,m,uniforms){
+          s=one(s,anchor,r'''function cityArchitecturalMaterial(T,m,uniforms){
            const out=new T.MeshBasicMaterial({map:m.map||null,color:m.color||0xffffff,side:T.FrontSide,vertexColors:m.vertexColors,transparent:m.transparent,opacity:m.opacity,alphaTest:m.alphaTest});
            out.onBeforeCompile=shader=>{
             Object.assign(shader.uniforms,uniforms);
