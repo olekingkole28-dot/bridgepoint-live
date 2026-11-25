@@ -1,0 +1,10 @@
+import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+const path='rebuild-v5000/bridgepoint-rain-3d-v1.js';
+let s=readFileSync(path,'utf8');const anchor='mount();const observer=new MutationObserver(mount);';
+assert.ok(s.includes(anchor));s=s.replace(anchor,'window.testRainGlass={rainAtCamera,drawRainGlass,clearRainGlass,setup(m,c){map=m;cells=c;on=true}};return;'+anchor);
+const window={addEventListener(){}};const document={addEventListener(){}};const context={window,document,matchMedia:()=>({matches:false}),navigator:{userAgent:''},console};vm.runInNewContext(s,context);
+let altitude=150,lon=0,lat=0,zoom=15;
+const map={getZoom:()=>zoom,getCenter:()=>({lng:0,lat:0}),getCanvas:()=>({clientHeight:600}),transform:{getCameraLngLat:()=>({lng:lon,lat}),getCameraAltitude:()=>altitude},queryTerrainElevation:()=>100};
+const cell={lon:0,lat:0,radius:14000,base:500,ground:100,ts:false};
+const test=window.testRainGlass;test.setup(map,[cell]);assert.equal(test.rainAtCamera(),cell);
+altitude=900;assert.equal(test.rainAtCamera(),null);altitude=150;lon=2;assert.equal(test.rainAtCamera(),null);lon=0;altitude=50;assert.equal(test.rainAtCamera(),null);altitude=150;zoom=7;assert.equal(test.rainAtCamera(),null);zoom=15;test.setup(map,[]);assert.equal(test.rainAtCamera(),null);console.log('RAIN_GLASS_CAMERA_GATE_PASS');

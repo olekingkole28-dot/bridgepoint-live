@@ -1,4 +1,4 @@
-/* BridgePoint Rain V4: fixed storm canopy, full-height showers, wet ground and volumetric lightning. */
+/* BridgePoint Rain V5: V4 weather retained; camera-local wet glass and sliding drops. */
 (()=>{
 'use strict';
 if(window.__BP_RAIN_BUTTON_V1__)return;
@@ -210,6 +210,91 @@ function drawLocalVisibility(t){
  // impacts readable when the map's high zoom float precision is sub-meter.
  if(z>=14){ctx.lineWidth=1.1;for(const p of pools){const q=map.project([p.lon,p.lat]);if(q.x<0||q.x>w||q.y<0||q.y>h)continue;const mpp=156543*Math.max(.12,Math.cos(p.lat*D))/2**z,r=clamp(p.r/Math.max(.03,mpp),2,38),f=frac(seconds*1.7+hash(p.seed,10));ctx.strokeStyle='rgba(193,232,255,'+((1-f)*.7).toFixed(2)+')';ctx.beginPath();ctx.ellipse(q.x,q.y,r*(.18+.70*f),r*(.10+.40*f),0,0,Math.PI*2);ctx.stroke()}}
 }
+// Camera-local wet glass. Never changes the geographically anchored rain geometry.
+let glass=null,glassCtx=null,glassKey='',glassDrops=[],glassLast=0,glassWet=0,glassSpawn=0,glassTick=0,glassCell=null,glassSampleAt=-Infinity;
+function rainAtCamera(){
+ if(!on||!map||!cells.length||map.getZoom()<9)return null;
+ try{
+  const tr=map.transform||map._transform,center=map.getCenter(),cv=map.getCanvas();
+  const camera=tr?.getCameraLngLat?.(),cp=tr?.getCameraPosition?.();
+  const lat=Number(camera?.lat??camera?.[1]??center.lat),lon=Number(camera?.lng??camera?.lon??camera?.[0]??center.lng);
+  let altitude=tr?.getCameraAltitude?.()??cp?.altitude;
+  let point={lon,lat};
+  if(!Number.isFinite(altitude)){
+   const pitch=map.getPitch()*D,fov=(map.getVerticalFieldOfView?.()||36.87)*D;
+   const mpp=C*Math.cos(center.lat*D)/(512*2**map.getZoom());
+   const dist=(cv.clientHeight||800)*.5/Math.tan(fov*.5)*mpp;
+   altitude=(map.getCameraTargetElevation?.()??terrain(center.lng,center.lat))+dist*Math.cos(pitch);
+   if(!camera){const b=(map.getBearing?.()||0)*D,q=geo(center.lng,center.lat,-dist*Math.sin(pitch)*Math.sin(b),-dist*Math.sin(pitch)*Math.cos(b));point={lon:q[0],lat:q[1]};}
+  }
+  let best=null;
+  for(const c of cells){
+   if(!inCell(c,point))continue;
+   const ground=Number.isFinite(c.ground)?c.ground:terrain(c.lon,c.lat),base=ground+c.base;
+   if(altitude>base+22||altitude<terrain(point.lon,point.lat)-1)continue;
+   if(!best||c.ts&&!best.ts)best=c;
+  }
+  return best;
+ }catch(_){return null}
+}
+function clearRainGlass(){
+ glass?.remove();glass=null;glassCtx=null;glassKey='';glassDrops=[];glassLast=0;glassWet=0;glassSpawn=0;glassTick=0;glassCell=null;glassSampleAt=-Infinity;diagnostics.glassActive=false;diagnostics.glassDrops=0;
+}
+function ensureRainGlass(){
+ if(glass?.isConnected)return true;
+ const host=map.getCanvasContainer?.()||map.getContainer?.();if(!host)return false;
+ glass=document.createElement('canvas');glass.id='bp-rn-v5-wet-glass';glass.setAttribute('aria-hidden','true');
+ glass.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;';host.append(glass);glassCtx=glass.getContext('2d');return !!glassCtx;
+}
+function newGlassDrop(w,h,storm){
+ const r=1.1+Math.pow(Math.random(),2.2)*(storm?6.5:5.0),slide=r>2.5&&Math.random()<.78;
+ return {x:Math.random()*w,y:Math.random()*h,r,slide,age:0,life:slide?5+Math.random()*9:2.8+Math.random()*6,v:slide?4+Math.random()*10:0,phase:Math.random()*6.28,trail:[],trailT:0};
+}
+function drawRainGlass(t){
+ if(!on||!map||reduced.matches){if(glass)clearRainGlass();return}
+ if(t-glassSampleAt>=110){glassSampleAt=t;glassCell=rainAtCamera()}
+ const cell=glassCell,dt=glassLast?clamp((t-glassLast)/1000,0,.08):.033;glassLast=t;
+ glassWet=clamp(glassWet+(cell?dt*.95:-dt*.95),0,1);
+ if(!cell&&glassWet===0){if(glass)clearRainGlass();return}
+ if(!ensureRainGlass())return;
+ const cv=map.getCanvas(),w=cv.clientWidth||400,h=cv.clientHeight||800,dpr=Math.min(1.5,devicePixelRatio||1),key=w+':'+h+':'+dpr;
+ if(key!==glassKey){glass.width=Math.round(w*dpr);glass.height=Math.round(h*dpr);glassKey=key;glassDrops=[];}
+ const ctx=glassCtx;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+ const intensity=cell?.ts?1:.7,cap=mobile?68:125;
+ if(cell){glassSpawn+=dt*(cell.ts?30:19);while(glassSpawn>=1){glassSpawn--;if(glassDrops.length<cap)glassDrops.push(newGlassDrop(w,h,cell.ts))}}
+ else glassSpawn=0;
+ ctx.save();ctx.globalAlpha=glassWet;ctx.lineCap='round';ctx.lineJoin='round';
+ // Thin rivulets behind sliding beads. Use tapered translucent edges, not opaque blue lines.
+ for(const d of glassDrops){
+  d.age+=dt;if(d.slide){
+   d.v=Math.min(95,d.v+dt*(12+d.r*3));d.x+=Math.sin(t*.0019+d.phase)*dt*(1+d.r*.4);d.y+=d.v*dt;
+   d.trailT+=dt;if(d.trailT>.065){d.trailT=0;d.trail.push({x:d.x,y:d.y});if(d.trail.length>19)d.trail.shift()}
+  }
+  const fade=clamp(Math.min(d.age*4,(d.life-d.age)*1.4),0,1);
+  ctx.globalAlpha=glassWet*fade;
+  if(d.trail.length>1){
+   for(let i=1;i<d.trail.length;i++){
+    const a=d.trail[i-1],b=d.trail[i],f=i/d.trail.length;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+    ctx.lineWidth=Math.max(.65,d.r*(.28+.42*f));ctx.strokeStyle='rgba(7,20,30,'+(.08+.16*f)+')';ctx.stroke();
+    ctx.beginPath();ctx.moveTo(a.x-.45,a.y);ctx.lineTo(b.x-.45,b.y);ctx.lineWidth=Math.max(.35,d.r*.16);ctx.strokeStyle='rgba(229,246,255,'+(.09+.32*f)+')';ctx.stroke();
+   }
+  }
+  const rx=d.r,ry=d.r*(d.slide?1.36:1.05);
+  ctx.save();ctx.translate(d.x,d.y);ctx.scale(1,ry/rx);
+  // Transparent drop body, dark meniscus, bright specular edge and tiny reflected highlight.
+  const g=ctx.createRadialGradient(-rx*.25,-rx*.32,rx*.06,0,0,rx);
+  g.addColorStop(0,'rgba(247,253,255,.17)');g.addColorStop(.37,'rgba(173,211,228,.045)');g.addColorStop(.67,'rgba(24,49,65,.10)');g.addColorStop(.85,'rgba(9,24,37,.34)');g.addColorStop(1,'rgba(214,238,251,.28)');
+  ctx.beginPath();ctx.arc(0,0,rx,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();ctx.ellipse(0,0,rx*.86,rx*.86,0,Math.PI*1.02,Math.PI*1.63);ctx.lineWidth=Math.max(.55,rx*.19);ctx.strokeStyle='rgba(245,253,255,.80)';ctx.stroke();
+  ctx.beginPath();ctx.ellipse(rx*.27,rx*.40,rx*.19,rx*.11,-.4,0,Math.PI*2);ctx.fillStyle='rgba(226,246,255,.63)';ctx.fill();ctx.restore();
+ }
+ ctx.restore();
+ glassDrops=glassDrops.filter(d=>d.age<d.life&&d.y<h+30);
+ // Nearby droplets merge into a heavier running bead, with a fixed upper bound on work.
+ if(cell&&++glassTick%5===0)for(let i=0;i<glassDrops.length;i++){const a=glassDrops[i];if(!a.slide)continue;for(let j=glassDrops.length-1;j>i;j--){const b=glassDrops[j];if(Math.hypot(a.x-b.x,a.y-b.y)<(a.r+b.r)*.58){a.r=Math.min(8,Math.sqrt(a.r*a.r+b.r*b.r));a.v=Math.min(95,a.v+4);glassDrops.splice(j,1);break}}}
+ diagnostics.glassActive=!!cell;diagnostics.glassDrops=glassDrops.length;diagnostics.glassWet=glassWet;
+}
 function makeLayer(){let gl,buffers=[],vao,programs=new Map(),cloudCount=0;
 function program(g,args){const sd=args?.shaderData;if(!sd?.vertexShaderPrelude||!args?.defaultProjectionData)return null;const key=sd.vertexShaderPrelude+'\\n'+sd.define;if(programs.has(key))return programs.get(key);
 const vs='#version 300 es\n'+sd.vertexShaderPrelude+'\n'+sd.define+'\nprecision highp float;\nin vec3 a_pos;in vec4 a_color;in vec2 a_flash;uniform float u_time;uniform float u_reduce;uniform float u_cloud;out vec4 v_color;void main(){float hover=u_cloud*(1.-u_reduce)*22.*sin(u_time*.60+a_flash.y*6.283);gl_Position=projectTileFor3D(a_pos.xy,a_pos.z+hover);float ph=fract(u_time/8.+a_flash.y);float flash=u_cloud*(1.-step(.085,ph))*a_flash.x*(1.-u_reduce)*(.45+.55*abs(sin(ph*230.)));v_color=vec4(mix(a_color.rgb,vec3(.94,.96,1.),flash*.75),a_color.a);}';
@@ -223,14 +308,14 @@ bind(buffers[0]);if(dirty){g.bufferData(g.ARRAY_BUFFER,cloudVertices,g.STATIC_DR
 const dynamic=effects(now);bind(buffers[1]);g.depthMask(false);g.bufferData(g.ARRAY_BUFFER,dynamic.triangles,g.DYNAMIC_DRAW);g.drawArrays(g.TRIANGLES,0,dynamic.triangles.length/9);g.bufferData(g.ARRAY_BUFFER,dynamic.lines,g.DYNAMIC_DRAW);g.drawArrays(g.LINES,0,dynamic.lines.length/9);diagnostics.draws++;diagnostics.shaderReady=true;diagnostics.projection='MapLibre projectTileFor3D';error=null;
 }catch(e){error=String(e?.message||e)}finally{if(saved){g.bindVertexArray(saved.vao);g.bindBuffer(g.ARRAY_BUFFER,saved.a);g.useProgram(saved.p);for(const [n,v] of [['DEPTH_TEST',saved.depth],['BLEND',saved.blend],['CULL_FACE',saved.cull]])v?g.enable(g[n]):g.disable(g[n]);g.depthMask(saved.mask);g.depthFunc(saved.func);g.blendFuncSeparate(saved.sr,saved.dr,saved.sa,saved.da)}}},onRemove(){if(gl){for(const b of buffers)gl.deleteBuffer(b);for(const p of programs.values())gl.deleteProgram(p.p);if(vao)gl.deleteVertexArray(vao)}programs.clear()}}}
 function syncButton(){if(!button)return;button.classList.toggle('active',on);button.setAttribute('aria-pressed',String(on));button.title=on?'Rain ON · '+(sourceStatus==='unavailable'?'source unavailable':cells.length+' observed rain regions')+' · estimated coverage and simulated effects':'Show live rain regions, 3D storm clouds, rain and lightning';}
-function animate(t){raf=0;if(!on||document.hidden)return;if(map&&near.length&&t-lastFrame>(map.isMoving?.()?100:mobile?66:45)){lastFrame=t;map.triggerRepaint();if(t-lastOverlay>=66){lastOverlay=t;try{drawLocalVisibility(t)}catch(e){console.warn('Rain local projection',e)}}}raf=requestAnimationFrame(animate)}
+function animate(t){raf=0;if(!on||document.hidden)return;if(map&&(!glassLast||t-glassLast>=(mobile?40:30))){try{drawRainGlass(t)}catch(e){clearRainGlass();console.warn('Rain wet glass',e)}}if(map&&near.length&&t-lastFrame>(map.isMoving?.()?100:mobile?66:45)){lastFrame=t;map.triggerRepaint();if(t-lastOverlay>=66){lastOverlay=t;try{drawLocalVisibility(t)}catch(e){console.warn('Rain local projection',e)}}}raf=requestAnimationFrame(animate)}
 function schedule(){clearTimeout(rebuildTimer);rebuildTimer=setTimeout(()=>{if(on){ensure();choose();if(overlayCtx)drawLocalVisibility(performance.now())}},180)}
 const getScene=()=>window.__bpWeatherV2300?.getScene?.()||window.__BP_SHARED_VISUAL_WEATHER__?.weather?.getScene?.()||{};
 async function refresh(force=false){if(!on||fetching)return;const generation=epoch;fetching=true;try{const scene=getScene(),live=Array.isArray(scene.observations)?scene.observations:[];let input=live.slice();let snapshot=null;
 if(force||Date.now()-lastSource>300000){lastSource=Date.now();try{const response=await fetch('/bp-rain-observations-v1.json',{cache:'no-cache',signal:AbortSignal.timeout(6000)});if(response.ok){const j=await response.json();if(Date.now()-Date.parse(j.generated_at)<90*60000)snapshot=j}}catch(_){}if(snapshot)rows=snapshot.observations||[]}
 if(!on||epoch!==generation)return;input.push(...rows);cells=normalize(input);sourceTime=scene.generated_at||snapshot?.generated_at||null;sourceStatus=input.length?'ready':'unavailable';ensure();choose();syncButton();
 }catch(e){error=String(e?.message||e);sourceStatus='unavailable';syncButton()}finally{fetching=false}}
-function unbind(){overlay?.remove();overlay=null;overlayCtx=null;overlaySize='';if(!map)return;popup?.remove();popup=null;map.off('click',openRainMarker);for(const e of ['moveend','zoomend','style.load'])map.off(e,schedule);for(const id of [ICON,MARK,FX,PUDDLE,EDGE,FILL])try{if(map.getLayer(id))map.removeLayer(id)}catch(_){}try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}}
+function unbind(){clearRainGlass();overlay?.remove();overlay=null;overlayCtx=null;overlaySize='';if(!map)return;popup?.remove();popup=null;map.off('click',openRainMarker);for(const e of ['moveend','zoomend','style.load'])map.off(e,schedule);for(const id of [ICON,MARK,FX,PUDDLE,EDGE,FILL])try{if(map.getLayer(id))map.removeLayer(id)}catch(_){}try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}}
 function bind(){const m=mapNow();if(!m)return false;if(m!==map){unbind();map=m;for(const e of ['moveend','zoomend','style.load'])map.on(e,schedule);map.on('click',openRainMarker)}return true}
 function setEnabled(v){on=!!v;epoch++;syncButton();clearInterval(refreshTimer);clearTimeout(rebuildTimer);if(!on){cancelAnimationFrame(raf);raf=0;unbind();map=null;near=[];pools=[];drops=[];cloudVertices=new Float32Array();return false}
 if(bind()){ensure();void refresh(true)}refreshTimer=setInterval(()=>{if(!on||document.hidden)return;if(bind()){ensure();void refresh(false)}},15000);if(!raf)raf=requestAnimationFrame(animate);return true}
