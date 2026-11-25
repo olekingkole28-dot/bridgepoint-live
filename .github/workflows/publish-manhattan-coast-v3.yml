@@ -37,14 +37,16 @@ jobs:
             sleep 5
           done
           exit 1
-      - name: Match actual Manhattan shoreline and towers
+      - name: Match verified NYC shoreline and towers
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/horizon-site"
           mkdir -p "$SITE"
           tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
           python3 -m pip install --quiet numpy scipy pillow
-          python3 scripts/register_manhattan_coast_v3.py "$SITE/assets/manhattan-photogrammetry-v1/manhattan.glb" "$RUNNER_TEMP/manhattan-reg.json"
+          if ! python3 scripts/register_manhattan_coast_v3.py "$SITE/assets/manhattan-photogrammetry-v1/manhattan.glb" "$RUNNER_TEMP/manhattan-reg.json"; then
+            printf '%s\n' '{"accepted":false,"reason":"Registration computation failed; remove incorrect preview"}' > "$RUNNER_TEMP/manhattan-reg.json"
+          fi
           python3 scripts/apply_manhattan_coast_v3.py "$SITE" "$RUNNER_TEMP/manhattan-reg.json"
           node --check "$SITE/bridgepoint-auto-reality-v1.js"
           node --check "$SITE/bridgepoint-public-scans-v1.js"
