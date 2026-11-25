@@ -142,7 +142,7 @@ jobs:
               'void main(){vec3 N=normalize(n),V=normalize(eye-p),R=reflect(-V,N);float fres=0.15+0.80*pow(1.-max(dot(N,V),0.),4.);',
               'vec2 q=R.xz*3.2+vec2(R.y*2.6,R.y*.8);float cl=noise(q)*.55+noise(q*2.1)*.27+noise(q*4.3)*.13;cl=smoothstep(.46,.70,cl)*smoothstep(-.05,.35,R.y);',
               'vec3 sky=mix(vec3(.64,.75,.81),vec3(.18,.43,.69),clamp(R.y,0.,1.));sky=mix(sky,vec3(.88,.92,.95),cl*.88);',
-              'float city=noise(vec2(atan(R.z,R.x)*18.,R.y*10.));sky=mix(sky,mix(vec3(.19,.24,.27),vec3(.62,.63,.60),city),smoothstep(.20,-.18,R.y));',
+              'float city=noise(vec2(atan(R.z,R.x)*18.,R.y*10.));sky=mix(sky,mix(vec3(.19,.24,.27),vec3(.62,.63,.60),city),(1.-smoothstep(-.18,.20,R.y)));',
               'float glare=pow(max(dot(R,normalize(vec3(-.42,.76,.48))),0.),90.);sky+=vec3(1.,.89,.69)*glare*.65;',
               'vec2 f=fract(panel);vec2 d=min(f,1.-f);vec2 aa=max(fwidth(panel),vec2(.001));float grid=1.-min(smoothstep(.012,.012+aa.x,d.x),smoothstep(.015,.015+aa.y,d.y));',
               'float rnd=hash(floor(panel));vec3 interior=mix(vec3(.12,.19,.23),vec3(.45,.48,.42),rnd*.65);interior+=vec3(.12,.11,.08)*smoothstep(.19,.26,f.y)*(1.-smoothstep(.32,.4,f.y));',
@@ -218,8 +218,8 @@ jobs:
           before=snap()
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
             p=site/rel;s=p.read_text()
-            needle='            function bpNativeManhattanSync(){'
-            assert s.count(needle)==1,(rel,s.count(needle))
+            needle='function bpNativeManhattanSync(){'
+            assert s.count(needle)==1,(rel,s.count(needle));print('LANDMARK_PATCH_ANCHOR',rel)
             s=s.replace(needle,"            let bpOneWTCModule=null,bpOneWTCPromise=null;\n"+needle)
             marker='window.__BP_MANHATTAN_NATIVE_V5__={visible:on&&bpAlignedActive'
             assert s.count(marker)==1
