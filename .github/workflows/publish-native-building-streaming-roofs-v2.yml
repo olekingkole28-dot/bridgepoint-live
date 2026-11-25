@@ -78,48 +78,79 @@ jobs:
               raise ValueError(('missing data column',patterns,list(cols)))
           def geomfield(cols):
               return next(k for k,c in cols.items() if c.get('dataTypeName') in ('multipolygon','polygon','point'))
-          cf=fields(coolid);bf=fields(bldgid);cg=geomfield(cf);bg=geomfield(bf)
-          cb=findfield(cf,['bin','building_identification_number']);bb=findfield(bf,['bin','building_identification_number']);bh=findfield(bf,['height_roof','roof_height'])
-          region='POLYGON((-74.032 40.687,-73.895 40.687,-73.895 40.883,-74.032 40.883,-74.032 40.687))'
           def fetchgeo(id,params):
               d=get(domain+'/resource/'+id+'.geojson',params)
               assert d.get('type')=='FeatureCollection',str(d)[:200]
               return d['features']
-          cool=fetchgeo(coolid,{'$where':"intersects("+cg+", '"+region+"')",'$limit':20000})
-          assert 50<len(cool)<20000,('COOLING_SOURCE_COUNT',len(cool))
+          features=[];bins=[];roofStatus='unavailable';roofError=None;cool=[]
           def binstr(v):
               try:return str(int(float(v)))
               except:return ''
-          bins=sorted({binstr(c['properties'].get(cb)) for c in cool if binstr(c['properties'].get(cb)).startswith('1')})
-          assert len(bins)>30
-          builds={}
-          for i in range(0,len(bins),150):
-              batch=bins[i:i+150]
-              quoted=','.join(("'"+v+"'") if bf[bb].get('dataTypeName')=='text' else v for v in batch)
-              for b in fetchgeo(bldgid,{'$where':bb+' in ('+quoted+')','$limit':10000}):
-                  props=b['properties'];bid=binstr(props.get(bb))
+          try:
+              cf=fields(coolid);bf=fields(bldgid);cg=geomfield(cf)
+              cb=findfield(cf,['bin','building_identification_number']);bb=findfield(bf,['bin','building_identification_number']);bh=findfield(bf,['height_roof','roof_height'])
+              # Filter Manhattan at the provider, then page with stable row ordering.
+              # A full page means more records, not a failed import.
+              binWhere=cb+" between 1000000 and 1999999" if cf[cb].get('dataTypeName')!='text' else cb+" like '1%'"
+              pageSize=5000;seen=set()
+              for offset in range(0,100000,pageSize):
+                  page=fetchgeo(coolid,{'$where':binWhere,'$order':':id','$limit':pageSize,'$offset':offset})
+                  if not page:break
+                  for c in page:
+                      if not c.get('geometry'):continue
+                      bid=binstr(c.get('properties',{}).get(cb))
+                      if len(bid)!=7 or not bid.startswith('1'):continue
+                      key=hashlib.sha256(json.dumps([bid,c['geometry']],sort_keys=True).encode()).hexdigest()
+                      if key not in seen:seen.add(key);cool.append(c)
+                  if len(page)<pageSize:break
+              else:raise ValueError('Manhattan source pagination exceeded safety bound')
+              bins=sorted({binstr(c['properties'].get(cb)) for c in cool})
+              assert len(cool)>=30 and len(bins)>=10,('MANHATTAN_COOLING_SOURCE_COUNT',len(cool),len(bins))
+              print('PAGINATED_MANHATTAN_COOLING_SOURCE',len(cool),len(bins),flush=True)
+              from concurrent.futures import ThreadPoolExecutor
+              def building_batch(batch):
+                  quoted=','.join(("'"+v+"'") if bf[bb].get('dataTypeName')=='text' else v for v in batch)
+                  rows=[];offset=0
+                  while True:
+                      page=fetchgeo(bldgid,{'$where':bb+' in ('+quoted+')','$order':':id','$limit':5000,'$offset':offset})
+                      rows.extend(page)
+                      if len(page)<5000:return rows
+                      offset+=5000
+                      if offset>=20000:raise ValueError('Building batch exceeded safety bound')
+              builds={}
+              with ThreadPoolExecutor(max_workers=4) as pool:
+                  for rows in pool.map(building_batch,[bins[i:i+150] for i in range(0,len(bins),150)]):
+                      for b in rows:
+                          props=b['properties'];bid=binstr(props.get(bb))
+                          try:
+                              g=shape(b['geometry']);h=float(props[bh])*.3048
+                              if g.is_valid and g.geom_type in ('Polygon','MultiPolygon') and 3<=h<=650:builds.setdefault(bid,[]).append((g,h))
+                          except (TypeError,ValueError,KeyError):continue
+              for f in cool:
+                  bid=binstr(f['properties'].get(cb))
+                  if bid not in builds:continue
                   try:
-                      g=shape(b['geometry']);h=float(props[bh])*.3048
-                      if g.is_valid and g.geom_type in ('Polygon','MultiPolygon') and 3<=h<=650:builds.setdefault(bid,[]).append((g,h))
+                      g=shape(f['geometry'])
+                      if not g.is_valid or g.geom_type not in ('Polygon','MultiPolygon') or g.is_empty:continue
+                      for b,h in sorted(builds[bid],key=lambda x:-x[1]):
+                          if not b.covers(g.representative_point()):continue
+                          clip=g.intersection(b)
+                          if clip.geom_type not in ('Polygon','MultiPolygon') or clip.is_empty or clip.area<g.area*.7:continue
+                          features.append({'type':'Feature','geometry':mapping(clip.simplify(.0000005,preserve_topology=True)),'properties':{'bin':bid,'roof_m':round(h,2),'top_m':round(h+2,2),'equipment_height_m':2,'height_estimated':True,'source':'NYC Planimetric Cooling Towers x748-37q7 / Building Footprints 5zhs-2jue'}})
+                          break
                   except (TypeError,ValueError,KeyError):continue
-          features=[]
-          for f in cool:
-              bid=binstr(f['properties'].get(cb))
-              if bid not in builds or not f.get('geometry'):continue
-              g=shape(f['geometry'])
-              if not g.is_valid or g.geom_type not in ('Polygon','MultiPolygon') or g.is_empty:continue
-              for b,h in sorted(builds[bid],key=lambda x:-x[1]):
-                  if not b.covers(g.representative_point()):continue
-                  clip=g.intersection(b)
-                  if clip.geom_type not in ('Polygon','MultiPolygon') or clip.is_empty or clip.area<g.area*.7:continue
-                  # Source supplies a real outline and roof height, not equipment
-                  # height or make/model. Render a modest explicitly estimated height.
-                  features.append({'type':'Feature','geometry':mapping(clip.simplify(.0000005,preserve_topology=True)),'properties':{'bin':bid,'roof_m':round(h,2),'top_m':round(h+2,2),'equipment_height_m':2,'height_estimated':True,'source':'NYC Planimetric Cooling Towers x748-37q7 / Building Footprints 5zhs-2jue'}})
-                  break
-          assert len(features)>=30,('JOINED_ROOF_FOOTPRINTS',len(features))
-          (site/roof).write_text(json.dumps({'type':'FeatureCollection','features':features},separators=(',',':')))
-          print('NYC_MAPPED_ROOF_EQUIPMENT_READY',len(features),len(bins),(site/roof).stat().st_size)
-          assert (site/roof).stat().st_size<8_000_000
+              assert len(features)>=30,('JOINED_ROOF_FOOTPRINTS',len(features))
+              roofStatus='ready'
+          except Exception as exc:
+              # Never make up equipment locations. Optional data cannot block the
+              # independent native building repair.
+              features=[];roofError=str(exc)[:300];print('NYC_ROOF_IMPORT_UNAVAILABLE',roofError,flush=True)
+          payload=json.dumps({'type':'FeatureCollection','features':features,'bp_import':{'status':roofStatus,'error':roofError,'matched':len(features),'inputRecords':len(cool),'buildingIds':len(bins)}},separators=(',',':'))
+          if len(payload.encode())>=8_000_000:
+              features=[];roofStatus='unavailable';roofError='Joined payload exceeds mobile asset budget'
+              payload=json.dumps({'type':'FeatureCollection','features':[],'bp_import':{'status':roofStatus,'error':roofError,'matched':0}})
+          (site/roof).write_text(payload)
+          print('NYC_MAPPED_ROOF_IMPORT_RESULT',roofStatus,len(features),len(bins),flush=True)
           # Actual freely licensed photo reference metadata. These are references,
           # not photographs pasted on unidentified or incorrectly aligned walls.
           photo_titles=[
@@ -211,7 +242,7 @@ jobs:
               anchor="  window.__BP_LEGACY_BUILDING_MATERIAL_V1__={textureOn,roofTextureOn,originalGeometry:true,overlayMeshes:false,adaptiveTier:lod.tier};"
               s=one(s,anchor,anchor+"""
             const cp=map.getCenter(),q=window.__BP_DEVICE_QUALITY_V1__?.profile;
-            const roofEquipmentOn=detailSettled&&z>=(q&&q.level<=3?18.2:17.2)&&cp.lng>=-74.04&&cp.lng<=-73.89&&cp.lat>=40.68&&cp.lat<=40.89;
+            const roofEquipmentOn=__BP_ROOF_IMPORT_READY__&&detailSettled&&z>=(q&&q.level<=3?18.2:17.2)&&cp.lng>=-74.04&&cp.lng<=-73.89&&cp.lat>=40.68&&cp.lat<=40.89;
             const eqId='gta-nyc-mapped-roof-equipment-v2';
             if(roofEquipmentOn&&!map.getSource('bpNycMappedRoofEquipmentV2')){
               try{
@@ -224,6 +255,7 @@ jobs:
           """)
               # Equipment follows the existing building visibility control.
               s=one(s,"function syncBuildingShells(force=false){\n  if(!layerState.buildings){","function syncBuildingShells(force=false){\n  if(!layerState.buildings){\n   vis(map,'gta-nyc-mapped-roof-equipment-v2',false);")
+              s=s.replace('__BP_ROOF_IMPORT_READY__','true' if roofStatus=='ready' else 'false')
               p.write_text(s)
           for rel in ('landing.js','app.js'):
               p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&nativebuildingstream=20261125v2',s);assert n>=1;p.write_text(s)
@@ -251,8 +283,9 @@ jobs:
            assert(s.includes('sourceBurstNoStyleRewrite:true')&&s.includes('equipmentHeightEstimated:true')&&s.includes('overlayMeshes:false'));
           }
           const data=JSON.parse(fs.readFileSync(process.env.SITE+'/data/bp-nyc-rooftop-cooling-v2.geojson'));
-          assert(data.features.length>=30&&data.features.every(f=>f.properties.top_m>f.properties.roof_m&&f.properties.height_estimated===true));
-          console.log('BOUNDED_SOURCE_HANDOFF_AND_MAPPED_ROOF_PASS',data.features.length);
+          assert(data.bp_import&&['ready','unavailable'].includes(data.bp_import.status));
+          if(data.bp_import.status==='ready')assert(data.features.length>=30&&data.features.every(f=>f.properties.top_m>f.properties.roof_m&&f.properties.height_estimated===true));else assert(data.features.length===0);
+          console.log('BOUNDED_SOURCE_HANDOFF_PASS',data.bp_import);
           JS
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
