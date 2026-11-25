@@ -49,6 +49,7 @@ jobs:
             curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
             cmp "$SITE/$p" "$RUNNER_TEMP/current"
           done
+          test -s "$SITE/vendor/three.module.js"
           python3 -m pip install --quiet 'shapely>=2.1,<3'
           cat > "$SITE/vendor/bp-manhattan-roof-detail-v1.mjs" <<'JS'
           // Manhattan mapped rooftop detail; source footprint and height are estimates, not surveyed machinery.
@@ -57,8 +58,8 @@ jobs:
           const CAP=MOBILE?40:90, ID='bp-manhattan-roof-detail-v1', STEP=.003;
           const inArea=c=>c.lng>=-74.04&&c.lng<=-73.89&&c.lat>=40.68&&c.lat<=40.89;
           let dataPromise,threePromise;
-          const data=()=>dataPromise??=(fetch(URL).then(r=>{if(!r.ok)throw Error('roof data HTTP '+r.status);return r.json()}));
-          const three=()=>threePromise??=import('https://esm.sh/three@0.169.0');
+          const data=()=>dataPromise??=(fetch(URL).then(r=>{if(!r.ok)throw Error('roof data HTTP '+r.status);return r.json()}).catch(e=>{dataPromise=null;throw e}));
+          const three=()=>threePromise??=import('/vendor/three.module.js?v=169-local').catch(e=>{threePromise=null;throw e});
           const diagnostics=window.__BP_MANHATTAN_ROOF_DETAIL_V1__={status:'idle',count:0,fanFrames:0,cap:CAP,source:'NYC mapped roof cooling footprints; illustrative equipment geometry and heights'};
           export function sync(map,enabled){
            let s=states.get(map);
@@ -67,7 +68,7 @@ jobs:
             map.on('remove',()=>{s.enabled=false;clearTimeout(s.timer);s.layer=null});
            }
            const active=!!enabled&&map.getZoom()>=17.2&&inArea(map.getCenter());
-           if(active===s.enabled)return;
+           if(active===s.enabled){if(active&&(!s.layer||!map.getLayer(ID)))queue(map,s);return;}
            s.enabled=active;
            if(!active){if(s.layer)s.layer.hide();diagnostics.status='idle';diagnostics.count=0;return}
            queue(map,s);
@@ -75,13 +76,14 @@ jobs:
           function queue(map,s){
            if(!s.enabled||s.timer||s.pending)return;
            s.timer=setTimeout(async()=>{
-            s.timer=0;if(!s.enabled||map.isMoving?.())return;
+            s.timer=0;if(!s.enabled)return;if(map.isMoving?.()){queue(map,s);return;}
             s.pending=true;
             try{
              if(!s.layer||!map.getLayer(ID)){
-              const [T,d]=await Promise.all([three(),data()]);
-              if(!s.enabled||map.isMoving?.())return;
-              s.layer=makeLayer(map,T,d);
+              diagnostics.status='loading-assets';const [T,d]=await Promise.all([three(),data()]);
+              if(!s.enabled)return;
+              if(map.isMoving?.()){s.timer=setTimeout(()=>{s.timer=0;queue(map,s)},300);return;}
+              diagnostics.status='installing-layer';s.layer=makeLayer(map,T,d);
               map.addLayer(s.layer,map.getLayer('gta-water-label')?'gta-water-label':undefined);
              }
              if(s.enabled&&!map.isMoving?.()){s.layer.rebuild();if(diagnostics.status==='no-visible-equipment'&&s.retryCount!==3){s.retryCount=(s.retryCount||0)+1;s.timer=setTimeout(()=>{s.timer=0;queue(map,s)},900)}else if(diagnostics.status==='ready')s.retryCount=0;}
@@ -179,12 +181,12 @@ jobs:
              if(!active||removed||!renderer||!anchor||!origin)return;
              try{
               const matrix=args?.defaultProjectionData?.mainMatrix,model=map.transform?.getMatrixForModel?.(origin,0);
-              if(!matrix||!model)return;
+              if(!matrix||!model){diagnostics.status='projection-unavailable';return;}
               camera.projectionMatrix.fromArray(matrix);camera.matrixWorld.identity();camera.matrixWorldInverse.identity();
               anchor.matrix.fromArray(model);anchor.matrixWorldNeedsUpdate=true;
               const now=performance.now();
               if(now-lastFrame>=66){blades(now);lastFrame=now;diagnostics.fanFrames++}
-              scene.updateMatrixWorld(true);renderer.resetState();renderer.render(scene,camera);
+              scene.updateMatrixWorld(true);renderer.resetState();renderer.render(scene,camera);diagnostics.status='ready';diagnostics.drawCalls=renderer.info.render.calls;diagnostics.renderedFrames=(diagnostics.renderedFrames||0)+1;
               if(!map.isMoving?.()&&!repaintTimer)repaintTimer=setTimeout(()=>{repaintTimer=0;if(active&&!removed)map.triggerRepaint()},80);
              }catch(e){layer.hide();diagnostics.status='fallback';diagnostics.error=String(e).slice(0,180)}
             },
@@ -235,21 +237,39 @@ jobs:
            anchor="vis(map,eqId,roofEquipmentOn);"
            assert s.count(anchor)==1,(rel,s.count(anchor))
            s=s.replace(anchor,anchor+'''
-              if(roofEquipmentOn&&z>=17.2&&!map.__bpManhattanRoofDetailPromise){
-                map.__bpManhattanRoofDetailPromise=import('/vendor/bp-manhattan-roof-detail-v1.mjs?v=1').then(m=>{map.__bpManhattanRoofDetail=m;m.sync(map,!!layerState.buildings&&map.getZoom()>=17.2);}).catch(e=>console.warn('Manhattan roof detail fallback',e));
-              }
-              map.__bpManhattanRoofDetail?.sync(map,roofEquipmentOn);
+              if(roofEquipmentOn&&z>=17.2&&!map.__bpManhattanRoofDetailPromise&&!bpRoofDetailTimer)bpRoofDetailOnCamera();
            ''')
            anchor="vis(map,'gta-nyc-mapped-roof-equipment-v2',false);"
            assert s.count(anchor)==1,(rel,s.count(anchor))
            s=s.replace(anchor,anchor+"\n   map.__bpManhattanRoofDetail?.sync(map,false);")
+           # Register the independent settled-camera trigger once, not per source refresh.
+           marker="const bpDeviceQuality=window.__BP_DEVICE_QUALITY_V1__;"
+           assert s.count(marker)==1,(rel,s.count(marker))
+           s=s.replace(marker,marker+'''
+            let bpRoofDetailTimer=0;
+            function bpRoofDetailOnCamera(){
+              clearTimeout(bpRoofDetailTimer);
+              bpRoofDetailTimer=setTimeout(()=>{
+                try{
+                  const c=map.getCenter(),near=!!layerState.buildings&&map.getZoom()>=17.2&&c.lng>=-74.04&&c.lng<=-73.89&&c.lat>=40.68&&c.lat<=40.89;
+                  if(!near){map.__bpManhattanRoofDetail?.sync(map,false);return}
+                  if(map.isMoving?.()){bpRoofDetailOnCamera();return}
+                  if(!map.__bpManhattanRoofDetailPromise){
+                    map.__bpManhattanRoofDetailPromise=import('/vendor/bp-manhattan-roof-detail-v1.mjs?v=2').then(m=>{map.__bpManhattanRoofDetail=m;bpRoofDetailOnCamera()}).catch(e=>{map.__bpManhattanRoofDetailPromise=null;console.warn('Manhattan roof module',e)});
+                  }else map.__bpManhattanRoofDetail?.sync(map,true);
+                }catch(e){console.warn('Manhattan settled roof camera',e)}
+              },250);
+            }
+            map.on('moveend',bpRoofDetailOnCamera);
+            map.on('remove',()=>clearTimeout(bpRoofDetailTimer));
+           ''')
            p.write_text(s)
           for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
-           p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=1',s)
+           p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=2',s)
            if rel!='vendor/bp-public-globe-v4.mjs':assert n>=1,(rel,n)
            p.write_text(s)
           for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
-           p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=1',s);assert n>=1;p.write_text(s)
+           p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=2',s);assert n>=1;p.write_text(s)
           # The new renderer is staged separately from this script; compare every other file byte-for-byte.
           assert snap()==before
           print('MAPPED_MANHATTAN_DETAIL_READY',count,len(cells),len(payload))
@@ -267,7 +287,7 @@ jobs:
           try{
            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});
            const errors=[];page.on('pageerror',e=>{errors.push(String(e));if(errors.length<=20)console.log('PAGE_ERROR',e.stack||String(e))});
-           page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost/.test(m.text()))console.log(m.text().slice(0,400))});
+           page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost|Manhattan/.test(m.text()))console.log(m.text().slice(0,400))});
            // Serve the candidate artifact under the real origin, so absolute paths
            // and startup behavior are the same. External tile requests remain real.
            await page.route(origin+'/**',async route=>{
@@ -320,7 +340,7 @@ jobs:
            if(terrain)await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;try{return Number.isFinite(m.queryTerrainElevation(m.getCenter(),{exaggerated:true}))}catch(e){return false}},{timeout:45000});
            await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setPitch(60)});
            console.log('MANHATTAN_TERRAIN_RESTORED',JSON.stringify(terrain));
-           await page.waitForFunction(()=>{const d=window.__BP_MANHATTAN_ROOF_DETAIL_V1__;return d?.status==='ready'&&d.count>0&&d.fanFrames>1},{timeout:90000});
+           await page.waitForFunction(()=>{const d=window.__BP_MANHATTAN_ROOF_DETAIL_V1__;return d?.status==='ready'&&d.count>0&&d.fanFrames>1&&d.renderedFrames>1&&d.drawCalls>0},null,{timeout:90000}).catch(async e=>{console.log('MANHATTAN_DETAIL_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return {detail:window.__BP_MANHATTAN_ROOF_DETAIL_V1__,native:window.__BP_NYC_ROOF_EQUIPMENT_V2__,zoom:m.getZoom(),center:m.getCenter(),moving:m.isMoving(),layer:!!m.getLayer('bp-manhattan-roof-detail-v1'),module:!!m.__bpManhattanRoofDetail,importStarted:!!m.__bpManhattanRoofDetailPromise}})));throw e});
            const close=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter(),r=m.getCanvas().getBoundingClientRect();return {lng:c.lng,lat:c.lat,x:r.x+r.width*.5,y:r.y+r.height*.42,detail:window.__BP_MANHATTAN_ROOF_DETAIL_V1__}});
            assert(close.detail.count<=40);
            const xx=Math.round(close.x),yy=Math.round(close.y);
