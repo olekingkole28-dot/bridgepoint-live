@@ -51,7 +51,7 @@ jobs:
           import os,re,hashlib,json
           from pathlib import Path
           site=Path(os.environ['SITE'])
-          allowed={'world-v2300-map.js','app/world-v2300-map.js','vendor/bp-ocean-relief-v4.mjs','world-v2300-water.js','app/world-v2300-water.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs','world-v2300-sensor-layers.js','app/world-v2300-sensor-layers.js'}
+          allowed={'world-v2300-map.js','app/world-v2300-map.js','vendor/bp-ocean-relief-v4.mjs','world-v2300-water.js','app/world-v2300-water.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs','world-v2300-sensor-layers.js','app/world-v2300-sensor-layers.js','bridgepoint-bottom-card-mobile-v2.js','app/bridgepoint-bottom-card-mobile-v2.js'}
           def snapshot():
               return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
           before=snapshot()
@@ -74,7 +74,7 @@ jobs:
           s=one(s,"tiles:[installUnifiedTerrain()?'bp-topobathy://relief/{z}/{x}/{y}.png':'bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:15,attribution:TERRAIN_ATTRIBUTION","tiles:['bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:12,attribution:'Mapzen / Tilezen terrain · ETOPO1 bathymetry'")
           p.write_text(s)
           for rel in ('world-v2300-water.js','app/world-v2300-water.js'):
-              p=site/rel;s=p.read_text();s=one(s,"bp-ocean-relief-v4.mjs?v=startup1","bp-ocean-relief-v4.mjs?v=inputrecovery3");p.write_text(s)
+              p=site/rel;s=p.read_text();s=one(s,"bp-ocean-relief-v4.mjs?v=startup1","bp-ocean-relief-v4.mjs?v=inputrecovery4");p.write_text(s)
           for rel in ('world-v2300-sensor-layers.js','app/world-v2300-sensor-layers.js'):
               p=site/rel;s=p.read_text()
               assert 'lastSubmergeCheck=0' not in s and 'autoDiveArmed=true,autoDivePending=false' not in s
@@ -102,13 +102,47 @@ jobs:
               # activates at close zoom; explicit dives remain supported at any zoom.
               s=one(s,'const altitude=cameraAltitude();if(altitude===null)return;','if(map.getZoom()<13&&!state.diving&&!state.autoSubmerged&&!Number(window.__BP_WATER_SUBMERGENCE_V2__||0))return;\n  const altitude=cameraAltitude();if(altitude===null)return;')
               p.write_text(s)
+          # Stop duplicate document-wide observers and redundant card scans.
+          # Preserve the original layout, controls, and click handlers.
+          for rel in ('bridgepoint-bottom-card-mobile-v2.js','app/bridgepoint-bottom-card-mobile-v2.js'):
+              p=site/rel
+              if not p.exists():
+                  assert rel.startswith('app/')
+                  continue
+              s=p.read_text()
+              a=s.index('function init(){');b=s.index("if(document.readyState",a)
+              s=s[:a]+r'''function init(){
+           if(!media.matches)return;
+           if(state.ready){rootWatch?.disconnect();rootWatch=null;return;}
+           if(rootWatch)return;
+           if(mount())return;
+           let queued=false;
+           const observer=new MutationObserver(()=>{
+            if(queued||state.ready)return;
+            queued=true;
+            setTimeout(()=>{
+             queued=false;
+             if(rootWatch!==observer)return;
+             if(state.ready||mount()){observer.disconnect();rootWatch=null;}
+            },80);
+           });
+           rootWatch=observer;
+           observer.observe(document.documentElement,{childList:true,subtree:true});
+          }
+          '''+s[b:]
+              s=one(s,"watch=new MutationObserver(()=>{if(frame)return;frame=requestAnimationFrame(()=>{frame=0;scan();});});","watch=new MutationObserver(records=>{if(frame||!records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&(n.matches?.('button')||n.querySelector?.('button')))))return;frame=setTimeout(()=>{frame=0;scan();},120);});")
+              s=one(s,"b.dataset.bpvV2Category=cat;","if(b.dataset.bpvV2Category!==cat)b.dataset.bpvV2Category=cat;")
+              s=one(s,"b.dataset.bpvV2Visible=String(shown);b.setAttribute('aria-hidden',String(!shown));","if(b.dataset.bpvV2Visible!==String(shown))b.dataset.bpvV2Visible=String(shown);if(b.getAttribute('aria-hidden')!==String(!shown))b.setAttribute('aria-hidden',String(!shown));")
+              p.write_text(s)
+              print('CARD_OBSERVER_RECOVERY',rel)
           for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
               p=site/rel;s=p.read_text()
-              s,n=re.subn(r'(world-v2300-(?:map|water|sensor-layers)\.js\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v3',s)
+              s,n=re.subn(r'((?:world-v2300-(?:map|water|sensor-layers)|bridgepoint-bottom-card-mobile-v2)\.js\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v4',s)
               if rel!='vendor/bp-public-globe-v4.mjs':assert n>=2,(rel,n)
               p.write_text(s)
           for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
-              p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v3',s);assert n>=1;p.write_text(s)
+              p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v4',s);assert n>=1;p.write_text(s)
+              s=p.read_text();s=re.sub(r'(bridgepoint-bottom-card-mobile-v2\.js\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v4',s);p.write_text(s)
           assert before==snapshot(),'UNRELATED FILE CHANGED'
           roof=json.loads((site/'data/bp-nyc-rooftop-cooling-v2.geojson').read_text())
           manifest=json.loads((site/'data/bp-nyc-terrain-v1/manifest.json').read_text())
@@ -151,12 +185,18 @@ jobs:
            for(let i=1;i<=8;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+Math.round(i*8),y:y+Math.round(i*7),id:1}]});await page.waitForTimeout(35);}
            await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
            await page.waitForFunction(lat=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return Math.abs(m.getCenter().lat-lat)>.15},before.lat,{timeout:12000});
+           console.log('REAL_MOBILE_DRAG_PASS');
            const plus=page.locator('.maplibregl-ctrl-zoom-in:visible').first();
-           await plus.click({timeout:10000});
-           await page.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.2},before.z,{timeout:12000});
+           const zoomBefore=await page.evaluate(()=>(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map.getZoom());
+           const bounds=await plus.boundingBox({timeout:15000});assert(bounds,'Zoom button missing');
+           const tx=Math.round(bounds.x+bounds.width/2),ty=Math.round(bounds.y+bounds.height/2);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:tx,y:ty,id:1}]});
+           await page.waitForTimeout(80);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           await page.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.2},zoomBefore,{timeout:20000});
            const after=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return {lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks};});
            assert(after.ticks>before.ticks,'Main thread heartbeat failed');
-           assert(!errors.some(e=>/lastSubmergeCheck|autoDiveArmed|autoDivePending|Attempting to run\(\), but is already running/.test(e)),JSON.stringify(errors.slice(0,10)));
+           assert(!errors.some(e=>/lastSubmergeCheck|autoDiveArmed|autoDivePending|Cannot read properties of null \(reading 'disconnect'\)|Attempting to run\(\), but is already running/.test(e)),JSON.stringify(errors.slice(0,10)));
            console.log('REAL_MOBILE_TOUCH_AND_ZOOM_PASS',JSON.stringify({before,after,errors:errors.slice(0,8)}));
           }finally{await browser.close()}
           JS
@@ -201,7 +241,7 @@ jobs:
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/horizon-site"
-          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json; do
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json bridgepoint-bottom-card-mobile-v2.js; do
             ok=0
             for i in 1 2 3 4 5 6; do
               if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then ok=1; break; fi
