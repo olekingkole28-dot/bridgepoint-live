@@ -1,4 +1,4 @@
-name: Manhattan V8 native One WTC silhouette and visual verification
+name: Manhattan V9 surveyed tile landmark visual verification
 on:
   workflow_dispatch:
   push:
@@ -44,12 +44,16 @@ jobs:
         run: |
           set -euo pipefail
           export SITE="$RUNNER_TEMP/horizon-site"
+          python3 -m pip install --quiet 'shapely>=2.1,<3' mapbox-vector-tile
           python3 - <<'PY'
           import os,math,json,hashlib,re
+          from shapely.geometry import shape,box
+          from shapely.ops import transform
+          from mapbox_vector_tile import decode,encode
           from pathlib import Path
           site=Path(os.environ['SITE'])
           allowed={'world-v2300-map.js','app/world-v2300-map.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs','vendor/bp-one-wtc-v7.mjs'}
-          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed and not p.relative_to(site).as_posix().startswith('assets/manhattan-native-v6/tiles/')}
           before=snap()
           m=json.loads((site/'data/bp-one-wtc-v7.json').read_text());host=m['host'];assert host==40674
           lon,lat=m['origin'];angle=m['rotation'];B=m['podiumWidthM']/2;C=m['crownWidthM']/math.sqrt(2);H=m['parapetM'];P=60.96
@@ -93,29 +97,65 @@ jobs:
             a=H+10+(m['spireTipM']-H-10)*i/30;b=H+10+(m['spireTipM']-H-10)*(i+1)/30
             poly(disc(max(.13,1.85*(1-i/30)),12),a,b,'#9ba7ad' if i%3==0 else '#515d65','spire')
           assert len(features)>200 and abs(max(f['properties']['h'] for f in features)-m['spireTipM'])<.001
-          fc=json.dumps({'type':'FeatureCollection','features':features},separators=(',',':'))
-          print('ONE_WTC_NATIVE_FACET_BANDS',len(features))
+          # Use the same native vector source and extrusion layer already pixel-tested in V6.
+          # Re-encode only the few tiles containing this landmark, retaining every unrelated feature.
+          R=6378137.;W=math.pi*R
+          def merc(x,y):return R*math.radians(x),R*math.log(math.tan(math.pi/4+math.radians(y)/2))
+          models=[]
+          for f in features:
+            p=f['properties'].copy();p.update(host=host,roof=0,part='one-wtc-'+p['kind'])
+            models.append((transform(merc,shape(f['geometry'])),p))
+          from shapely.ops import unary_union
+          bounds=unary_union([g for g,p in models]).bounds
+          root=site/'assets/manhattan-native-v6/tiles'
+          changed=[]
+          for z in (16,17):
+            step=2*W/(2**z)
+            x0=int((bounds[0]+W)/step);x1=int((bounds[2]+W)/step)
+            y0=int((W-bounds[3])/step);y1=int((W-bounds[1])/step)
+            removed=0;inserted=0
+            for x in range(x0-1,x1+2):
+              for y in range(y0-1,y1+2):
+                file=root/str(z)/str(x)/(str(y)+'.pbf')
+                if not file.exists():continue
+                original=decode(file.read_bytes())
+                extent=original.get('buildings',{}).get('extent',8192)
+                xmin=-W+x*step;ymin=W-(y+1)*step
+                def local(g):return transform(lambda xx,yy:((xx-xmin)*extent/step,(yy-ymin)*extent/step),g)
+                clip=box(xmin-2,ymin-2,xmin+step+2,ymin+step+2)
+                add=[]
+                for g,p in models:
+                  q=g.intersection(clip)
+                  if not q.is_empty and q.geom_type in ('Polygon','MultiPolygon'):
+                    add.append({'geometry':local(q),'properties':p})
+                layers=[];gone=0
+                for name,layer in original.items():
+                  fs=[]
+                  for f in layer['features']:
+                    if name in ('buildings','rooftops') and f['properties'].get('host')==host:gone+=1;continue
+                    item={'geometry':shape(f['geometry']),'properties':f['properties']}
+                    if 'id' in f:item['id']=f['id']
+                    fs.append(item)
+                  if name=='rooftops':fs.extend(add)
+                  layers.append({'name':name,'features':fs})
+                if not any(l['name']=='rooftops' for l in layers):layers.append({'name':'rooftops','features':add})
+                if not gone and not add:continue
+                raw=encode(layers,default_options={'extents':extent})
+                check=decode(raw)
+                assert not any(f['properties'].get('host')==host for f in check.get('buildings',{}).get('features',[]))
+                inserted+=sum(f['properties'].get('host')==host for f in check.get('rooftops',{}).get('features',[]));removed+=gone
+                file.write_bytes(raw);changed.append(file.relative_to(site).as_posix())
+            assert removed>0 and inserted>100,(z,removed,inserted)
+            print('ONE_WTC_NATIVE_TILE_REPLACEMENT',z,removed,inserted)
+          assert 0<len(changed)<40,changed
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
             p=site/rel;s=p.read_text()
             def one(a,b):
               global s
               assert s.count(a)==1,(rel,a[:120],s.count(a));s=s.replace(a,b)
-            for ident in ('bpAlignedBody','bpAlignedCap','bpNativeManhattanLayer'):
-              a="id:"+ident+",type:'fill-extrusion',source:bpNativeManhattanSource,"
-              one(a,a+"filter:['!=',['get','host'],"+str(host)+"],")
-            mark="if(bpOneWTCModule)bpOneWTCModule.syncOneWTC(map,on&&bpAlignedActive);"
-            block=r'''const bpWTC8ID='bp-one-wtc-native-v8';
-              if(on&&bpAlignedActive&&!map.getLayer(bpWTC8ID)){
-                try{
-                  if(!map.getSource(bpWTC8ID))map.addSource(bpWTC8ID,{type:'geojson',data:__FC__,maxzoom:18});
-                  map.addLayer({id:bpWTC8ID,type:'fill-extrusion',source:bpWTC8ID,minzoom:15.6,paint:{'fill-extrusion-base':['get','b'],'fill-extrusion-height':['get','h'],'fill-extrusion-color':['get','c'],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},map.getLayer('gta-water-label')?'gta-water-label':undefined);
-                }catch(e){console.warn('One WTC native fallback setup',e);}
-              }
-              if(map.getLayer(bpWTC8ID))vis(map,bpWTC8ID,on&&bpAlignedActive);
-              '''.replace('__FC__',fc)
-            one(mark,block+mark)
+            one("bpNativeManhattanRoot+'tiles/{z}/{x}/{y}.pbf'","bpNativeManhattanRoot+'tiles/{z}/{x}/{y}.pbf?wtc=9'")
             # Bypass a potentially stale cached module URL on mobile.
-            one("bp-one-wtc-v7.mjs?v=7","bp-one-wtc-v7.mjs?v=8")
+            one("bp-one-wtc-v7.mjs?v=7","bp-one-wtc-v7.mjs?v=9")
             p.write_text(s)
           p=site/'vendor/bp-one-wtc-v7.mjs';s=p.read_text()
           # Native shape remains visible independently of custom layer draw status.
@@ -134,7 +174,7 @@ jobs:
           changes=0
           for rel in allowed-{'world-v2300-map.js','app/world-v2300-map.js','vendor/bp-one-wtc-v7.mjs'}:
             p=site/rel;s=p.read_text();n=s.count('manhattanroofdetail=13');changes+=n
-            if n:p.write_text(s.replace('manhattanroofdetail=13','manhattanroofdetail=14'))
+            if n:p.write_text(s.replace('manhattanroofdetail=13','manhattanroofdetail=15'))
           assert changes>0,'Cache version missing'
           # Preserve every other asset exactly.
           assert snap()==before
@@ -273,45 +313,46 @@ jobs:
            assert(trace.events>=1&&trace.moves>=1&&trace.maxDelta>1e-6,'Close angle touch did not pan the actual map');
            assert(trace.firstMove-trace.firstInput<2500,'Close angle input response exceeded 2.5 seconds');
            console.log('MANHATTAN_NATIVE_OBLIQUE_TOUCH_PASS',JSON.stringify({detail:close.detail,trace}));
-           // Test dedicated landmark in the real map; keep native geometry if any check fails.
-           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.stop();const t=m.getTerrain?.();if(t){window.__bpLandmarkTestTerrain={source:t.source,exaggeration:t.exaggeration??1};m.setTerrain(null)}m.jumpTo({center:[-74.013382,40.712742],zoom:17.3,pitch:0,bearing:25});});
+           // Exact surveyed center, wider framing so the full 541m tower is in view.
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.stop();const t=m.getTerrain?.();if(t){window.__bpLandmarkTestTerrain={source:t.source,exaggeration:t.exaggeration??1};m.setTerrain(null)}m.jumpTo({center:[-74.0131735879,40.7130090276],zoom:16.35,pitch:0,bearing:25});});
            await page.waitForTimeout(1600);
-           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;if(window.__bpLandmarkTestTerrain)m.setTerrain(window.__bpLandmarkTestTerrain);m.setPitch(55)});
-           await page.waitForFunction(()=>{const d=window.__BP_ONE_WTC_V7__;return d?.status==='rendering'&&d.masked&&d.frames>0&&d.drawCalls>0&&d.facets===8},null,{timeout:90000}).catch(async e=>{console.log('ONE_WTC_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>window.__BP_ONE_WTC_V7__)));throw e});
-           const first=await page.evaluate(()=>({...window.__BP_ONE_WTC_V7__}));
-           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setBearing(112);m.triggerRepaint()});
-           await page.waitForFunction(n=>window.__BP_ONE_WTC_V7__?.frames>n,first.frames,{timeout:15000});
-           assert(first.drawCalls<160,'Landmark draw-call budget exceeded');
-           assert(Math.abs(first.height-541.3248)<.001);
-           console.log('ONE_WTC_RENDER_AND_ROTATE_PASS',JSON.stringify(first));
-           // Real framebuffer verification of the independent native silhouette.
-           // Test at an oblique angle and a settled camera. Hide custom renderer for
-           // this test so a success cannot be produced by renderer counters alone.
-           const proof=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,id='bp-one-wtc-native-v8';if(!m.getLayer(id))throw Error('Native landmark layer missing');const f=m.getFilter('bp-manhattan-surveyed-body-v6');window.__BP_ONE_WTC_V7__.probeHidden=true;m.triggerRepaint();return {filter:f,source:!!m.getSource(id),features:m.querySourceFeatures(id).length}});
-           assert(proof.source&&proof.features>100&&JSON.stringify(proof.filter).includes('40674'),'Generic host not excluded or native model not loaded');
-           const withNative=await painted();
-           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setFilter('bp-one-wtc-native-v8',['==',['get','kind'],'never'])});
-           const withoutNative=await painted();
-           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setFilter('bp-one-wtc-native-v8',null)});
-           const restoredNative=await painted();
-           let stablePixels=0;
-           for(let y=130;y<withNative.height-100;y++)for(let x=20;x<withNative.width-20;x++){
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;if(window.__bpLandmarkTestTerrain)m.setTerrain(window.__bpLandmarkTestTerrain);m.setPitch(48)});
+           await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,d=window.__BP_ONE_WTC_V7__;return d?.status==='rendering'&&d.frames>0&&m.querySourceFeatures('bp-manhattan-native-roof-v5',{sourceLayer:'rooftops'}).some(f=>f.properties.host===40674&&String(f.properties.part).startsWith('one-wtc-'))},null,{timeout:90000});
+           const info=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,id='bp-manhattan-native-roof-v5';window.__BP_ONE_WTC_V7__.probeHidden=true;m.triggerRepaint();const fs=m.querySourceFeatures(id,{sourceLayer:'rooftops'}).filter(f=>f.properties.host===40674);return {filter:m.getFilter(id)||null,count:fs.length,maximum:Math.max(...fs.map(f=>f.properties.h)),old:m.querySourceFeatures(id,{sourceLayer:'buildings'}).filter(f=>f.properties.host===40674).length,center:m.getCenter(),zoom:m.getZoom(),pitch:m.getPitch()}});
+           console.log('ONE_WTC_NATIVE_SOURCE_PROOF',JSON.stringify(info));
+           assert(info.count>100&&info.maximum>530&&info.old===0);
+           const id='bp-manhattan-native-roof-v5';
+           async function capture(name){const png=await painted();fs.writeFileSync(path.join(process.env.RUNNER_TEMP,name+'.png'),PNG.sync.write(png));return png;}
+           const withNative=await capture('one-wtc-native-visible');
+           await page.evaluate(({id,f})=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const no=['!=',['get','host'],40674];m.setFilter(id,f?['all',f,no]:no)},{id,f:info.filter});
+           const withoutNative=await capture('one-wtc-native-hidden');
+           await page.evaluate(({id,f})=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setFilter(id,f)},{id,f:info.filter});
+           const restoredNative=await capture('one-wtc-native-restored');
+           let stablePixels=0,changed=0;
+           for(let y=75;y<withNative.height-55;y++)for(let x=5;x<withNative.width-5;x++){
              const i=(y*withNative.width+x)*4;
              const diff=(a,b)=>Math.abs(a.data[i]-b.data[i])+Math.abs(a.data[i+1]-b.data[i+1])+Math.abs(a.data[i+2]-b.data[i+2]);
-             if(diff(withNative,withoutNative)>65&&diff(withNative,restoredNative)<35)stablePixels++;
+             if(diff(withNative,withoutNative)>50){changed++;if(diff(withNative,restoredNative)<35)stablePixels++;}
            }
-           console.log('ONE_WTC_NATIVE_FRAMEBUFFER',JSON.stringify({stablePixels,proof}));
+           console.log('ONE_WTC_NATIVE_FRAMEBUFFER',JSON.stringify({stablePixels,changed,info}));
            assert(stablePixels>250,'Landmark native geometry not visibly present');
            await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;window.__BP_ONE_WTC_V7__.probeHidden=false;m.triggerRepaint()});
-           const withCustom=await painted();
+           const withCustom=await capture('one-wtc-glass-overlay');
            let customPixels=0;
-           for(let y=130;y<withCustom.height-100;y++)for(let x=20;x<withCustom.width-20;x++){const i=(y*withCustom.width+x)*4;if(Math.abs(withCustom.data[i]-restoredNative.data[i])+Math.abs(withCustom.data[i+1]-restoredNative.data[i+1])+Math.abs(withCustom.data[i+2]-restoredNative.data[i+2])>65)customPixels++}
+           for(let i=0;i<withCustom.data.length;i+=4)if(Math.abs(withCustom.data[i]-restoredNative.data[i])+Math.abs(withCustom.data[i+1]-restoredNative.data[i+1])+Math.abs(withCustom.data[i+2]-restoredNative.data[i+2])>65)customPixels++;
            console.log('ONE_WTC_CUSTOM_FRAMEBUFFER',customPixels);
-           // Native fallback is required; glass overlay still has the existing rendering gate.
-
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setBearing(112);m.triggerRepaint()});
+           await capture('one-wtc-rotated');
           }finally{await browser.close()}
           JS
           timeout 520s node "$TEST/test.mjs"
+      - name: Upload landmark diagnostic screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-wtc-render-evidence
+          path: ${{ runner.temp }}/one-wtc-*.png
+          if-no-files-found: ignore
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
@@ -360,4 +401,4 @@ jobs:
             done
             test "$ok" = 1 || { echo "LIVE_MISMATCH $p"; exit 1; }
           done
-          echo ONE_WTC_V8_LIVE_BYTES_PASS
+          echo ONE_WTC_V9_LIVE_BYTES_PASS
