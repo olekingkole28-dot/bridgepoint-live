@@ -46,6 +46,7 @@ jobs:
           export SITE="$RUNNER_TEMP/horizon-site"
           export PACK="$SITE/assets/manhattan-rooftop-v3"
           mkdir -p "$PACK" "$RUNNER_TEMP/roof-sources" "$RUNNER_TEMP/roof-tools"
+          python3 -m pip install --quiet Pillow
           npm install --prefix "$RUNNER_TEMP/roof-tools" --no-audit --no-fund @gltf-transform/cli@4
           python3 - <<'PY'
           import os,json,urllib.request,concurrent.futures,hashlib,subprocess,struct
@@ -57,12 +58,19 @@ jobs:
           def fetch(url,path):
               req=urllib.request.Request(url,headers={'User-Agent':'BridgePoint Intelligence licensed asset preparation/3.0 (https://bridgepointintelligence.online)'})
               path.parent.mkdir(parents=True,exist_ok=True)
-              with urllib.request.urlopen(req,timeout=80) as r:path.write_bytes(r.read())
+              import time
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(req,timeout=80) as r:path.write_bytes(r.read())
+                      return
+                  except Exception:
+                      if attempt==2:raise
+                      time.sleep(2*(attempt+1))
           def glb(name,url):
               src=tmp/(name+'.glb');dst=pack/(name+'.glb')
               fetch(url,src)
               assert src.read_bytes()[:4]==b'glTF'
-              subprocess.run([str(cli),'copy',str(src),str(dst)],check=True,timeout=100)
+              subprocess.run([str(cli),'optimize',str(src),str(dst),'--compress','false','--texture-compress','webp','--texture-size','512','--simplify','false'],check=True,timeout=120)
               b=dst.read_bytes();j=json.loads(b[20:20+struct.unpack_from('<I',b,12)[0]])
               assert not set(j.get('extensionsRequired',[]))&{'KHR_draco_mesh_compression','EXT_meshopt_compression','KHR_texture_basisu'},(name,j.get('extensionsRequired'))
               assert len(b)<4_000_000
