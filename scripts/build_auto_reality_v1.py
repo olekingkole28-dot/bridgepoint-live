@@ -4,6 +4,10 @@ import json, sys, hashlib, gzip, struct, math, collections
 from pathlib import Path
 
 site=Path(sys.argv[1])
+allowed={'index.html','app/index.html','bridgepoint-auto-reality-v1.js','data/bp-auto-reality-v1.json'}
+def hashes():
+ return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+before=hashes()
 catalog=site/'bridgepoint-public-scan-catalog-v1.json'
 if not catalog.is_file(): catalog=Path('rebuild-v5000/bridgepoint-public-scan-catalog-v1.json')
 data=json.loads(catalog.read_text())
@@ -87,3 +91,15 @@ out.write_text(json.dumps({'schemaVersion':1,'items':items,'nativeCount':len(nat
 print('AUTO_REALITY_CATALOG',len(items),'NATIVE',len(native),'VIEWER_ONLY',len(items)-len(native))
 print('AUTO_REALITY_NATIVE',[(x['title'],x['asset']) for x in native])
 print('AUTO_REALITY_UNPLACED',skipped)
+
+# Only the additive script tag, renderer, and discovery manifest are changed.
+tag=b'<script defer src="/bridgepoint-auto-reality-v1.js?v=20261125v1"></script>\n'
+for rel in ('index.html','app/index.html'):
+ p=site/rel; old=p.read_bytes()
+ assert old.count(b'</body>')==1 and tag not in old
+ new=old.replace(b'</body>',tag+b'</body>',1)
+ assert new.replace(tag,b'',1)==old
+ p.write_bytes(new)
+(site/'bridgepoint-auto-reality-v1.js').write_bytes(Path('rebuild-v5000/bridgepoint-auto-reality-v1.js').read_bytes())
+assert hashes()==before, 'Unrelated production files changed'
+print('AUTO_REALITY_ONLY_BYTE_PRESERVATION_PASS',len(before))
