@@ -1,0 +1,185 @@
+name: Publish BridgePoint Property Markers V1 Only
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-property-markers-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact verified Packages release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45559047706 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45559047706 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Add listing and opportunity markers only; preserve existing site
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 - <<'PY'
+          import os, hashlib, re, json, urllib.request, urllib.parse, concurrent.futures
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          module='bridgepoint-property-markers-v1.js'
+          htmls=('index.html','app/index.html')
+          hudfile='data/bp-hud-listings-marker-snapshot-v1.json'
+          oppfile='data/bp-opportunity-marker-snapshot-v1.json'
+          allowed={module,*htmls,hudfile,oppfile}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          for rel in (module,hudfile,oppfile):
+              assert not (site/rel).exists(), rel
+          (site/module).write_bytes(Path('rebuild-v5000',module).read_bytes())
+          assert b'data-bpv-action="listings"' in (site/'bridgepoint-view-v5917.js').read_bytes()
+          assert b'data-bpv-action="opportunities"' in (site/'bridgepoint-view-v5917.js').read_bytes()
+          for rel in htmls:
+              p=site/rel
+              old=p.read_bytes()
+              tag=b'<script defer src="/bridgepoint-property-markers-v1.js?v=20261125v1"></script>\n'
+              assert old.count(b'</body>')==1 and module.encode() not in old
+              new=old.replace(b'</body>',tag+b'</body>',1)
+              assert new.replace(tag,b'',1)==old
+              p.write_bytes(new)
+          def request(url,params=None,key=None):
+              payload=json.dumps(params).encode() if params is not None else None
+              h={'User-Agent':'BridgePoint Property Markers/1.0','Accept':'application/json'}
+              if key: h.update({'apikey':key,'Content-Type':'application/json'})
+              with urllib.request.urlopen(urllib.request.Request(url,data=payload,headers=h),timeout=9) as r:
+                  value=json.load(r)
+              if value.get('error') or value.get('resolved') is False: raise ValueError('Source unavailable')
+              return value
+          def save(rel,rows):
+              if not rows:return
+              p=site/rel;p.parent.mkdir(parents=True,exist_ok=True)
+              p.write_text(json.dumps({'type':'FeatureCollection','features':rows},separators=(',',':')))
+              print('SOURCE_SNAPSHOT',rel,len(rows),flush=True)
+          hud='https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services/SF_REO/FeatureServer/0/query'
+          def hudquery(**params):return request(hud+'?'+urllib.parse.urlencode(params))
+          try:
+              from datetime import datetime, timezone
+              ids=hudquery(where='1=1',returnIdsOnly='true',f='json')['objectIds']
+              rows=[]
+              for i in range(0,len(ids),400):
+                  d=hudquery(objectIds=','.join(map(str,ids[i:i+400])),outFields='*',outSR=4326,returnGeometry='true',f='json')
+                  assert not d.get('exceededTransferLimit')
+                  for r in d['features']:
+                      a=r.get('attributes',{});g=r.get('geometry',{})
+                      x,y=g.get('x'),g.get('y')
+                      if x is None or y is None or not (-180<=x<=180 and -90<=y<=90):continue
+                      ident='HUD-FHA-'+str(a.get('CASE_NUM') or a.get('OBJECTID'))
+                      address=' '.join(str(a.get(k) or '').strip() for k in ('STREET_NUM','DIRECTION_PREFIX','STREET_NAME')).strip()
+                      acquired=a.get('DATE_ACQUIRED')
+                      rows.append({'type':'Feature','id':ident,'geometry':{'type':'Point','coordinates':[x,y]},'properties':{'listing_id':ident,'title':'HUD/FHA home','address':address,'city':a.get('CITY'),'state_code':a.get('STATE_CODE'),'postal_code':a.get('DISPLAY_ZIP_CODE'),'listing_type':'FOR_SALE','listing_status':'HUD source record','case_number':a.get('CASE_NUM'),'date_acquired':datetime.fromtimestamp(acquired/1000,timezone.utc).date().isoformat() if acquired else '', 'source_key':'HUD/FHA Single Family REO','source_checked_at':datetime.now(timezone.utc).isoformat(),'accuracy_notice':'Published source snapshot. Verify current availability; coordinates may be street-interpolated or ZIP+4 centroids. No asking price or listing media supplied.'}})
+              save(hudfile,rows)
+          except Exception as e: print('HUD_SNAPSHOT_UNAVAILABLE',str(e)[:200],flush=True)
+          try:
+              cfg=(site/'world-v2300-config.js').read_text()
+              endpoint=re.search(r'https://[a-z0-9-]+\.trycloudflare\.com',cfg)
+              key=re.search(r'sb_publishable_[a-zA-Z0-9_-]+',cfg)
+              if not endpoint or not key:raise ValueError('Current public PC runtime endpoint not found')
+              boxes=[(-130,24,-105,50),(-105,24,-85,50),(-85,24,-65,50),(-180,45,-125,75),(-125,5,-50,35),(-85,-60,-30,15),(-20,-40,60,75),(60,-50,120,75),(120,-50,180,75)]
+              names=['bridgepoint_public_opportunity_viewport_v5907','bridgepoint_public_global_risk_viewport_v6174']
+              def region(job):
+                  name,b=job
+                  try:
+                      d=request(endpoint.group()+'/rest/v1/rpc/'+name,dict(zip(('p_west','p_south','p_east','p_north','p_limit'),(*b,70))),key.group())
+                      data=d.get('geojson',d)
+                      result=[]
+                      for f in data.get('features',[]):
+                          if not f.get('geometry'):continue
+                          if 'risk' in name:
+                              f['id']='risk:'+str(f.get('id') or f.get('properties',{}).get('opportunity_id') or f['geometry'])
+                              f.setdefault('properties',{})['global_risk_review']=True
+                          result.append(f)
+                      return result
+                  except Exception:return []
+              with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+                  result=list(pool.map(region,[(n,b) for b in boxes for n in names]))
+              rows=[f for batch in result for f in batch]
+              save(oppfile,rows)
+              if not rows: print('OPPORTUNITY_SNAPSHOT_UNAVAILABLE_NO_RECORDS',flush=True)
+          except Exception as e:print('OPPORTUNITY_SNAPSHOT_UNAVAILABLE',str(e)[:200],flush=True)
+          assert before==snapshot(),'Unrelated production file changed'
+          print('PROPERTY_MARKERS_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-property-markers-v1.js"
+          node --check "$SITE/bridgepoint-top-packages-v1.js"
+          node --check "$SITE/bridgepoint-temperature-v1.js"
+          node tests/temperature-v1.test.mjs
+          node tests/rain-glass-v5.test.mjs
+          node --input-type=module <<'JS'
+          import vm from 'node:vm';import assert from 'node:assert/strict';import fs from 'node:fs';
+          const window={addEventListener(){}};
+          vm.runInNewContext(fs.readFileSync(process.env.SITE+'/bridgepoint-property-markers-v1.js','utf8'),{window,setInterval:()=>0});
+          const api=window.__BP_PROPERTY_MARKERS_V1__;
+          assert.equal(api.classify({vertical_key:'roofing'}),'ROOF');
+          assert.equal(api.classify({icon_key:'CLAIMS'}),'CLAIMS');
+          assert.equal(api.classify({opportunity_family:'solar'}),'SOLAR');
+          assert.equal(api.classify({opportunity_key:'water damage'}),'WATER');
+          const f={id:'real',geometry:{type:'Point',coordinates:[-72,41]},properties:{listing_type:'FOR_RENT'}};
+          assert.equal(api.marker('listings',f).properties.bp_marker_type,'RENT');
+          assert.equal(api.marker('opportunities',{...f,properties:{icon_key:'FIRE'}}).properties.bp_marker_type,'FIRE');
+          assert.equal(api.point({geometry:{type:'Point',coordinates:[999,0]}}),null);
+          assert.notEqual(api.types.ROOF[0],api.types.CLAIMS[0]);
+          assert.equal(api.states.listings.on,false);assert.equal(api.states.opportunities.on,false);
+          console.log('PROPERTY_MARKER_CLASSIFICATION_AND_COORDINATE_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site with property markers only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify property markers and preserved production files online
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in index.html app/index.html bridgepoint-property-markers-v1.js bridgepoint-top-packages-v1.js vendor/bp-public-globe-v4.mjs bridgepoint-temperature-v1.js bp-temperature-grid-v1.json bp-temperature-admin2-v1.json bridgepoint-rain-3d-v1.js bp-rain-observations-v1.json bridgepoint-bottom-card-categories-v1.js bridgepoint-view-v5917.js bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js app/bridgepoint-aircraft-visuals-v2.js app/horizon/survival/index.html world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-bottom-card-mobile-v2.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?horizon=$GITHUB_SHA" -o "$RUNNER_TEMP/horizon-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/horizon-live"
+          done
+          echo PROPERTY_MARKERS_ONLY_LIVE_PASS
