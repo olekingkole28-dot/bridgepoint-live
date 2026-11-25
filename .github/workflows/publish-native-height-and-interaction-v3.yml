@@ -1,0 +1,263 @@
+name: Publish BridgePoint native height and interaction V3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-native-height-and-interaction-v3.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful native building streaming V2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45672145420 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45672145420 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Correct height fields and stop repeated detail rebuilds
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);world='world-v2300-map.js'
+          allowed={world,'app/'+world,'index.html','app/index.html','landing.js','app.js'}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('NATIVE_HEIGHT_ANCHOR',a[:120],s.count(a))
+              return s.replace(a,b,1)
+          helper="""// Coalesce numeric *values*, not null-to-zero conversions.
+          function bpNativePositive(keys,fallback){
+           const out=['case'];
+           for(const key of keys){const n=['to-number',['coalesce',['get',key],0],0];out.push(['>',n,0],n);}
+           out.push(fallback);return out;
+          }
+          function bpNativeHeight(){
+           return ['max',3,bpNativePositive(['render_height_m','render_height','height_m','height'],['*',bpNativePositive(['levels','building:levels','building_levels','num_floors','floor_count'],3),3])];
+          }
+          function bpNativeBase(){
+           return ['min',bpNativeHeight(),['max',0,bpNativePositive(['render_min_height','base_height_m','min_height','min_height_m'],0)]];
+          }
+          function bpNativeRoofHeight(){
+           return bpNativePositive(['roof_height_m','roof_height','roof:height'],['*',bpNativePositive(['roof_levels','roof:levels'],0.075),2.4]);
+          }
+          """
+          for rel in (world,'app/'+world):
+              p=site/rel;s=p.read_text()
+              assert 'bpDeviceQuality.bind(map)' in s and 'sourceBurstNoStyleRewrite:true' in s and 'overlayMeshes:false' in s
+              s=one(s,"function style(projectionType='globe'){",helper+"\nfunction style(projectionType='globe'){")
+              for name,expr in [('bBase','bpNativeBase()'),('bHeight','bpNativeHeight()'),('bRoofHeight','bpNativeRoofHeight()')]:
+                  s,n=re.subn(r'(?m)^(\s*const '+name+r'=)[^\n]*;',r'\g<1>'+expr+';',s,count=1)
+                  assert n==1,(rel,name)
+              # Repair the existing building/roof layers in place. Keep the tile URLs,
+              # filters, source IDs and original footprint geometry.
+              targets={'gta-context-buildings','gta-bp-buildings','gta-city-buildings','gta-exact-building','gta-context-facade-detail','gta-bp-facade-detail','gta-exact-facade-detail','gta-context-floor-lines','gta-bp-floor-lines','gta-city-floor-lines','gta-exact-floor-lines','gta-context-building-parts','gta-context-night-windows','gta-bp-night-windows','gta-exact-night-windows'}
+              roofs={'gta-context-roofs','gta-bp-roofs'}
+              # A small bracket-aware parser replaces just one paint property value.
+              # Avoid regex over nested MapLibre style expressions.
+              def prop(line,key,value):
+                  m=re.search(r"['\"]"+re.escape(key)+r"['\"]\s*:\s*",line)
+                  if not m:return line,0
+                  start=m.end();i=start;stack=[];quote=None;esc=False
+                  while i<len(line):
+                      c=line[i]
+                      if quote:
+                          if esc:esc=False
+                          elif c=='\\':esc=True
+                          elif c==quote:quote=None
+                      elif c in "'\"":quote=c
+                      elif c in '[{(':stack.append(c)
+                      elif c in ']})':
+                          if not stack:break
+                          stack.pop()
+                      elif c==',' and not stack:break
+                      i+=1
+                  return line[:start]+value+line[i:],1
+              lines=s.splitlines(keepends=True);changed=set()
+              for i,line in enumerate(lines):
+                  m=re.search(r"\{id:'([^']+)',type:'fill-extrusion'",line)
+                  if not m:continue
+                  id=m[1]
+                  if id in targets:
+                      line,n=prop(line,'fill-extrusion-height','bHeight');assert n==1,(rel,id,'height')
+                      line,n=prop(line,'fill-extrusion-base','bBase');assert n==1,(rel,id,'base')
+                      changed.add(id)
+                  elif id in roofs:
+                      # A thin material cap above the actual building top, not a second
+                      # full-height building and not a synthetic metre-high extension.
+                      line,n=prop(line,'fill-extrusion-base',"['+',bHeight,.025]");assert n==1
+                      line,n=prop(line,'fill-extrusion-height',"['+',bHeight,.16]");assert n==1
+                      changed.add(id)
+                  lines[i]=line
+              assert {'gta-context-buildings','gta-bp-buildings','gta-context-roofs','gta-bp-roofs'}<=changed,(rel,changed)
+              s=''.join(lines)
+              # Do not undo the corrected source ownership when day/night lighting updates.
+              s=one(s,"for(const id of ['gta-context-buildings','gta-bp-buildings','gta-exact-building','gta-city-buildings'])paint(map,id,'fill-extrusion-opacity',1);","// Native body opacity is owned by the building source handoff, not lighting.")
+              # Keep the existing fallback at urban zoom while the higher-resolution
+              # native BridgePoint source is still loading. At close zoom only promote
+              # after representative viewport evidence; never promote from one hit.
+              s=one(s,"if(map.getZoom()<11.4||moving||map.isMoving?.())return false;","if(map.getZoom()<15.5||moving||map.isMoving?.())return false;")
+              s=one(s,"ready=covered>=2&&covered===expected;","ready=covered>=3&&covered===expected;")
+              s=one(s,"vis(map,'gta-bp-buildings',PUBLIC_TECH_FAST&&z>=11.4);","vis(map,'gta-bp-buildings',PUBLIC_TECH_FAST&&z>=15.5);")
+              # When there is not yet a complete BP close view, show OFM native shells.
+              # Do not change the fallback while a continuous camera gesture is active.
+              s=one(s,"if(map.__bpNativeSourceOpacity!==bpReady){map.__bpNativeSourceOpacity=bpReady;paint(map,'gta-bp-buildings','fill-extrusion-opacity',bpReady?1:0);}","if(map.__bpNativeSourceOpacity!==bpReady){map.__bpNativeSourceOpacity=bpReady;paint(map,'gta-bp-buildings','fill-extrusion-opacity',bpReady?1:0);}")
+              # Keep runtime roof and floor paints tied to the same positive height
+              # expression used by the original bodies, including source height units.
+              a=s.index('function syncBuildingShells(force=false){');b=s.index('function worldMapSurfaceInactive()',a)
+              block=s[a:b]
+              for line in block.splitlines():
+                  if "paint(map,'gta-context-" not in line:continue
+                  m=re.search(r"paint\(map,'(gta-context-(?:floor-lines|roofs))','(fill-extrusion-(?:height|base))',",line)
+                  if not m:continue
+                  val=("['+',bpNativeHeight(),.025]" if m[2].endswith('base') else "['+',bpNativeHeight(),.16]") if m[1].endswith('roofs') else ('bpNativeBase()' if m[2].endswith('base') else 'bpNativeHeight()')
+                  new=line[:m.end()]+val+");"
+                  block=one(block,line,new)
+              # Preserve the previous texture when the user is dragging; a stable
+              # material can stay installed while a heavier roof pass is deferred.
+              block=one(block,"const textureOn=detailSettled&&z>=lod.facadeMin;","const textureOn=z>=lod.facadeMin&&(detailSettled||!!window.__BP_LEGACY_BUILDING_MATERIAL_V1__?.textureOn);")
+              block=one(block,"const roofTextureOn=textureOn&&z>=Math.max(lod.roofMin,17);","const roofTextureOn=textureOn&&z>=Math.max(lod.roofMin,MOBILE?16.3:15.7);")
+              # Avoid repeated visibility flips on every source callback. The native
+              # bodies carry facade patterns; the old duplicate facade layers stay off.
+              block=one(block,"else if(id==='gta-context-facade-detail')show=realismSource==='context'&&closeRealism;","else if(id==='gta-context-facade-detail')show=false;")
+              block=one(block,"else if(id==='gta-bp-facade-detail')show=realismSource==='bp'&&closeRealism;","else if(id==='gta-bp-facade-detail')show=false;")
+              block=one(block,"else if(id==='gta-exact-facade-detail')show=realismSource==='exact'&&closeRealism;","else if(id==='gta-exact-facade-detail')show=false;")
+              # A facade material is a lightweight existing extrusion texture,
+              # independent of optional high-vertex-count rooftop equipment.
+              block=one(block,"fineDetailDisabled:!lod.fineDetail,lodTier:lod.tier,","fineDetailDisabled:!lod.fineDetail,closeTexturedShell:textureOn,roofMode:roofTextureOn?'native-textured-cap':'native-base',lodTier:lod.tier,")
+              s=s[:a]+block+s[b:]
+              s=one(s,"next.facadeMin=Math.max(next.facadeMin,MOBILE?17.2:16.4);","next.facadeMin=Math.min(next.facadeMin,MOBILE?(q.level<=2?16.4:16.0):15.5);")
+              s=one(s,"next.roofMin=Math.max(next.roofMin,MOBILE?13.8:12.7);","next.roofMin=Math.min(Math.max(next.roofMin,MOBILE?15.6:14.0),MOBILE?16.2:15.4);")
+              # Small texture atlas for phone GPUs; all material families retained.
+              s=one(s,"const facadeVariant=seed(127,4);","const facadeVariant=seed(127,MOBILE?1:2);")
+              # Stationary watchdog must respect the *actual* quality-dependent zoom
+              # threshold and remember the completed detail pass.
+              s=one(s,"const mode=window.__BP_BUILDING_SHELL_MODE__||{},needsClose=z>=FACADE_DETAIL_MIN&&mode.closeTexturedShell!==true;","const mode=window.__BP_BUILDING_SHELL_MODE__||{},needsClose=z>=activeWorldLodProfile().facadeMin&&window.__BP_LEGACY_BUILDING_MATERIAL_V1__?.textureOn!==true;")
+              # Prevent multiple expensive viewport rebuilds from one burst of events.
+              s=one(s,"function syncBuildingShellsWhenSafe(reason='source-update'){","""function syncBuildingShellsWhenSafe(reason='source-update'){
+            const now=performance.now();
+            if(map.__bpLastShellSync&&now-map.__bpLastShellSync<(MOBILE?950:400)){
+              clearTimeout(map.__bpBuildingShellPressureSyncTimer);
+              map.__bpBuildingShellPressureSyncTimer=setTimeout(()=>syncBuildingShellsWhenSafe(reason),MOBILE?980:430);
+              return;
+            }""")
+              s=one(s,"try{syncBuildingShells()}catch(e){console.warn('Building shell sync',e)}","try{map.__bpLastShellSync=performance.now();syncBuildingShells()}catch(e){console.warn('Building shell sync',e)}")
+              # Remove synchronous sidewalk rebuilds from rapid idle/source bursts,
+              # while preserving all source features and their existing controls.
+              s=one(s,"map.on('idle',()=>{ensureSidewalk3DLayerOrder();if(!moving&&map.getZoom()>=14.2)refreshSidewalk3DFromTiles()});","""let bpNativeSidewalkIdleTimer=0;
+           map.on('idle',()=>{
+            if(bpNativeSidewalkIdleTimer||moving||map.isMoving?.()||map.getZoom()<14.2)return;
+            bpNativeSidewalkIdleTimer=setTimeout(()=>{bpNativeSidewalkIdleTimer=0;if(moving||map.isMoving?.()||worldClientPressureBlocked())return;ensureSidewalk3DLayerOrder();refreshSidewalk3DFromTiles();},MOBILE?1800:650);
+           });""")
+              # Defer optional close details to the current adaptive profile; existing
+              # trees, water, sidewalks and other features remain installed.
+              s=one(s,"if(z<14.2||moving||worldMapSurfaceInactive()||!map.getSource('bpSidewalk3D')||!map.getSource('ofm'))return false;","if(z<14.2||moving||map.isMoving?.()||worldClientPressureBlocked()||worldMapSurfaceInactive()||!map.getSource('bpSidewalk3D')||!map.getSource('ofm'))return false;")
+              s=one(s,"const MAX_SIDEWALK_RENDER_FEATURES=MOBILE?96:168;","const MAX_SIDEWALK_RENDER_FEATURES=MOBILE?(window.__BP_DEVICE_QUALITY_V1__?.profile.level<=2?40:72):168;")
+              s=one(s,"const MAX_ROAD_RENDER_FEATURES=MOBILE?144:240;","const MAX_ROAD_RENDER_FEATURES=MOBILE?(window.__BP_DEVICE_QUALITY_V1__?.profile.level<=2?64:108):240;")
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&nativeheight=20261125v3',s);assert n>=1;p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text();assert 'bridgepoint-auto-reality-v1.js' not in s
+              s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&nativeheight=20261125v3',s);assert n>=1;p.write_text(s)
+          assert before==snap(),'UNRELATED RELEASE FILE CHANGED'
+          print('NATIVE_HEIGHT_INTERACTION_SCOPE_PASS',len(before))
+          PY
+          for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+          for(const rel of ['world-v2300-map.js','app/world-v2300-map.js']){
+           const s=fs.readFileSync(process.env.SITE+'/'+rel,'utf8'),a=s.indexOf('function bpNativePositive('),b=s.indexOf('function style(',a);
+           assert(a>=0&&b>a);const g={};vm.createContext(g);vm.runInContext(s.slice(a,b),g);
+           // Match MapLibre's null-to-zero behavior, the old bug.
+           function ev(e,p){if(!Array.isArray(e))return e;const [op,...v]=e;if(op==='get')return p[v[0]]??null;
+           if(op==='coalesce'){for(const x of v){const r=ev(x,p);if(r!=null)return r;}return null;}
+           if(op==='to-number'){for(const x of v){const n=Number(ev(x,p));if(Number.isFinite(n))return n;}throw Error('invalid number');}
+           if(op==='case'){for(let i=0;i<v.length-1;i+=2)if(ev(v[i],p))return ev(v[i+1],p);return ev(v.at(-1),p);}
+           if(op==='>')return ev(v[0],p)>ev(v[1],p);if(op==='max')return Math.max(...v.map(x=>ev(x,p)));if(op==='min')return Math.min(...v.map(x=>ev(x,p)));if(op==='*')return ev(v[0],p)*ev(v[1],p);throw Error(op);}
+           const height=g.bpNativeHeight(),base=g.bpNativeBase();
+           assert.equal(ev(height,{render_height:246}),246);assert.equal(ev(height,{render_height_m:0,height_m:183}),183);
+           assert.equal(ev(height,{height:'72'}),72);assert.equal(ev(height,{levels:12}),36);assert.equal(ev(height,{}),9);
+           assert.equal(ev(base,{render_height:246,render_min_height:25}),25);assert.equal(ev(base,{render_height:12,min_height:40}),12);
+           assert(s.includes('closeTexturedShell:textureOn')&&s.includes('sourceBurstNoStyleRewrite:true')&&s.includes('Native body opacity is owned'));
+           assert(s.includes('fill-extrusion-height\':bHeight'));
+          }
+          console.log('REAL_HEIGHT_FIELD_FALLBACK_AND_NATIVE_ROOF_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
