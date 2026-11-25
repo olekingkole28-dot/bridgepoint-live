@@ -1,4 +1,4 @@
-name: Publish BridgePoint Automatic Scan Discoveries V1 Only
+name: Publish BridgePoint Automatic Scan Discoveries V1 Recovery
 on:
   workflow_dispatch:
   push:
@@ -37,7 +37,7 @@ jobs:
             sleep 5
           done
           exit 1
-      - name: Add automatic nearby scans only
+      - name: Add geographically located scans and authorized architectural models only
         run: |
           set -euo pipefail
           export SITE="$RUNNER_TEMP/horizon-site"
@@ -75,4 +75,5 @@ jobs:
             curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?opportunity=$GITHUB_SHA" -o "$RUNNER_TEMP/opportunity-live"
             cmp "$SITE/$p" "$RUNNER_TEMP/opportunity-live"
           done
+          python3 -c "import json; d=json.load(open('$RUNNER_TEMP/horizon-site/data/bp-auto-reality-v1.json')); print('LIVE_INVENTORY',d['catalogCount'],d['nativeCount'],d['architectureCount'],d['viewerOnlyCount']); print('LIVE_NATIVE_MODELS',[x['title'] for x in d['items'] if x.get('asset')])"
           echo AUTO_REALITY_V1_LIVE_BYTES_PASS
