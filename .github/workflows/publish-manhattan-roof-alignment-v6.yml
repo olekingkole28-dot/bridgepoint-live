@@ -220,6 +220,12 @@ jobs:
           (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
           print('MANHATTAN_NATIVE_POLYGON_TILES',json.dumps(manifest),flush=True)
           PY
+      - name: Preserve generated alignment tiles for diagnosis and retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: manhattan-aligned-native-tiles
+          path: ${{ runner.temp }}/horizon-site/assets/manhattan-native-v6
+          retention-days: 3
       - name: Use unified Manhattan building and roof tiles
         run: |
           set -euo pipefail
@@ -270,7 +276,7 @@ jobs:
                 for(const id of [bpAlignedBody,bpAlignedCap,bpNativeManhattanLayer])vis(map,id,on);
                 let ready=bpAlignedActive;
                 if(on&&!ready&&!map.isMoving?.()&&performance.now()-bpAlignedCheckAt>450){
-                  bpAlignedCheckAt=performance.now();try{const canvas=map.getCanvas(),w=canvas.clientWidth,h=canvas.clientHeight;const hits=map.queryRenderedFeatures([[0,0],[w,h]],{layers:[bpAlignedBody]});ready=hits.length>0;bpAlignedProbe={hits:hits.length,loaded:map.isSourceLoaded(bpNativeManhattanSource),zoom:z}}catch(e){bpAlignedProbe={error:String(e)}}
+                  bpAlignedCheckAt=performance.now();try{const loaded=map.isSourceLoaded(bpNativeManhattanSource);const caps=map.queryRenderedFeatures({layers:[bpAlignedCap]});const shells=map.querySourceFeatures(bpNativeManhattanSource,{sourceLayer:'buildings'});ready=loaded&&caps.length>0&&shells.length>0;bpAlignedProbe={caps:caps.length,shells:shells.length,loaded,zoom:z}}catch(e){bpAlignedProbe={error:String(e)}}
                 }
                 if(!on||!map.isMoving?.()&&(ready||bpAlignedActive)){
                   const show=on&&(ready||bpAlignedActive);
@@ -296,7 +302,7 @@ jobs:
               s=s.replace("['gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']","['bp-manhattan-surveyed-body-v6','gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']")
               p.write_text(s)
           for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs','index.html','app/index.html'):
-              p=site/rel;p.write_text(p.read_text().replace('manhattanroofdetail=8','manhattanroofdetail=10'))
+              p=site/rel;p.write_text(p.read_text().replace('manhattanroofdetail=8','manhattanroofdetail=11'))
           assert snap()==before,'unrelated asset changed'
           PY
           for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
@@ -370,9 +376,15 @@ jobs:
            await page.waitForFunction(()=>{
             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,d=window.__BP_MANHATTAN_NATIVE_V5__;
             if(!d?.visible||!d.materials||!d.sharedHost||!m.getLayer('bp-manhattan-native-roof-v5')||!m.getLayer('bp-manhattan-surveyed-body-v6'))return false;
-            try{return m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length>0&&m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length>0&&m.queryRenderedFeatures({layers:['gta-bp-buildings','gta-context-buildings']}).length===0}catch(e){return false}
+            try{return m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length>0&&m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-cap-v6']}).length>0&&m.querySourceFeatures('bp-manhattan-native-roof-v5',{sourceLayer:'buildings'}).length>0&&m.getPaintProperty('bp-manhattan-surveyed-body-v6','fill-extrusion-opacity')===1&&!!m.getPaintProperty('bp-manhattan-surveyed-body-v6','fill-extrusion-pattern')&&m.queryRenderedFeatures({layers:['gta-bp-buildings','gta-context-buildings']}).length===0}catch(e){return false}
            },null,{timeout:90000}).catch(async e=>{console.log('ALIGNMENT_BROWSER_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const ids=['bp-manhattan-native-roof-v5','bp-manhattan-surveyed-body-v6','bp-manhattan-surveyed-cap-v6','gta-bp-buildings','gta-context-buildings'];return {state:window.__BP_MANHATTAN_NATIVE_V5__,center:m.getCenter(),layers:ids.map(id=>{try{return {id,exists:!!m.getLayer(id),visibility:m.getLayoutProperty(id,'visibility'),opacity:m.getPaintProperty(id,'fill-extrusion-opacity'),rendered:m.queryRenderedFeatures({layers:[id]}).length,filter:JSON.stringify(m.getFilter(id)||null).slice(0,140)}}catch(e){return {id,error:String(e)}}})}})));throw e});
            console.log('NATIVE_ROOF_TILES_RENDERED',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return {state:window.__BP_MANHATTAN_NATIVE_V5__,features:m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length,customLayer:!!m.getLayer('bp-manhattan-roof-detail-v1')}})));
+           // Validate the building wall layer itself, independently of occluding roof caps.
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setLayoutProperty('bp-manhattan-surveyed-cap-v6','visibility','none')});
+           try{
+             await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length>0},null,{timeout:20000});
+             console.log('SURVEYED_WALL_LAYER_RENDER_PASS');
+           }finally{await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setLayoutProperty('bp-manhattan-surveyed-cap-v6','visibility','visible')})}
            const close=await page.evaluate(()=>{
             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,canvas=m.getCanvas(),r=canvas.getBoundingClientRect(),c=m.getCenter();
             // Choose an unobstructed real map canvas point; the mobile dock may overlap the center.
