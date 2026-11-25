@@ -1,0 +1,307 @@
+name: Publish BridgePoint Manhattan source geometry V3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-manhattan-source-geometry-v3.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful architectural materials V2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45661663547 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45661663547 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Build source-backed Manhattan architectural mesh
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 -m pip install --quiet numpy shapely mapbox-earcut
+          python3 - <<'PY'
+          import os,json,struct,math,hashlib,re,urllib.request,concurrent.futures
+          from pathlib import Path
+          import numpy as np
+          from shapely.geometry import Polygon
+          from shapely.geometry.polygon import orient
+          from shapely.prepared import prep
+          import mapbox_earcut as earcut
+          site=Path(os.environ['SITE'])
+          scan='bridgepoint-auto-reality-v1.js'
+          folder='assets/manhattan-photogrammetry-v1/'
+          glb=folder+'source-architecture-v3.glb'
+          meta=folder+'source-architecture-v3.json'
+          allowed={scan,'index.html','app/index.html',glb,meta}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          reg=json.loads((site/(folder+'registration.json')).read_text());assert reg['accepted']
+          row=next(r for r in json.loads((site/'data/bp-auto-reality-v1.json').read_text())['items'] if r.get('cityScan') and r.get('registrationAccepted'))
+          assert row['coordinates']==reg['coordinates']
+          lon,lat=row['coordinates'];ring=row['replacementFootprint']['coordinates'][0]
+          mx=111320*math.cos(math.radians(lat));my=111132
+          footprint=Polygon([((x-lon)*mx,(lat-y)*my) for x,y in ring]);assert footprint.is_valid and footprint.area>100000
+          inside=prep(footprint)
+          LON0,LAT0=-73.9712,40.7831
+          SX=111320*math.cos(math.radians(LAT0));SY=111132
+          base='https://huggingface.co/datasets/mehmetkeremturkcan/valdrada/resolve/v0.7.1/Content/tiles/'
+          def get(name):
+              req=urllib.request.Request(base+name,headers={'User-Agent':'BridgePoint-architectural-source/3.0'})
+              with urllib.request.urlopen(req,timeout=100) as r: return r.read(40_000_001)
+          tiles=json.loads(get('manifest.json'))['tiles'];assert len(tiles)>1000
+          xs=[(p[0]-LON0)*SX for p in ring];zs=[(LAT0-p[1])*SY for p in ring]
+          keys=[f'{x}_{z}' for x in range(math.floor(min(xs)/512)-1,math.floor(max(xs)/512)+2) for z in range(math.floor(min(zs)/512)-1,math.floor(max(zs)/512)+2) if f'{x}_{z}' in tiles]
+          assert 3<=len(keys)<=100,keys
+          def download(key):
+              name=tiles[key]['f'];assert re.fullmatch(r't_-?\d+_-?\d+\.bin',name)
+              raw=get(name);assert 8<len(raw)<=40_000_000
+              return key,raw
+          positions=[];colors=[];uvs=[];details=[];indices=[];count=0;styles={};maxh=0.;used=[]
+          def vertex(x,y,z,u,v,col,d):
+              i=len(positions);positions.append((x,y,z));uvs.append((u,v));colors.append(col);details.append(d);return i
+          def wall(a,b,by,h,col,style,floor,win,store):
+              x,z=a;X,Z=b;length=math.hypot(X-x,Z-z)
+              if length<.15:return
+              bays=max(1,round(length/win));d=(style,floor,store,by)
+              i=vertex(x,by,z,0,0,col,d);vertex(X,by,Z,bays,0,col,d);vertex(X,by+h,Z,bays,h/floor,col,d);vertex(x,by+h,z,0,h/floor,col,d)
+              indices.extend((i,i+2,i+1,i,i+3,i+2))
+          def roof(poly,by,h,col,style,floor,store):
+              rings=[list(poly.exterior.coords)[:-1]]+[list(r.coords)[:-1] for r in poly.interiors]
+              arr=np.asarray([p for r in rings for p in r],dtype=np.float64)
+              tri=earcut.triangulate_float64(arr,np.cumsum([len(r) for r in rings],dtype=np.uint32))
+              i=len(positions)
+              for x,z in arr:vertex(x,by+h,z,x/3.1,z/3.1,col,(style,floor,store,by))
+              for j in range(0,len(tri),3):
+                  a,b,c=map(int,tri[j:j+3]);A,B,C=arr[a],arr[b],arr[c]
+                  cross=(B[0]-A[0])*(C[1]-A[1])-(B[1]-A[1])*(C[0]-A[0])
+                  indices.extend((i+a,i+c,i+b) if cross>0 else (i+a,i+b,i+c))
+          def srgb(c):
+              c=c/255
+              return c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              for key,raw in pool.map(download,keys):
+                  magic,hlen=struct.unpack_from('<II',raw);assert magic==0x43544c31
+                  header=json.loads(raw[8:8+hlen]);offset=(8+hlen+3)//4*4
+                  sections={s['name']:s for s in header['sections']};ox,oz=header['origin']
+                  assert abs(ox-int(key.split('_')[0])*512)<1 and abs(oz-int(key.split('_')[1])*512)<1
+                  def section(name):
+                      v=sections[name];types={'Uint8Array':1,'Float32Array':4,'Uint32Array':4,'Int16Array':2,'Uint16Array':2}
+                      return memoryview(raw)[offset+v['offset']:offset+v['offset']+v['length']*types[v['type']]]
+                  if 'bldg' not in sections:continue
+                  rec=section('bldg');xz=np.frombuffer(section('bldgXZ'),dtype='<f4').reshape(-1,2);assert len(rec)%44==0
+                  holes={}
+                  if 'bholes' in sections:
+                      hr=section('bholes');assert len(hr)%12==0
+                      for j in range(0,len(hr),12):
+                          parent,start,n=struct.unpack_from('<IIH',hr,j);holes.setdefault(parent,[]).append((start,n))
+                  def points(start,n):
+                      a=xz[start:start+n].astype(float)
+                      a[:,0]=((a[:,0]+ox)/SX+LON0-lon)*mx
+                      a[:,1]=(lat-(LAT0-(a[:,1]+oz)/SY))*my
+                      return a
+                  for i in range(len(rec)//44):
+                      o=i*44;start,n=struct.unpack_from('<IH',rec,o)
+                      by,h=struct.unpack_from('<ff',rec,o+8)
+                      floors,style,r,g,b,roofKind,flags,lit=struct.unpack_from('<8B',rec,o+16)
+                      floor,win,store=struct.unpack_from('<fff',rec,o+24)
+                      if not (3<=n<=1500 and math.isfinite(by) and -15<=by<=100 and math.isfinite(h) and 2<=h<=650):continue
+                      pts=points(start,n)
+                      if len(pts)!=n or not np.isfinite(pts).all():continue
+                      poly=Polygon(pts,[points(a,b) for a,b in holes.get(i,[]) if b>=3])
+                      if not poly.is_valid or poly.area<4 or not inside.covers(poly):continue
+                      poly=orient(poly,sign=1.0)
+                      floor=min(6,max(2.4,float(floor))) if math.isfinite(floor) else 3.2
+                      win=min(5,max(.9,float(win))) if math.isfinite(win) else 2.2
+                      store=min(h,max(0,float(store))) if math.isfinite(store) else 0
+                      color=tuple(srgb(c) for c in (r,g,b))
+                      for rr in [poly.exterior,*poly.interiors]:
+                          coords=list(rr.coords)
+                          for a,bp in zip(coords,coords[1:]):wall(a,bp,by,h,color,style,floor,win,store)
+                      roof(poly,by,h,tuple(c*.73+.06 for c in color),style,floor,store)
+                      count+=1;styles[style]=styles.get(style,0)+1;maxh=max(maxh,h)
+                  used.append(key)
+          assert count>=300 and maxh>=100 and len(styles)>=4,(count,maxh,styles)
+          assert len(positions)<1_200_000 and len(indices)<3_600_000
+          buf=bytearray();views=[];accessors=[]
+          def accessor(arr,component,typ,target):
+              arr=np.ascontiguousarray(arr)
+              while len(buf)%4:buf.append(0)
+              off=len(buf);buf.extend(arr.tobytes());view=len(views);views.append(dict(buffer=0,byteOffset=off,byteLength=arr.nbytes,target=target))
+              d=dict(bufferView=view,componentType=component,count=len(arr),type=typ)
+              if not accessors:d.update(min=arr.min(0).tolist(),max=arr.max(0).tolist())
+              accessors.append(d);return len(accessors)-1
+          pos=accessor(np.array(positions,dtype='<f4'),5126,'VEC3',34962)
+          col=accessor(np.array(colors,dtype='<f4'),5126,'VEC3',34962)
+          uv=accessor(np.array(uvs,dtype='<f4'),5126,'VEC2',34962)
+          det=accessor(np.array(details,dtype='<f4'),5126,'VEC4',34962)
+          idx=accessor(np.array(indices,dtype='<u4'),5125,'SCALAR',34963)
+          doc={'asset':{'version':'2.0','generator':'BridgePoint reconstruction; Valdrada v0.7.1 ODbL'},'scene':0,'scenes':[{'nodes':[0]}],'nodes':[{'mesh':0}],'meshes':[{'primitives':[{'attributes':{'POSITION':pos,'COLOR_0':col,'TEXCOORD_0':uv,'_BPDETAIL':det},'indices':idx,'material':0}]}],'materials':[{'pbrMetallicRoughness':{'baseColorFactor':[1,1,1,1],'metallicFactor':0,'roughnessFactor':.7},'doubleSided':True}],'buffers':[{'byteLength':len(buf)}],'bufferViews':views,'accessors':accessors}
+          j=json.dumps(doc,separators=(',',':')).encode();j+=b' '*((-len(j))%4)
+          while len(buf)%4:buf.append(0)
+          raw=struct.pack('<4sII',b'glTF',2,12+8+len(j)+8+len(buf))+struct.pack('<I4s',len(j),b'JSON')+j+struct.pack('<I4s',len(buf),b'BIN\0')+buf
+          assert len(raw)<90_000_000
+          (site/glb).write_bytes(raw)
+          (site/meta).write_text(json.dumps({'source':'https://huggingface.co/datasets/mehmetkeremturkcan/valdrada/tree/v0.7.1','license':'ODbL 1.0; © OpenStreetMap contributors; Valdrada, Mehmet Kerem Turkcan','sourceTiles':used,'buildingCount':count,'vertices':len(positions),'maxHeightM':maxh,'styleCounts':styles,'origin':row['coordinates'],'verticalDatum':'source baseY metres above sea level','approximation':'Source footprints and heights; procedural facade and roof appearance; not photogrammetry or surveyed entrances.'},indent=2))
+          print('SOURCE_GEOMETRY_READY',count,len(positions),len(raw),styles)
+          p=site/scan;s=p.read_text()
+          def one(a,b):
+              global s
+              assert s.count(a)==1,('SCAN_ANCHOR',a[:120],s.count(a));s=s.replace(a,b,1)
+          one('async function load(state,row)',r'''function sourceCityMaterial(T,m,u){
+           const out=cityArchitecturalMaterial(T,m,u);out.vertexColors=true;out.side=T.DoubleSide;
+           const prior=out.onBeforeCompile;
+           out.onBeforeCompile=shader=>{
+            prior(shader);
+            shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec4 _bpdetail;\nvarying vec4 bpSourceDetail;\nvarying vec2 bpSourceUV;').replace('#include <project_vertex>','#include <project_vertex>\nbpSourceDetail=_bpdetail;bpSourceUV=uv;');
+            shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec4 bpSourceDetail;\nvarying vec2 bpSourceUV;');
+            const f=shader.fragmentShader,a=f.indexOf('float glazed='),b=f.indexOf('vec2 fw=',a);
+            if(a<0||b<a)throw Error('source facade shader anchor');
+            shader.fragmentShader=f.slice(0,a)+'float typ=bpSourceDetail.x;\nfloat glazed=(typ>2.5&&typ<3.5||typ>10.5&&typ<11.5)?1.0:typ>14.5?0.65:0.0;\nfloat brick=(typ<2.5||typ>4.5&&typ<5.5||typ>6.5&&typ<7.5||typ>11.5&&typ<12.5)?1.0:0.0;\nfloat masonry=(1.0-glazed)*(1.0-brick);\nfloat across=bpSourceUV.x*2.0;\nvec2 uv=bpSourceUV;\n'+f.slice(b);
+            shader.fragmentShader=shader.fragmentShader.replace('p.y-1.55','(p.y-bpSourceDetail.w)-1.55').replace('smoothstep(0.05,0.35,p.y)*(1.0-smoothstep(3.05,3.5,p.y))','smoothstep(0.05,0.35,p.y-bpSourceDetail.w)*(1.0-smoothstep(3.05,3.5,p.y-bpSourceDetail.w))');
+           };
+           out.customProgramCacheKey=()=> 'bp-source-city-v3';
+           return out;
+          }
+          async function loadSourceCity(state,row,entry){
+           if(state.sourceCityPromise||entry.closeScene||state.dead)return;
+           const task=(async()=>{
+            const {T}=state.libs;
+            const raw=await bytes('/assets/manhattan-photogrammetry-v1/source-architecture-v3.glb');
+            const model=await state.loader.parseAsync(raw,'');if(state.dead||state.cache.get(row.id)!==entry){release({root:model.scene});return;}
+            let n=0;model.scene.traverse(o=>{if(!o.isMesh)return;if(!o.geometry.getAttribute('_bpdetail'))throw Error('missing source facade attributes');o.material=sourceCityMaterial(T,o.material,state.cityArchitecturalUniforms);o.frustumCulled=false;n++});
+            if(!n)throw Error('empty source reconstruction');
+            const scene=new T.Scene();scene.add(model.scene);entry.closeScene=scene;entry.closeRoot=model.scene;
+            api.sourceCityGeometry={ready:true,source:'Valdrada v0.7.1 / NYC Open Data',proceduralFacade:true,originalScanRetained:true};state.map.triggerRepaint();
+           })();
+           state.sourceCityPromise=task;try{await task}catch(e){api.errors.sourceCity=String(e.message||e);state.sourceCityRetryAt=Date.now()+60000}finally{state.sourceCityPromise=null}
+          }
+          function citySourceCredit(state,on){
+           let el=state.citySourceCredit;
+           if(!el&&on){el=document.createElement('a');el.href='https://huggingface.co/datasets/mehmetkeremturkcan/valdrada';el.target='_blank';el.rel='noopener noreferrer';el.textContent='NYC Open Data · Valdrada · © OpenStreetMap contributors (ODbL)';el.style.cssText='position:absolute;bottom:4px;left:4px;max-width:70%;font:10px system-ui;color:white;background:#10232cbd;padding:3px 5px;z-index:5';state.map.getContainer().appendChild(el);state.citySourceCredit=el;}
+           if(el)el.hidden=!on;
+          }
+          async function load(state,row)''')
+          one('const base=new T.Matrix4().fromArray(raw);const ids=[];','const base=new T.Matrix4().fromArray(raw);const ids=[];let sourceCityActive=false;')
+          one('const alt=altitude(map,row,entry);if(!finite(alt))continue;const mat=matrix(map,T,row.coordinates,alt);','const useSource=!!(row.cityScan&&entry.closeScene&&map.getZoom()>=14.8);const alt=useSource?0:altitude(map,row,entry);if(!finite(alt))continue;const mat=matrix(map,T,row.coordinates,alt);')
+          one('state.renderer.render(entry.scene,state.camera);ids.push(row.id)','state.renderer.render(useSource?entry.closeScene:entry.scene,state.camera);ids.push(row.id);if(useSource)sourceCityActive=true')
+          one("const prev=api.active.join('|');api.active=ids;if(ids.join('|')!==prev)schedule(state);","const prev=api.active.join('|'),priorSource=!!api.sourceCityActive;api.active=ids;api.sourceCityActive=sourceCityActive;if(priorSource!==sourceCityActive){state.cityMaskAt=0;citySourceCredit(state,sourceCityActive);schedule(state)}if(ids.join('|')!==prev)schedule(state);")
+          one('const chosen=new Set(state.wanted.map(r=>r.id));syncCityReplacement(state);','const chosen=new Set(state.wanted.map(r=>r.id));const cityEntry=city&&state.cache.get(city.id);if(cityEntry&&z>=13.5&&Date.now()>=(state.sourceCityRetryAt||0)&&!cityEntry.closeScene)void loadSourceCity(state,city,cityEntry);syncCityReplacement(state);')
+          one('let count=0,layers=0;\n for(const layer','''const buildingOnly=id=>/building|roof|floor-lines|facade-detail|night-windows/.test(id);
+           if(api.sourceCityActive){for(const [id,f] of state.cityFilters){if(!buildingOnly(id)){try{if(map.getLayer(id)&&JSON.stringify(map.getFilter(id))===JSON.stringify(f.applied))map.setFilter(id,f.original||null)}catch(_){}state.cityFilters.delete(id)}}}
+           let count=0,layers=0;
+           for(const layer''')
+          one('if(!CITY_LEGACY.test(layer.id)||','if((api.sourceCityActive&&!buildingOnly(layer.id))||!CITY_LEGACY.test(layer.id)||')
+          one('function release(entry){','function release(entry){if(entry.closeRoot)release({root:entry.closeRoot});')
+          p.write_text(s)
+          for rel in ('index.html','app/index.html'):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'(bridgepoint-auto-reality-v1\.js\?[^"\'\s]+)',lambda m:m[1]+'&sourcegeometry=20261125v3',s);assert n>=1;p.write_text(s)
+          assert before==snap(),'UNRELATED RELEASE FILE CHANGED'
+          print('SOURCE_CITY_SCOPE_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-auto-reality-v1.js"
+          TEST="$RUNNER_TEMP/source-architecture-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          python3 -m http.server 8769 --bind 127.0.0.1 --directory "$SITE" > "$RUNNER_TEMP/source-architecture-http.log" 2>&1 &
+          SERVER=$!
+          trap 'kill "$SERVER" 2>/dev/null || true' EXIT
+          for i in $(seq 1 15); do if curl -fsS http://127.0.0.1:8769/vendor/three.module.js -o /dev/null; then break; fi; sleep 1; done
+          cat > "$TEST/test.mjs" <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';import {chromium} from 'playwright-core';
+          const root=process.env.SITE,s=fs.readFileSync(root+'/bridgepoint-auto-reality-v1.js','utf8');
+          const a=s.indexOf('function cityArchitecturalMaterial('),b=s.indexOf('async function load(state,row)',a);
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+           const page=await browser.newPage({viewport:{width:512,height:512}});
+           await page.route('http://127.0.0.1:8769/__bp_source_test',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Source test</title>'}));
+           await page.goto('http://127.0.0.1:8769/__bp_source_test');
+           const report=await page.evaluate(async code=>{
+           const T=await import('/vendor/three.module.js'),{GLTFLoader}=await import('/vendor/GLTFLoader.bundle.js');
+           const fn=new Function(code+';return sourceCityMaterial;')();
+           const gltf=await new GLTFLoader().loadAsync('/assets/manhattan-photogrammetry-v1/source-architecture-v3.glb');
+           const u={bpCitySun:{value:new T.Vector3(.5,.7,.5).normalize()},bpCityView:{value:new T.Vector3(.3,.2,1).normalize()},bpCityDetail:{value:1},bpCityDay:{value:1}};
+           let meshes=0;gltf.scene.traverse(o=>{if(!o.isMesh)return;if(!o.geometry.getAttribute('_bpdetail'))throw Error('GLTF source attributes missing');o.material=fn(T,o.material,u);meshes++;});
+           const renderer=new T.WebGLRenderer();renderer.setSize(512,512);renderer.debug.checkShaderErrors=true;const errors=[];renderer.debug.onShaderError=(gl,p,v,f)=>errors.push(gl.getProgramInfoLog(p),gl.getShaderInfoLog(v),gl.getShaderInfoLog(f));
+           const box=new T.Box3().setFromObject(gltf.scene),center=box.getCenter(new T.Vector3()),camera=new T.PerspectiveCamera(55,1,1,10000);
+           camera.position.copy(center).add(new T.Vector3(300,300,500));camera.lookAt(center);renderer.render(gltf.scene,camera);
+           return {errors,meshes,triangles:renderer.info.render.triangles};
+           },s.slice(a,b));
+           console.log('SOURCE_CITY_WEBGL',report);assert.equal(report.errors.length,0);assert(report.meshes>0&&report.triangles>1000);
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
