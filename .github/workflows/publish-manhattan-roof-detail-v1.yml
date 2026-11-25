@@ -1,0 +1,368 @@
+name: Publish BridgePoint Manhattan mapped rooftop detail V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-manhattan-roof-detail-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore latest actually deployed globe recovery artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Resolve the newest recovery that actually deployed, not a failed source commit.
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/publish-globe-input-recovery-v2.yml/runs?branch=main&per_page=20" --jq '.workflow_runs[] | [.id,.run_attempt] | @tsv' | while IFS=$'\t' read -r id attempt; do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" --jq '[.jobs[].steps[] | select(.name=="Publish only the validated recovery" and .conclusion=="success")] | length' | grep -qv '^0$'; then printf '%s\t%s\n' "$id" "$attempt"; break; fi
+          done)
+          test -n "$run"
+          read -r id attempt <<< "$run"
+          mkdir -p "$RUNNER_TEMP/baseline"
+          gh run download "$id" --repo "$GITHUB_REPOSITORY" --name "bridgepoint-v5000-$attempt" --dir "$RUNNER_TEMP/baseline"
+          test -s "$RUNNER_TEMP/baseline/artifact.tar"
+          echo "RECOVERED_BASELINE $id attempt $attempt"
+      - name: Build bounded Manhattan-only roof detail
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js data/bp-nyc-rooftop-cooling-v2.geojson; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 -m pip install --quiet 'shapely>=2.1,<3'
+          cat > "$SITE/vendor/bp-manhattan-roof-detail-v1.mjs" <<'JS'
+          // Manhattan mapped rooftop detail; source footprint and height are estimates, not surveyed machinery.
+          const states=new WeakMap(), URL='/data/bp-manhattan-roof-detail-v1.json';
+          const MOBILE=matchMedia('(max-width: 700px)').matches;
+          const CAP=MOBILE?40:90, ID='bp-manhattan-roof-detail-v1', STEP=.003;
+          const inArea=c=>c.lng>=-74.04&&c.lng<=-73.89&&c.lat>=40.68&&c.lat<=40.89;
+          let dataPromise,threePromise;
+          const data=()=>dataPromise??=(fetch(URL).then(r=>{if(!r.ok)throw Error('roof data HTTP '+r.status);return r.json()}));
+          const three=()=>threePromise??=import('https://esm.sh/three@0.169.0');
+          const diagnostics=window.__BP_MANHATTAN_ROOF_DETAIL_V1__={status:'idle',count:0,fanFrames:0,cap:CAP,source:'NYC mapped roof cooling footprints; illustrative equipment geometry and heights'};
+          export function sync(map,enabled){
+           let s=states.get(map);
+           if(!s){s={enabled:false,layer:null,pending:false,timer:0};states.set(map,s);
+            map.on('moveend',()=>queue(map,s));map.on('styledata',()=>{if(s.enabled&&!map.getLayer(ID))queue(map,s)});
+            map.on('remove',()=>{s.enabled=false;clearTimeout(s.timer);s.layer=null});
+           }
+           const active=!!enabled&&map.getZoom()>=17.2&&inArea(map.getCenter());
+           if(active===s.enabled)return;
+           s.enabled=active;
+           if(!active){if(s.layer)s.layer.hide();diagnostics.status='idle';diagnostics.count=0;return}
+           queue(map,s);
+          }
+          function queue(map,s){
+           if(!s.enabled||s.timer||s.pending)return;
+           s.timer=setTimeout(async()=>{
+            s.timer=0;if(!s.enabled||map.isMoving?.())return;
+            s.pending=true;
+            try{
+             if(!s.layer||!map.getLayer(ID)){
+              const [T,d]=await Promise.all([three(),data()]);
+              if(!s.enabled||map.isMoving?.())return;
+              s.layer=makeLayer(map,T,d);
+              map.addLayer(s.layer,map.getLayer('gta-water-label')?'gta-water-label':undefined);
+             }
+             if(s.enabled&&!map.isMoving?.())s.layer.rebuild();
+            }catch(e){diagnostics.status='fallback';diagnostics.error=String(e).slice(0,180);console.warn('Manhattan detail fallback',e)}
+            finally{s.pending=false}
+           },180);
+          }
+          function makeLayer(map,T,d){
+           let scene,camera,renderer,anchor,batches={},rotors=[],repaintTimer=0,active=false,removed=false,origin,lastFrame=-1;
+           const dummy=new T.Object3D(), local=new T.Vector3(), normalY=new T.Vector3(0,1,0);
+           const material=(color,shine=25)=>new T.MeshPhongMaterial({color,specular:0xb6c7d4,shininess:shine});
+           const parts={
+            metal:[new T.BoxGeometry(1,1,1),material(0x9da8ad,55)],
+            dark:[new T.BoxGeometry(1,1,1),material(0x303a40,18)],
+            rail:[new T.BoxGeometry(1,1,1),material(0xc2c7c8,70)],
+            blade:[new T.BoxGeometry(1,1,1),material(0x657882,85)],
+            rim:[new T.TorusGeometry(1,.085,6,20),material(0x84949c,65)],
+            well:[new T.CylinderGeometry(1,1,1,18),material(0x20292e,12)],
+            hub:[new T.CylinderGeometry(1,1,1,12),material(0x9ba5ab,65)]
+           };
+           const max={metal:CAP*5,dark:CAP*14,rail:CAP*24,blade:CAP*6,rim:CAP,well:CAP,hub:CAP};
+           function put(type,x,y,z,sx,sy,sz,angle=0,rx=0){
+            const b=batches[type];if(!b||b.count>=max[type])return;
+            dummy.position.set(x,y,z);dummy.rotation.set(rx,angle,0,'YXZ');dummy.scale.set(sx,sy,sz);dummy.updateMatrix();
+            b.setMatrixAt(b.count++,dummy.matrix);
+           }
+           function pos(cx,cz,dx,dz,a){return [cx+Math.cos(a)*dx+Math.sin(a)*dz,cz-Math.sin(a)*dx+Math.cos(a)*dz]}
+           function blades(now){
+            const b=batches.blade;if(!b)return;b.count=0;
+            for(const f of rotors)for(let k=0;k<6;k++){
+             const a=f.phase+now*.0045+k*Math.PI/3;
+             const [x,z]=pos(f.x,f.z,f.r*.43,0,a);
+             put('blade',x,f.y,z,f.r*.73,.035,Math.max(.045,f.r*.18),a);
+            }
+            b.instanceMatrix.needsUpdate=true;
+           }
+           const layer={id:ID,type:'custom',renderingMode:'3d',
+            onAdd(m,gl){
+             scene=new T.Scene();camera=new T.Camera();anchor=new T.Group();anchor.matrixAutoUpdate=false;scene.add(anchor);
+             scene.add(new T.HemisphereLight(0xf4f8ff,0x727b80,2.1));
+             const light=new T.DirectionalLight(0xffffff,2.5);light.position.set(-1,2,1);scene.add(light);
+             for(const [key,[g,mat]] of Object.entries(parts)){
+              const b=new T.InstancedMesh(g,mat,max[key]);b.count=0;b.frustumCulled=false;b.instanceMatrix.setUsage(T.DynamicDrawUsage);anchor.add(b);batches[key]=b;
+             }
+             renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});renderer.autoClear=false;
+            },
+            hide(){active=false;clearTimeout(repaintTimer);repaintTimer=0;if(anchor)anchor.visible=false;},
+            rebuild(){
+             if(removed||!anchor||map.isMoving?.())return;
+             const c=map.getCenter();origin=[c.lng,c.lat];
+             const gx=Math.floor(c.lng/STEP),gy=Math.floor(c.lat/STEP),list=[];
+             const bounds=map.getBounds();
+             for(let y=gy-4;y<=gy+4;y++)for(let x=gx-4;x<=gx+4;x++)for(const row of d.cells[x+','+y]||[]){
+              if(row[0]<bounds.getWest()-.002||row[0]>bounds.getEast()+.002||row[1]<bounds.getSouth()-.002||row[1]>bounds.getNorth()+.002)continue;
+              const dx=(row[0]-c.lng)*Math.cos(c.lat*Math.PI/180),dz=row[1]-c.lat;list.push([dx*dx+dz*dz,row]);
+             }
+             list.sort((a,b)=>a[0]-b[0]);rotors=[];for(const b of Object.values(batches))b.count=0;
+             const mLat=111195,mLng=mLat*Math.cos(c.lat*Math.PI/180);
+             for(const [,row] of list.slice(0,CAP)){
+              const [lng,lat,roof,top,r,a]=row;
+              let ground=0;try{const v=map.queryTerrainElevation?.([lng,lat],{exaggerated:true});if(Number.isFinite(v))ground=v;else if(map.getTerrain?.())continue}catch(_){continue}
+              const x=(lng-c.lng)*mLng,z=(c.lat-lat)*mLat,y=ground+top,rad=Math.max(.16,Math.min(1.35,r*.59));
+              const width=rad*1.55, h=Math.max(.4,Math.min(1,top-roof));
+              // All upper machinery stays inside the measured inscribed circle. The native footprint
+              // remains as the base housing, so a failed custom renderer never removes equipment.
+              put('metal',x,y+.075,z,width*1.9,.15,width*1.75,a);
+              put('well',x,y+.17,z,rad,.14,rad);
+              put('rim',x,y+.29,z,rad,rad,rad,a,-Math.PI/2);
+              put('hub',x,y+.34,z,rad*.16,.18,rad*.16);
+              rotors.push({x,z,y:y+.29,r:rad,phase:lng*71+lat*13});
+              // Raised protective grilles above the blades; open spaces preserve their visibility.
+              for(let k=-3;k<=3;k++){
+               const dx=k*rad*.25,len=2*Math.sqrt(Math.max(0,rad*rad-dx*dx))*.95;
+               const [px,pz]=pos(x,z,dx,0,a);
+               put('rail',px,y+.48,pz,Math.max(.022,rad*.026),.035,len,a);
+              }
+              // Coil louvers and side safety frame, bounded to the footprint.
+              for(let k=0;k<7;k++){
+               const [px,pz]=pos(x,z,0,-width*.55,a);
+               put('dark',px,y+.06-h*.10-k*h*.09,pz,width*1.25,.035,.045,a);
+              }
+              for(const sign of [-1,1]){
+               const [px,pz]=pos(x,z,sign*rad*.86,0,a);
+               put('rail',px,y+.58,pz,.045,.045,rad*.88,a);
+               for(const end of [-1,1]){
+                const [qx,qz]=pos(x,z,sign*rad*.86,end*rad*.39,a);
+                put('rail',qx,y+.33,qz,.045,.50,.045,a);
+               }
+              }
+             }
+             blades(performance.now());for(const b of Object.values(batches))b.instanceMatrix.needsUpdate=true;
+             active=rotors.length>0;anchor.visible=active;diagnostics.count=rotors.length;diagnostics.status=active?'ready':'no-visible-equipment';map.triggerRepaint();
+            },
+            render(gl,args){
+             if(!active||removed||!renderer||!anchor||!origin)return;
+             const matrix=args?.defaultProjectionData?.mainMatrix,model=map.transform?.getMatrixForModel?.(origin,0);
+             if(!matrix||!model)return;
+             try{
+              camera.projectionMatrix.fromArray(matrix);camera.matrixWorld.identity();camera.matrixWorldInverse.identity();
+              anchor.matrix.fromArray(model);anchor.matrixWorldNeedsUpdate=true;
+              const now=performance.now();
+              if(now-lastFrame>=66){blades(now);lastFrame=now;diagnostics.fanFrames++}
+              scene.updateMatrixWorld(true);renderer.resetState();renderer.render(scene,camera);
+              if(!map.isMoving?.()&&!repaintTimer)repaintTimer=setTimeout(()=>{repaintTimer=0;if(active&&!removed)map.triggerRepaint()},80);
+             }catch(e){layer.hide();diagnostics.status='fallback';diagnostics.error=String(e).slice(0,180)}
+            },
+            onRemove(){removed=true;layer.hide();for(const [g,m] of Object.values(parts)){g.dispose();m.dispose()}renderer?.dispose();diagnostics.count=0}
+           };
+           return layer;
+          }
+          JS
+          python3 - <<'PY'
+          import os,re,json,math,hashlib
+          from pathlib import Path
+          from shapely.geometry import shape,Point
+          from shapely.ops import transform
+          from shapely import maximum_inscribed_circle
+          site=Path(os.environ['SITE'])
+          allowed={'world-v2300-map.js','app/world-v2300-map.js','index.html','app/index.html','landing.js','app.js','vendor/bp-public-globe-v4.mjs','vendor/bp-manhattan-roof-detail-v1.mjs','data/bp-manhattan-roof-detail-v1.json'}
+          def snap():
+           return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          data=json.loads((site/'data/bp-nyc-rooftop-cooling-v2.geojson').read_text())
+          assert len(data['features'])>=15000
+          cells={};count=0
+          for f in data['features']:
+           try:
+            p=f['properties'];g=shape(f['geometry']);c=g.representative_point();lng,lat=c.x,c.y
+            if not (str(p['bin']).startswith('1') and -74.04<=lng<=-73.89 and 40.68<=lat<=40.89):continue
+            mx=111195*math.cos(math.radians(lat));my=111195
+            local=transform(lambda x,y,z=None:((x-lng)*mx,(y-lat)*my),g)
+            circle=maximum_inscribed_circle(local,tolerance=.08)
+            a,b=list(circle.coords);r=math.dist(a,b)
+            if r<.3:continue
+            rect=list(local.minimum_rotated_rectangle.exterior.coords)
+            u,v=max(zip(rect,rect[1:]),key=lambda q:math.dist(*q))
+            ang=math.atan2(v[1]-u[1],v[0]-u[0])
+            x=lng+a[0]/mx;y=lat+a[1]/my
+            roof=float(p['roof_m']);top=float(p['top_m'])
+            if not 3<=roof<top<=660:continue
+            key=f'{math.floor(x/.003)},{math.floor(y/.003)}'
+            cells.setdefault(key,[]).append([round(x,7),round(y,7),round(roof,2),round(top,2),round(r,2),round(ang,3)])
+            count+=1
+           except (ValueError,TypeError,KeyError,AttributeError):continue
+          assert count>=1000, count
+          payload=json.dumps({'count':count,'cells':cells,'source':'NYC mapped polygons; center from maximum inscribed circle; equipment illustrative'},separators=(',',':'))
+          assert len(payload)<2_500_000
+          (site/'data/bp-manhattan-roof-detail-v1.json').write_text(payload)
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+           p=site/rel;s=p.read_text()
+           anchor="vis(map,eqId,roofEquipmentOn);"
+           assert s.count(anchor)==1,(rel,s.count(anchor))
+           s=s.replace(anchor,anchor+'''
+              if(roofEquipmentOn&&z>=17.2&&!map.__bpManhattanRoofDetailPromise){
+                map.__bpManhattanRoofDetailPromise=import('/vendor/bp-manhattan-roof-detail-v1.mjs?v=1').then(m=>{map.__bpManhattanRoofDetail=m;m.sync(map,!!layerState.buildings&&map.getZoom()>=17.2);}).catch(e=>console.warn('Manhattan roof detail fallback',e));
+              }
+              map.__bpManhattanRoofDetail?.sync(map,roofEquipmentOn);
+           ''')
+           anchor="vis(map,'gta-nyc-mapped-roof-equipment-v2',false);"
+           assert s.count(anchor)==1,(rel,s.count(anchor))
+           s=s.replace(anchor,anchor+"\n   map.__bpManhattanRoofDetail?.sync(map,false);")
+           p.write_text(s)
+          for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
+           p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=1',s)
+           if rel!='vendor/bp-public-globe-v4.mjs':assert n>=1,(rel,n)
+           p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+           p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=1',s);assert n>=1;p.write_text(s)
+          # The new renderer is staged separately from this script; compare every other file byte-for-byte.
+          assert snap()==before
+          print('MAPPED_MANHATTAN_DETAIL_READY',count,len(cells),len(payload))
+          PY
+          for p in vendor/bp-manhattan-roof-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js landing.js app.js vendor/bp-public-globe-v4.mjs; do node --input-type=module --check < "$SITE/$p"; done
+          TEST="$RUNNER_TEMP/input-smoke"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
+          const root=process.env.SITE,origin='https://bridgepointintelligence.online';
+          const mime={'.js':'application/javascript','.mjs':'application/javascript','.html':'text/html','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.wasm':'application/wasm','.glb':'model/gltf-binary','.pbf':'application/x-protobuf','.mvt':'application/vnd.mapbox-vector-tile','.woff2':'font/woff2'};
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+           const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});
+           const errors=[];page.on('pageerror',e=>{errors.push(String(e));if(errors.length<=20)console.log('PAGE_ERROR',e.stack||String(e))});
+           page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost/.test(m.text()))console.log(m.text().slice(0,400))});
+           // Serve the candidate artifact under the real origin, so absolute paths
+           // and startup behavior are the same. External tile requests remain real.
+           await page.route(origin+'/**',async route=>{
+             const url=new URL(route.request().url());let file=path.resolve(root,'.'+decodeURIComponent(url.pathname));
+             if(!file.startsWith(root+'/')&&file!==root)return route.abort();
+             if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');
+             if(!fs.existsSync(file)||!fs.statSync(file).isFile())return route.continue();
+             return route.fulfill({path:file,contentType:mime[path.extname(file)]||'application/octet-stream'});
+           });
+           await page.addInitScript(()=>{window.__bpInputSmokeTicks=0;setInterval(()=>window.__bpInputSmokeTicks++,100);});
+           await page.goto(origin+'/?inputsmoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+           const getMap=()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return w?.map;};
+           await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420)?.map;return !!m&&!!m.getCanvas()?.clientWidth&&m.dragPan?.isEnabled?.()&&m.touchZoomRotate?.isEnabled?.()},{timeout:90000});
+           await page.waitForFunction(()=>!!window.__BP_WORLD_CORE_READY__?.ready,{timeout:45000});
+           const before=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,r=m.getCanvas().getBoundingClientRect(),c=m.getCenter();return {x:r.x+r.width*.5,y:r.y+r.height*.48,lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks,dem:m.getStyle().sources.dem.tiles};});
+           assert(before.dem[0].startsWith('https://s3.amazonaws.com/'),'Native DEM is not direct');
+           const cdp=await page.context().newCDPSession(page);
+           const x=Math.round(before.x),y=Math.round(before.y);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
+           for(let i=1;i<=8;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+Math.round(i*8),y:y+Math.round(i*7),id:1}]});await page.waitForTimeout(35);}
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           await page.waitForFunction(lat=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return Math.abs(m.getCenter().lat-lat)>.15},before.lat,{timeout:12000});
+           console.log('REAL_MOBILE_DRAG_PASS');
+           const plus=page.locator('.maplibregl-ctrl-zoom-in:visible').first();
+           const zoomBefore=await page.evaluate(()=>(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map.getZoom());
+           const bounds=await plus.boundingBox({timeout:15000});assert(bounds,'Zoom button missing');
+           const tx=Math.round(bounds.x+bounds.width/2),ty=Math.round(bounds.y+bounds.height/2);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:tx,y:ty,id:1}]});
+           await page.waitForTimeout(80);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           await page.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.2},zoomBefore,{timeout:20000});
+           const after=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return {lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks};});
+           assert(after.ticks>before.ticks,'Main thread heartbeat failed');
+           assert(!errors.some(e=>/lastSubmergeCheck|autoDiveArmed|autoDivePending|Cannot read properties of null \(reading 'disconnect'\)|Attempting to run\(\), but is already running/.test(e)),JSON.stringify(errors.slice(0,10)));
+           console.log('REAL_MOBILE_TOUCH_AND_ZOOM_PASS',JSON.stringify({before,after,errors:errors.slice(0,8)}));
+           // Close oblique Manhattan view: ensure mapped geometry is present and fans advance.
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.jumpTo({center:[-73.9855,40.7485],zoom:18,pitch:60,bearing:25})});
+           await page.waitForFunction(()=>{const d=window.__BP_MANHATTAN_ROOF_DETAIL_V1__;return d?.status==='ready'&&d.count>0&&d.fanFrames>1},{timeout:90000});
+           const close=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter(),r=m.getCanvas().getBoundingClientRect();return {lng:c.lng,lat:c.lat,x:r.x+r.width*.5,y:r.y+r.height*.42,detail:window.__BP_MANHATTAN_ROOF_DETAIL_V1__}});
+           assert(close.detail.count<=40);
+           const xx=Math.round(close.x),yy=Math.round(close.y);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:xx,y:yy,id:1}]});
+           for(let i=1;i<=5;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:xx+i*10,y:yy+i*4,id:1}]});await page.waitForTimeout(35)}
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           await page.waitForFunction(c=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,p=m.getCenter();return Math.abs(p.lng-c.lng)+Math.abs(p.lat-c.lat)>.00004},close,{timeout:2500});
+           console.log('MANHATTAN_OBLIQUE_TOUCH_AND_FANS_PASS',JSON.stringify(close.detail));
+          }finally{await browser.close()}
+          JS
+          timeout 210s node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify Manhattan detail and preserved live bytes
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-manhattan-roof-detail-v1.mjs data/bp-manhattan-roof-detail-v1.json bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json bridgepoint-bottom-card-mobile-v2.js; do
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then ok=1; break; fi
+              sleep 5
+            done
+            test "$ok" = 1 || { echo "LIVE_MISMATCH $p"; exit 1; }
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
