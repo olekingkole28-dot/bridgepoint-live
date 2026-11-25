@@ -215,7 +215,7 @@ jobs:
           req=urllib.request.Request('https://data.cityofnewyork.us/resource/gthc-hcne.geojson?'+urllib.parse.urlencode({'$where':'borocode=1','$limit':1}),headers={'User-Agent':'BridgePoint alignment/6.0'})
           with urllib.request.urlopen(req,timeout=60) as r:borough=shape(json.load(r)['features'][0]['geometry'])
           # Tolerant coastal boundary only; other boroughs remain untouched.
-          borough=borough.buffer(.00006).simplify(.00004,preserve_topology=True)
+          borough=borough.buffer(.00006).simplify(.00018,preserve_topology=True)
           (out/'boundary.json').write_text(json.dumps(mapping(borough),separators=(',',':')))
           (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
           print('MANHATTAN_NATIVE_POLYGON_TILES',json.dumps(manifest),flush=True)
@@ -235,6 +235,7 @@ jobs:
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
               p=site/rel;s=p.read_text()
               s=one(s,"const bpNativeManhattanRoot='/assets/manhattan-native-v5/';","const bpNativeManhattanRoot='/assets/manhattan-native-v6/';\n const bpManhattanBoundary="+boundary+";")
+              s=one(s,"const bpNativeManhattanNear=()=>{const c=map.getCenter();return c.lng>=-74.04&&c.lng<=-73.89&&c.lat>=40.68&&c.lat<=40.89};",r'''const bpNativeManhattanNear=()=>{const c=map.getCenter();if(c.lng < -74.04||c.lng > -73.89||c.lat < 40.68||c.lat > 40.89)return false;const polygons=bpManhattanBoundary.type==='Polygon'?[bpManhattanBoundary.coordinates]:bpManhattanBoundary.coordinates;function inside(r){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a[1]>c.lat)!==(b[1]>c.lat)&&c.lng<(b[0]-a[0])*(c.lat-a[1])/(b[1]-a[1])+a[0])yes=!yes}return yes}return polygons.some(p=>inside(p[0])&&!p.slice(1).some(inside))};''')
               s=one(s,"let bpNativeManhattanImages=null,bpNativeManhattanReady=false,bpNativeManhattanPending=false,bpNativeManhattanLast=false;","let bpNativeManhattanImages=null,bpNativeManhattanReady=false,bpNativeManhattanPending=false,bpNativeManhattanLast=false;\n let bpAlignedActive=false;const bpAlignedOriginalFilters=new Map(),bpAlignedBody='bp-manhattan-surveyed-body-v6',bpAlignedCap='bp-manhattan-surveyed-cap-v6';")
               a=s.index('            function bpNativeManhattanSync(){') if '            function bpNativeManhattanSync(){' in s else s.index('function bpNativeManhattanSync(){')
               b=s.index("map.on('moveend',bpNativeManhattanSync);",a)
@@ -246,7 +247,7 @@ jobs:
                 if(!map.getLayer(id))continue;
                 if(on){
                   const f=map.getFilter(id)||null;bpAlignedOriginalFilters.set(id,f);
-                  const outside=['!', ['within',bpManhattanBoundary]];
+                  const outside=['>', ['distance',bpManhattanBoundary], .5];
                   map.setFilter(id,f?['all',f,outside]:outside);
                 }else if(bpAlignedOriginalFilters.has(id))map.setFilter(id,bpAlignedOriginalFilters.get(id));
               }
@@ -365,7 +366,7 @@ jobs:
            await page.waitForFunction(()=>{
             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,d=window.__BP_MANHATTAN_NATIVE_V5__;
             if(!d?.visible||!d.materials||!d.sharedHost||!m.getLayer('bp-manhattan-native-roof-v5')||!m.getLayer('bp-manhattan-surveyed-body-v6'))return false;
-            try{return m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length>0&&m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length>0}catch(e){return false}
+            try{return m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length>0&&m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length>0&&m.queryRenderedFeatures({layers:['gta-bp-buildings','gta-context-buildings']}).length===0}catch(e){return false}
            },null,{timeout:90000});
            console.log('NATIVE_ROOF_TILES_RENDERED',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return {state:window.__BP_MANHATTAN_NATIVE_V5__,features:m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length,customLayer:!!m.getLayer('bp-manhattan-roof-detail-v1')}})));
            const close=await page.evaluate(()=>{
