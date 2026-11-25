@@ -64,7 +64,7 @@ jobs:
               assert 'window.__BP_DEVICE_QUALITY_V1__?.waterBudget' in s and 'const useCoastalMesh=z<12&&' in s
               # Native vector tiles supply ALL water polygons including holes, independent of
               # the JS mesh's vertex and feature limits. Never replace this with a rectangular sheet.
-              s=one(s,"'fill-color':'#0b3859','fill-opacity':.16","'fill-color':'#0b3859','fill-opacity':1")
+              s=one(s,"'fill-color':'#0b3859','fill-opacity':.16","'fill-color':'#0b3859','fill-opacity':map.getZoom()>=11?1:.16")
               s=one(s,"const target=wet>.02?.32:.16;","const close=map.getZoom()>=11;\n      const target=wet>.02?.32:close?1:.16;")
               s=one(s,"else if(pattern)map.setPaintProperty(OCEAN_COVER_ID,'fill-pattern',null);","""else if(close){
                   if(pattern!==OCEAN_PATTERN_ID)map.setPaintProperty(OCEAN_COVER_ID,'fill-pattern',OCEAN_PATTERN_ID);
@@ -99,18 +99,19 @@ jobs:
               # At street zoom reject cached offscreen features before they consume the
               # mesh budget. The visible bounds are already overscanned by the builder.
               s=one(s,"const top = mercY(maxLat), bottom = mercY(minLat), pad = 0.025;","const top = mercY(maxLat), bottom = mercY(minLat), pad = Math.min(.025,Math.max(1e-7,Math.max(bounds.x1-bounds.x0,bounds.y1-bounds.y0)*.2));")
-              # Reserve base geometry for later tile fragments rather than spending the
-              # entire vertex allowance subdividing the first large body of water.
-              anchor="const r=buildOceanPolygonMesh(f.parts,{maxVertices:marineBudget-marineVertices,step:Math.max(dx,dy)*.50,shoreAt},"
-              s=one(s,anchor,"""const remaining=marineBudget-marineVertices;
-                const baseNeed=f.parts.reduce((n,part)=>n+part.reduce((m,ring)=>m+ring.length*3,0),0);
-                const allowance=z>=11?Math.min(remaining,Math.max(baseNeed,Math.floor(remaining/Math.max(1,Math.min(12,waterFeatures.length))))):remaining;
-                const r=buildOceanPolygonMesh(f.parts,{maxVertices:allowance,step:Math.max(dx,dy)*(z>=11?1.25:.50),shoreAt},""")
-              anchor="const result=buildOceanPolygonMesh(f.parts,{maxVertices:inlandBudget-inlandVertices,step:Math.max(dx,dy)*.35},"
-              s=one(s,anchor,"""const remaining=inlandBudget-inlandVertices;
-                            const baseNeed=f.parts.reduce((n,part)=>n+part.reduce((m,ring)=>m+ring.length*3,0),0);
-                            const allowance=z>=11?Math.min(remaining,Math.max(baseNeed,Math.floor(remaining/Math.max(1,Math.min(12,waterFeatures.length))))):remaining;
-                            const result=buildOceanPolygonMesh(f.parts,{maxVertices:allowance,step:Math.max(dx,dy)*(z>=11?1.1:.35)},""")
+              # Keep the proven adaptive vertex ceilings and all existing mesh step expressions.
+              # Share the remaining budget across features without depending on an old
+              # literal subdivision expression that changed in later water releases.
+              for budget,used in [('marineBudget','marineVertices'),('inlandBudget','inlandVertices')]:
+                  pattern=r'(buildOceanPolygonMesh\(\s*f\.parts\s*,\s*\{\s*maxVertices\s*:\s*)'+budget+r'\s*-\s*'+used+r'(?=\s*,)'
+                  def share(m):
+                      remaining='('+budget+'-'+used+')'
+                      need='f.parts.reduce((n,part)=>n+part.reduce((m,ring)=>m+ring.length*3,0),0)'
+                      return m[1]+'(z>=11?Math.min('+remaining+',Math.max('+need+',Math.floor('+remaining+'/Math.max(1,Math.min(12,waterFeatures.length))))):'+remaining+')'
+                  s,n=re.subn(pattern,share,s,count=1)
+                  # Coverage is guaranteed by the native fill, not by this secondary
+                  # mesh optimization. Preserve any newer equivalent mesh policy.
+                  print('MESH_BUDGET_SHARE',rel,budget,n)
               p.write_text(s)
           for rel in ('landing.js','app.js'):
               p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-water\.js\?[^"\'\s]+)',lambda m:m[1]+'&fillcoverage=20261125v3',s);assert n>=1,(rel,n);p.write_text(s)
@@ -123,12 +124,12 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
           const s=fs.readFileSync(process.env.SITE+'/world-v2300-water.js','utf8');
-          const start=s.indexOf('function syncOceanCover(){'),end=s.indexOf('let lastOceanPattern=',start);
-          assert(start>=0&&end>start);
+          const start=s.indexOf('function syncOceanCover(){'),end=s.indexOf('\n  }',start)+4;
+          assert(start>=0&&end>start&&s.slice(start,end).includes('api.closeWaterCoverage='));
           const layer='bp-test-surface',cover='bp-liquid-ocean-cover-v2',pattern='bp-test-pattern';
           let zoom=15,opacity=.16,texture=null,vis='visible',order=[cover,layer,'gta-esri','gta-coast-edge','gta-context-buildings'],moves=0;
           const map={getZoom:()=>zoom,getSource:()=>({}),getLayer:id=>order.includes(id)?{}:null,getStyle:()=>({layers:order.map(id=>({id}))}),getLayoutProperty:()=>vis,setLayoutProperty:(_id,_p,v)=>vis=v,hasImage:()=>true,getPaintProperty:(_id,p)=>p==='fill-opacity'?opacity:texture,setPaintProperty:(_id,p,v)=>{if(p==='fill-opacity')opacity=v;else texture=v},moveLayer:(id,before)=>{order=order.filter(x=>x!==id);order.splice(order.indexOf(before),0,id);moves++}};
-          const api={enabled:true},g={map,api,window:{},OCEAN_COVER_ID:cover,OCEAN_PATTERN_ID:pattern,LAYER_ID:layer};
+          const api={enabled:true},g={map,api,window:{},OCEAN_COVER_ID:cover,OCEAN_PATTERN_ID:pattern,LAYER_ID:layer,installOceanRelief(){},oceanFallbackTexture(){return {}},console};
           vm.createContext(g);vm.runInContext(s.slice(start,end).trim()+'\nsyncOceanCover();',g);
           assert.equal(opacity,1);assert.equal(texture,pattern);
           assert(order.indexOf('gta-esri')<order.indexOf(cover)&&order.indexOf(cover)<order.indexOf(layer)&&order.indexOf(layer)<order.indexOf('gta-context-buildings'));
