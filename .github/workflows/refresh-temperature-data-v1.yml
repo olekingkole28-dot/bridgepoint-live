@@ -1,0 +1,37 @@
+name: Refresh BridgePoint Temperature Grid Only
+on:
+  schedule:
+    - cron: '22 */3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: bridgepoint-temperature-data-only
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m pip install --quiet numpy eccodes
+          python3 scripts/build_temperature_grid_v1.py "$RUNNER_TEMP/bp-temperature-grid-v1.json"
+      - name: Publish only the model grid to independent data branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/temperature-data" >/dev/null 2>&1; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/heads/temperature-data -f sha="$GITHUB_SHA"
+          fi
+          path="data/bp-temperature-grid-v1.json"
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=temperature-data" --jq .sha 2>/dev/null || true)
+          python3 - "$RUNNER_TEMP/bp-temperature-grid-v1.json" "$sha" <<'PY' > "$RUNNER_TEMP/temp-put.json"
+          import sys,json,base64
+          p,sha=sys.argv[1:]
+          body=dict(message='Refresh NOAA GFS temperature grid only',branch='temperature-data',content=base64.b64encode(open(p,'rb').read()).decode())
+          if sha:body['sha']=sha
+          print(json.dumps(body))
+          PY
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" --input "$RUNNER_TEMP/temp-put.json" --jq .commit.sha
