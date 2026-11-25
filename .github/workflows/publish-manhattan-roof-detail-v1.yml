@@ -53,9 +53,9 @@ jobs:
           python3 -m pip install --quiet 'shapely>=2.1,<3'
           cat > "$SITE/vendor/bp-manhattan-roof-detail-v1.mjs" <<'JS'
           // Manhattan mapped rooftop detail; source footprint and height are estimates, not surveyed machinery.
-          const states=new WeakMap(), URL='/data/bp-manhattan-roof-detail-v1.json?v=3';
+          const states=new WeakMap(), URL='/data/bp-manhattan-roof-detail-v1.json?v=4';
           const MOBILE=matchMedia('(max-width: 700px)').matches;
-          const CAP=MOBILE?40:90, ID='bp-manhattan-roof-detail-v1', STEP=.003;
+          const CAP=MOBILE?20:60, ID='bp-manhattan-roof-detail-v1', STEP=.003;
           const inArea=c=>c.lng>=-74.04&&c.lng<=-73.89&&c.lat>=40.68&&c.lat<=40.89;
           let dataPromise,threePromise;
           const data=()=>dataPromise??=(fetch(URL).then(r=>{if(!r.ok)throw Error('roof data HTTP '+r.status);return r.json()}).catch(e=>{dataPromise=null;throw e}));
@@ -92,7 +92,7 @@ jobs:
            },180);
           }
           function makeLayer(map,T,d){
-           let scene,camera,renderer,anchor,batches={},rotors=[],repaintTimer=0,active=false,removed=false,origin,lastFrame=-1;
+           let scene,camera,renderer,anchor,batches={},rotors=[],repaintTimer=0,active=false,removed=false,origin,lastFrame=-1,touching=false,lastRender=0,frameGap=100,gestureEnd=0;
            const dummy=new T.Object3D(), local=new T.Vector3(), normalY=new T.Vector3(0,1,0);
            const material=(color,shine=25)=>new T.MeshPhongMaterial({color,specular:0xb6c7d4,shininess:shine});
            const parts={
@@ -120,6 +120,8 @@ jobs:
             }
             b.instanceMatrix.needsUpdate=true;
            }
+           function beginGesture(){touching=true;clearTimeout(repaintTimer);repaintTimer=0;}
+           function endGesture(){touching=false;gestureEnd=performance.now();if(active&&!removed)map.triggerRepaint();}
            const layer={id:ID,type:'custom',renderingMode:'3d',
             onAdd(m,gl){
              scene=new T.Scene();camera=new T.Camera();anchor=new T.Group();anchor.matrixAutoUpdate=false;scene.add(anchor);
@@ -129,6 +131,9 @@ jobs:
               const b=new T.InstancedMesh(g,mat,max[key]);b.count=0;b.frustumCulled=false;b.instanceMatrix.setUsage(T.DynamicDrawUsage);anchor.add(b);batches[key]=b;
              }
              renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});renderer.autoClear=false;
+             m.getCanvasContainer().addEventListener('pointerdown',beginGesture,{passive:true,capture:true});
+             window.addEventListener('pointerup',endGesture,{passive:true,capture:true});window.addEventListener('pointercancel',endGesture,{passive:true,capture:true});
+             m.getCanvasContainer().addEventListener('touchstart',beginGesture,{passive:true,capture:true});window.addEventListener('touchend',endGesture,{passive:true,capture:true});window.addEventListener('touchcancel',endGesture,{passive:true,capture:true});
             },
             hide(){active=false;clearTimeout(repaintTimer);repaintTimer=0;if(anchor)anchor.visible=false;},
             rebuild(){
@@ -149,7 +154,7 @@ jobs:
               const width=rad*1.55, h=Math.max(.4,Math.min(1,top-roof));
               // All upper machinery stays inside the measured inscribed circle. The native footprint
               // remains as the base housing, so a failed custom renderer never removes equipment.
-              put('metal',x,y+.075,z,width*1.9,.15,width*1.75,a);
+              put('metal',x,y+.075,z,rad*1.30,.15,rad*1.25,a);
               put('well',x,y+.17,z,rad,.14,rad);
               put('rim',x,y+.29,z,rad,rad,rad,a,-Math.PI/2);
               put('hub',x,y+.34,z,rad*.16,.18,rad*.16);
@@ -185,12 +190,14 @@ jobs:
               camera.projectionMatrix.fromArray(matrix);camera.matrixWorld.identity();camera.matrixWorldInverse.identity();
               anchor.matrix.fromArray(model);anchor.matrixWorldNeedsUpdate=true;
               const now=performance.now();
-              if(now-lastFrame>=66){blades(now);lastFrame=now;diagnostics.fanFrames++}
+              if(lastRender)frameGap=frameGap*.8+Math.min(2000,now-lastRender)*.2;lastRender=now;
+              const moving=touching||map.isMoving?.();
+              if(!moving&&now-lastFrame>=100){blades(now);lastFrame=now;diagnostics.fanFrames++}
               scene.updateMatrixWorld(true);renderer.resetState();renderer.render(scene,camera);diagnostics.status='ready';diagnostics.drawCalls=renderer.info.render.calls;diagnostics.renderedFrames=(diagnostics.renderedFrames||0)+1;
-              if(!map.isMoving?.()&&!repaintTimer)repaintTimer=setTimeout(()=>{repaintTimer=0;if(active&&!removed)map.triggerRepaint()},80);
+              if(!moving&&!repaintTimer){const delay=MOBILE?Math.max(180,Math.min(1100,frameGap*1.4)):120;repaintTimer=setTimeout(()=>{repaintTimer=0;if(active&&!removed&&!touching&&!map.isMoving?.())map.triggerRepaint()},delay)}
              }catch(e){layer.hide();diagnostics.status='fallback';diagnostics.error=String(e).slice(0,180)}
             },
-            onRemove(){removed=true;layer.hide();for(const [g,m] of Object.values(parts)){g.dispose();m.dispose()}renderer?.dispose();diagnostics.count=0}
+            onRemove(){removed=true;layer.hide();const el=map.getCanvasContainer();el.removeEventListener('pointerdown',beginGesture,true);el.removeEventListener('touchstart',beginGesture,true);for(const e of ['pointerup','pointercancel','touchend','touchcancel'])window.removeEventListener(e,endGesture,true);for(const [g,m] of Object.values(parts)){g.dispose();m.dispose()}renderer?.dispose();diagnostics.count=0}
            };
            return layer;
           }
@@ -272,11 +279,11 @@ jobs:
            ''')
            p.write_text(s)
           for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
-           p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=3',s)
+           p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=4',s)
            if rel!='vendor/bp-public-globe-v4.mjs':assert n>=1,(rel,n)
            p.write_text(s)
           for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
-           p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=3',s);assert n>=1;p.write_text(s)
+           p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&manhattanroofdetail=4',s);assert n>=1;p.write_text(s)
           # The new renderer is staged separately from this script; compare every other file byte-for-byte.
           assert snap()==before
           print('MAPPED_MANHATTAN_DETAIL_READY',count,len(cells),len(payload))
@@ -350,14 +357,29 @@ jobs:
            await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setPitch(60)});
            console.log('MANHATTAN_TERRAIN_RESTORED',JSON.stringify(terrain));
            await page.waitForFunction(()=>{const d=window.__BP_MANHATTAN_ROOF_DETAIL_V1__;return d?.status==='ready'&&d.count>0&&d.fanFrames>1&&d.renderedFrames>1&&d.drawCalls>0},null,{timeout:90000}).catch(async e=>{console.log('MANHATTAN_DETAIL_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return {detail:window.__BP_MANHATTAN_ROOF_DETAIL_V1__,native:window.__BP_NYC_ROOF_EQUIPMENT_V2__,zoom:m.getZoom(),center:m.getCenter(),moving:m.isMoving(),layer:!!m.getLayer('bp-manhattan-roof-detail-v1'),module:!!m.__bpManhattanRoofDetail,importStarted:!!m.__bpManhattanRoofDetailPromise}})));throw e});
-           const close=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter(),r=m.getCanvas().getBoundingClientRect();return {lng:c.lng,lat:c.lat,x:r.x+r.width*.5,y:r.y+r.height*.42,detail:window.__BP_MANHATTAN_ROOF_DETAIL_V1__}});
-           assert(close.detail.count<=40);
-           const xx=Math.round(close.x),yy=Math.round(close.y);
+           const close=await page.evaluate(()=>{
+            const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,canvas=m.getCanvas(),r=canvas.getBoundingClientRect(),c=m.getCenter();
+            // Choose an unobstructed real map canvas point; the mobile dock may overlap the center.
+            const candidates=[[.30,.30],[.35,.40],[.45,.30],[.35,.22],[.50,.42],[.25,.48]];
+            const p=candidates.map(([u,v])=>[Math.round(r.x+r.width*u),Math.round(r.y+r.height*v)]).find(([x,y])=>[0,30,60,90].every(dx=>document.elementFromPoint(x+dx,y+Math.round(dx*.25))===canvas));
+            if(!p)throw Error('No unobstructed map touch path');
+            const trace={events:0,moves:0,firstInput:null,firstMove:null,maxDelta:0,initial:{lng:c.lng,lat:c.lat}};
+            window.__bpCloseTouchTrace=trace;
+            canvas.addEventListener('touchmove',()=>{trace.events++;if(trace.firstInput===null)trace.firstInput=performance.now()},{capture:true,passive:true});
+            m.on('move',()=>{if(trace.firstInput===null)return;const p=m.getCenter(),delta=Math.abs(p.lng-c.lng)+Math.abs(p.lat-c.lat);trace.maxDelta=Math.max(trace.maxDelta,delta);if(delta>1e-6){trace.moves++;if(trace.firstMove===null)trace.firstMove=performance.now()}});
+            return {lng:c.lng,lat:c.lat,x:p[0],y:p[1],detail:window.__BP_MANHATTAN_ROOF_DETAIL_V1__};
+           });
+           assert(close.detail.count>0&&close.detail.count<=20);
+           console.log('MANHATTAN_FAN_RENDER_PASS',JSON.stringify(close.detail));
+           const xx=close.x,yy=close.y;
            await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:xx,y:yy,id:1}]});
-           for(let i=1;i<=5;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:xx+i*10,y:yy+i*4,id:1}]});await page.waitForTimeout(35)}
+           for(let i=1;i<=6;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:xx+i*15,y:yy+Math.round(i*15*.25),id:1}]});await page.waitForTimeout(35)}
            await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-           await page.waitForFunction(c=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,p=m.getCenter();return Math.abs(p.lng-c.lng)+Math.abs(p.lat-c.lat)>.00004},close,{timeout:2500});
-           console.log('MANHATTAN_OBLIQUE_TOUCH_AND_FANS_PASS',JSON.stringify(close.detail));
+           const trace=await page.evaluate(()=>window.__bpCloseTouchTrace);
+           console.log('MANHATTAN_CLOSE_TOUCH_TRACE',JSON.stringify(trace));
+           assert(trace.events>=1&&trace.moves>=1&&trace.maxDelta>1e-6,'Close angle touch did not pan the actual map');
+           assert(trace.firstMove-trace.firstInput<2500,'Close angle input response exceeded 2.5 seconds');
+           console.log('MANHATTAN_OBLIQUE_TOUCH_AND_FANS_PASS',JSON.stringify({detail:close.detail,trace}));
           }finally{await browser.close()}
           JS
           timeout 360s node "$TEST/test.mjs"
