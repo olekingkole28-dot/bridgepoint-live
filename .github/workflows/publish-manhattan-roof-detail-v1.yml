@@ -63,7 +63,7 @@ jobs:
           export function sync(map,enabled){
            let s=states.get(map);
            if(!s){s={enabled:false,layer:null,pending:false,timer:0};states.set(map,s);
-            map.on('moveend',()=>queue(map,s));map.on('styledata',()=>{if(s.enabled&&!map.getLayer(ID))queue(map,s)});
+            map.on('moveend',()=>{s.retryCount=0;queue(map,s)});map.on('styledata',()=>{if(s.enabled&&!map.getLayer(ID))queue(map,s)});
             map.on('remove',()=>{s.enabled=false;clearTimeout(s.timer);s.layer=null});
            }
            const active=!!enabled&&map.getZoom()>=17.2&&inArea(map.getCenter());
@@ -84,7 +84,7 @@ jobs:
               s.layer=makeLayer(map,T,d);
               map.addLayer(s.layer,map.getLayer('gta-water-label')?'gta-water-label':undefined);
              }
-             if(s.enabled&&!map.isMoving?.())s.layer.rebuild();
+             if(s.enabled&&!map.isMoving?.()){s.layer.rebuild();if(diagnostics.status==='no-visible-equipment'&&s.retryCount!==3){s.retryCount=(s.retryCount||0)+1;s.timer=setTimeout(()=>{s.timer=0;queue(map,s)},900)}else if(diagnostics.status==='ready')s.retryCount=0;}
             }catch(e){diagnostics.status='fallback';diagnostics.error=String(e).slice(0,180);console.warn('Manhattan detail fallback',e)}
             finally{s.pending=false}
            },180);
@@ -177,9 +177,9 @@ jobs:
             },
             render(gl,args){
              if(!active||removed||!renderer||!anchor||!origin)return;
-             const matrix=args?.defaultProjectionData?.mainMatrix,model=map.transform?.getMatrixForModel?.(origin,0);
-             if(!matrix||!model)return;
              try{
+              const matrix=args?.defaultProjectionData?.mainMatrix,model=map.transform?.getMatrixForModel?.(origin,0);
+              if(!matrix||!model)return;
               camera.projectionMatrix.fromArray(matrix);camera.matrixWorld.identity();camera.matrixWorldInverse.identity();
               anchor.matrix.fromArray(model);anchor.matrixWorldNeedsUpdate=true;
               const now=performance.now();
@@ -304,7 +304,22 @@ jobs:
            assert(!errors.some(e=>/lastSubmergeCheck|autoDiveArmed|autoDivePending|Cannot read properties of null \(reading 'disconnect'\)|Attempting to run\(\), but is already running/.test(e)),JSON.stringify(errors.slice(0,10)));
            console.log('REAL_MOBILE_TOUCH_AND_ZOOM_PASS',JSON.stringify({before,after,errors:errors.slice(0,8)}));
            // Close oblique Manhattan view: ensure mapped geometry is present and fans advance.
-           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.jumpTo({center:[-73.9855,40.7485],zoom:18,pitch:60,bearing:25})});
+           // Test-only teleport: old globe DEM tiles cannot be sampled at the distant
+           // target. Temporarily detach terrain, move to Manhattan, then restore the
+           // exact original terrain configuration before checking the 3D view.
+           const terrain=await page.evaluate(()=>{
+            const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;
+            const t=m.getTerrain?.();const config=t?{source:t.source,exaggeration:t.exaggeration??1}:null;
+            m.stop();if(config)m.setTerrain(null);
+            m.jumpTo({center:[-73.9855,40.7485],zoom:18,pitch:0,bearing:25});
+            return config;
+           });
+           await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return Math.abs(m.getCenter().lng+73.9855)<.001&&m.getZoom()>17.9&&!m.isMoving()},{timeout:30000});
+           await page.waitForTimeout(2500);
+           await page.evaluate(t=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;if(t)m.setTerrain(t)},terrain);
+           if(terrain)await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;try{return Number.isFinite(m.queryTerrainElevation(m.getCenter(),{exaggerated:true}))}catch(e){return false}},{timeout:45000});
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setPitch(60)});
+           console.log('MANHATTAN_TERRAIN_RESTORED',JSON.stringify(terrain));
            await page.waitForFunction(()=>{const d=window.__BP_MANHATTAN_ROOF_DETAIL_V1__;return d?.status==='ready'&&d.count>0&&d.fanFrames>1},{timeout:90000});
            const close=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter(),r=m.getCanvas().getBoundingClientRect();return {lng:c.lng,lat:c.lat,x:r.x+r.width*.5,y:r.y+r.height*.42,detail:window.__BP_MANHATTAN_ROOF_DETAIL_V1__}});
            assert(close.detail.count<=40);
@@ -316,7 +331,7 @@ jobs:
            console.log('MANHATTAN_OBLIQUE_TOUCH_AND_FANS_PASS',JSON.stringify(close.detail));
           }finally{await browser.close()}
           JS
-          timeout 210s node "$TEST/test.mjs"
+          timeout 360s node "$TEST/test.mjs"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
