@@ -1,0 +1,80 @@
+name: Publish BridgePoint Manhattan Replacement Performance V4
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-manhattan-replacement-v4.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact visually confirmed Manhattan alignment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45580520288 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45580520288 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Optimize Manhattan coverage and local water
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 scripts/install_manhattan_performance_v4.py "$SITE"
+          node --check "$SITE/bridgepoint-auto-reality-v1.js"
+          node --check "$SITE/world-v2300-water.js"
+          if [ -f "$SITE/app/world-v2300-water.js" ]; then node --check "$SITE/app/world-v2300-water.js"; fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish Manhattan replacement performance only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify Manhattan globe and preserved live files
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in assets/manhattan-photogrammetry-v1/manhattan.glb.gz assets/manhattan-photogrammetry-v1/manhattan-mobile.glb assets/manhattan-photogrammetry-v1/manhattan.glb assets/manhattan-photogrammetry-v1/registration.json bridgepoint-public-scan-catalog-v1.json bridgepoint-sketchfab-importer-v1.js bridgepoint-public-scans-v1.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json index.html app/index.html bridgepoint-property-markers-v1.js data/bp-hud-listings-marker-snapshot-v1.json data/bp-opportunity-marker-snapshot-v1.json bridgepoint-top-packages-v1.js bridgepoint-temperature-v1.js bridgepoint-rain-3d-v1.js bridgepoint-bottom-card-categories-v1.js world-v2300-map.js world-v2300-water.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?opportunity=$GITHUB_SHA" -o "$RUNNER_TEMP/opportunity-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/opportunity-live"
+          done
+          echo MANHATTAN_V4_LIVE_BYTES_PASS
