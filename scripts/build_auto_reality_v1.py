@@ -6,7 +6,7 @@ from pathlib import Path
 site=Path(sys.argv[1])
 allowed={'index.html','app/index.html','bridgepoint-auto-reality-v1.js','data/bp-auto-reality-v1.json'}
 def hashes():
- return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+ return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed and not p.relative_to(site).as_posix().startswith('assets/auto-reality-v1/')}
 before=hashes()
 catalog=site/'bridgepoint-public-scan-catalog-v1.json'
 if not catalog.is_file(): catalog=Path('rebuild-v5000/bridgepoint-public-scan-catalog-v1.json')
@@ -83,12 +83,45 @@ if p.is_file():
   ident,title1,title2,country,lon,lat,uid=m.groups()
   if any(uid in str(x.get('id')) or uid in str(x.get('viewer_url')) for x in items):continue
   add(dict(id='wonder:'+uid,title=title1 or title2,category='Landmark scans',coordinates=[float(lon),float(lat)],viewer_url='https://sketchfab.com/models/'+uid+'/embed?autostart=1&preload=1',source_url='https://sketchfab.com/models/'+uid,precision='Published site anchor; creator-hosted viewer, native geometry not available.'))
+# Authorized metre-scale architectural reconstructions, explicitly not scans.
+import urllib.request
+base='https://raw.githubusercontent.com/codriver-io/codriver-3d-assets/e9619339dd3d74d81cb87302e4692082e0c3dbff/public/models/buildings/'
+target=site/'assets/auto-reality-v1'
+target.mkdir(parents=True,exist_ok=True)
+def download(url,limit):
+ req=urllib.request.Request(url,headers={'User-Agent':'BridgePoint-asset-import/1.0'})
+ with urllib.request.urlopen(req,timeout=25) as r:
+  b=r.read(limit+1)
+  if len(b)>limit:raise ValueError('asset too large')
+  return b
+for ident in ('paris-tour-eiffel','paris-arc-de-triomphe','paris-notre-dame','washington-monument','morris-island-lighthouse'):
+ try:
+  meta=json.loads(download(base+ident+'.json',100000))
+  assert meta['id']==ident and meta['license']=='CC-BY-4.0' and meta['units']=='metres' and validxy(meta['origin'])
+  assert meta['axes']=={'x':'east','y':'up','z':'south'}
+  glb=download(base+ident+'-near.glb',8000000)
+  assert glb[:4]==b'glTF' and struct.unpack_from('<I',glb,8)[0]==len(glb)
+  (target/(ident+'.glb')).write_bytes(glb)
+  (target/(ident+'.json')).write_text(json.dumps(meta,ensure_ascii=True))
+  row=dict(id='architecture:'+ident,title=meta['name'],category='Architectural reconstructions',creator=meta['attribution'],license='CC BY 4.0; geographic data ODbL 1.0',source_url='https://github.com/codriver-io/codriver-3d-assets/blob/e9619339dd3d74d81cb87302e4692082e0c3dbff/public/models/buildings/'+ident+'.json',coordinates=meta['origin'],precision='Authorized architectural reconstruction, not a scan. Geographic origin and metre-scale exterior from source manifest; terrain altitude approximated.',asset='/assets/auto-reality-v1/'+ident+'.glb',datum='terrain',offsetM=0,keepOrigin=True,minZoom=12.2,reachM=400,architecture=True)
+  items.append(row)
+  print('AUTHORIZED_ARCHITECTURE_ADDED',ident,len(glb))
+ except Exception as e:print('AUTHORIZED_ARCHITECTURE_SKIPPED',ident,str(e))
+if any(x.get('architecture') for x in items):
+ try:
+  decoder=download('https://raw.githubusercontent.com/mrdoob/three.js/r169/examples/jsm/libs/meshopt_decoder.module.js',1000000)
+  assert b'MeshoptDecoder' in decoder
+  (target/'meshopt_decoder.module.js').write_bytes(decoder)
+ except Exception as e:
+  print('MESHOPT_DECODER_UNAVAILABLE',str(e))
+  items=[x for x in items if not x.get('architecture')]
+
 native=[x for x in items if x.get('asset')]
 assert len(native)>=7, 'Native scan assets unexpectedly absent from baseline'
 assert len(items)>=sum(1 for x in data['items'] if validxy(x.get('coordinates'))) and len({x['id'] for x in items})==len(items)
 print('UNLOCATED_CATALOG_ITEMS',[(x['title'],x.get('coordinates')) for x in data['items'] if not validxy(x.get('coordinates'))])
 out=site/'data/bp-auto-reality-v1.json';out.parent.mkdir(parents=True,exist_ok=True)
-out.write_text(json.dumps({'schemaVersion':1,'items':items,'nativeCount':len(native),'catalogCount':len(items),'viewerOnlyCount':len(items)-len(native),'unplacedAssets':skipped},separators=(',',':'),ensure_ascii=True))
+out.write_text(json.dumps({'schemaVersion':1,'items':items,'nativeCount':len(native),'catalogCount':len(items),'viewerOnlyCount':len(items)-len(native),'unplacedAssets':skipped,'unlocatedCount':sum(1 for x in data['items'] if not validxy(x.get('coordinates'))),'architectureCount':sum(1 for x in native if x.get('architecture'))},separators=(',',':'),ensure_ascii=True))
 print('AUTO_REALITY_CATALOG',len(items),'NATIVE',len(native),'VIEWER_ONLY',len(items)-len(native))
 print('AUTO_REALITY_NATIVE',[(x['title'],x['asset']) for x in native])
 print('AUTO_REALITY_UNPLACED',skipped)
