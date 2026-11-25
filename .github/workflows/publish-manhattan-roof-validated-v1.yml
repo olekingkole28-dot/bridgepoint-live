@@ -1,0 +1,118 @@
+name: Publish BridgePoint validated Manhattan rooftop artifact V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-manhattan-roof-validated-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recover exact tested artifact without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45689582720/jobs --jq '[.jobs[].steps[] | select(.name=="Build bounded Manhattan-only roof detail" and .conclusion=="success")] | length')" -ge 1
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/artifacts/15058900823 --jq '.workflow_run.id')" = 45689582720
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE" "$RUNNER_TEMP/validated" "$RUNNER_TEMP/baseline"
+          for spec in '45689582720 validated' '45682065002 baseline'; do
+            read -r run folder <<< "$spec"
+            ok=0
+            for i in 1 2 3; do
+              rm -f "$RUNNER_TEMP/$folder/artifact.tar"
+              if timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/$folder" && test -s "$RUNNER_TEMP/$folder/artifact.tar"; then ok=1; break; fi
+              sleep 5
+            done
+            test "$ok" = 1
+          done
+          tar -xf "$RUNNER_TEMP/validated/artifact.tar" -C "$SITE"
+          mkdir -p "$RUNNER_TEMP/baseline-site"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/baseline-site"
+          # Do not overwrite a newer production release.
+          for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js; do
+            curl --retry 4 --retry-all-errors --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?validated=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            if ! cmp -s "$RUNNER_TEMP/baseline-site/$p" "$RUNNER_TEMP/current" && ! cmp -s "$SITE/$p" "$RUNNER_TEMP/current"; then echo "LIVE_BASELINE_CHANGED $p"; exit 1; fi
+          done
+          python3 - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          p=Path(os.environ['SITE'])
+          baseline=Path(os.environ['RUNNER_TEMP'])/'baseline-site'
+          allowed={'world-v2300-map.js','app/world-v2300-map.js','index.html','app/index.html','landing.js','app.js','vendor/bp-public-globe-v4.mjs','vendor/bp-manhattan-roof-detail-v1.mjs','data/bp-manhattan-roof-detail-v1.json'}
+          def snap(root):
+              return {f.relative_to(root).as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file() and f.relative_to(root).as_posix() not in allowed}
+          assert snap(p)==snap(baseline),'Unrelated candidate changes'
+          d=json.loads((p/'data/bp-manhattan-roof-detail-v1.json').read_text())
+          assert d['count']==15317 and len(d['cells'])==617
+          for file in ('world-v2300-map.js','app/world-v2300-map.js'):
+              s=(p/file).read_text()
+              assert 'bpCreateManhattanRoofDetail' in s and 'const CAP=MOBILE?20:60' in s
+          print('EXACT_VALIDATED_ROOFTOP_ARTIFACT_REUSED',d['count'])
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry transient authorization and deployment-creation errors, without altering the tested artifact.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'OIDC token request failed with HTTP (5[0-9][0-9]|429)|POST .*pages/deployments returned HTTP 5[0-9][0-9]|HTTP request exceeded [0-9]+ ms: .*actions' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify Manhattan detail and preserved live bytes
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-manhattan-roof-detail-v1.mjs data/bp-manhattan-roof-detail-v1.json bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json bridgepoint-bottom-card-mobile-v2.js; do
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then ok=1; break; fi
+              sleep 5
+            done
+            test "$ok" = 1 || { echo "LIVE_MISMATCH $p"; exit 1; }
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
