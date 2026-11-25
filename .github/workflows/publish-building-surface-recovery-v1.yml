@@ -1,0 +1,262 @@
+name: Publish BridgePoint building surface recovery V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-building-surface-recovery-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful water projection and imagery V4
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45656973041 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45656973041 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore native building detail and enhance scan materials
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          scan='bridgepoint-auto-reality-v1.js';world='world-v2300-map.js'
+          allowed={scan,world,'app/'+world,'index.html','app/index.html','landing.js','app.js'}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          def one(s,a,b):
+              assert s.count(a)==1,('BUILDING_ANCHOR',a[:160],s.count(a))
+              return s.replace(a,b,1)
+          p=site/scan;s=p.read_text()
+          anchor='async function load(state,row)'
+          s=one(s,anchor,'''function cityArchitecturalMaterial(T,m,uniforms){
+           const out=new T.MeshBasicMaterial({map:m.map||null,color:m.color||0xffffff,side:T.FrontSide,vertexColors:m.vertexColors,transparent:m.transparent,opacity:m.opacity,alphaTest:m.alphaTest});
+           out.onBeforeCompile=shader=>{
+            Object.assign(shader.uniforms,uniforms);
+            shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 bpArchitecturalPosition;').replace('#include <project_vertex>','#include <project_vertex>\nbpArchitecturalPosition=(modelMatrix*vec4(transformed,1.0)).xyz;');
+            shader.fragmentShader=shader.fragmentShader.replace('#include <common>',String.raw`#include <common>
+          varying vec3 bpArchitecturalPosition;
+          uniform vec3 bpCitySun;
+          uniform vec3 bpCityView;
+          uniform float bpCityDetail;
+          uniform float bpCityDay;
+          float bpRect(vec2 p,vec2 halfSize,vec2 aa){
+           vec2 e=abs(p)-halfSize;
+           return (1.0-smoothstep(-aa.x,aa.x,e.x))*(1.0-smoothstep(-aa.y,aa.y,e.y));
+          }`).replace('#include <color_fragment>',String.raw`#include <color_fragment>
+           vec3 p=bpArchitecturalPosition;
+           vec3 n=normalize(cross(dFdx(p),dFdy(p)));
+           if(!gl_FrontFacing)n=-n;
+           float wall=1.0-smoothstep(0.20,0.60,abs(n.y));
+           float roof=smoothstep(0.70,0.96,n.y)*smoothstep(7.0,13.0,p.y);
+           vec3 baked=diffuseColor.rgb;
+           float axis=abs(n.x)>abs(n.z)?p.z:p.x;
+           vec2 uv=vec2(axis/2.55,p.y/3.25);
+           vec2 aa=clamp(fwidth(uv),vec2(0.009),vec2(0.25));
+           vec2 cell=fract(uv)-0.5;
+           float stable=1.0-smoothstep(0.19,0.48,max(aa.x,aa.y));
+           float facade=bpRect(cell,vec2(0.36,0.33),aa)*wall*stable;
+           float mullion=bpRect(cell,vec2(0.022,0.30),aa)*facade;
+           float tone=max(max(baked.r,baked.g),baked.b);
+           float chroma=tone-min(min(baked.r,baked.g),baked.b);
+           float glassEvidence=smoothstep(0.015,0.12,baked.b-baked.r+0.045)*(1.0-smoothstep(0.28,0.55,chroma));
+           float windowWeight=facade*bpCityDetail*mix(0.17,0.62,glassEvidence);
+           vec3 halfDir=normalize(bpCitySun+bpCityView+vec3(0.0001));
+           float spec=pow(max(dot(n,halfDir),0.0),32.0)*max(dot(n,bpCitySun),0.0)*bpCityDay;
+           float fresnel=pow(1.0-clamp(dot(n,bpCityView),0.0,1.0),3.0);
+           vec3 glass=mix(baked*0.66,vec3(0.17,0.29,0.42),0.40+0.24*fresnel);
+           glass+=vec3(1.0,0.86,0.60)*spec*0.78+vec3(0.14,0.24,0.36)*fresnel*bpCityDay;
+           diffuseColor.rgb=mix(baked,glass,windowWeight);
+           diffuseColor.rgb=mix(diffuseColor.rgb,baked*0.78,mullion*bpCityDetail*0.25);
+           // Ground-level doorway accents only; never repeat doors on upper floors.
+           vec2 doorUV=vec2(fract(axis/10.2)-0.5,(p.y-1.45)/3.1);
+           float door=bpRect(doorUV,vec2(0.072,0.43),vec2(0.015,0.03))*wall*stable*bpCityDetail;
+           door*=smoothstep(0.0,0.4,p.y)*(1.0-smoothstep(3.0,3.6,p.y));
+           diffuseColor.rgb=mix(diffuseColor.rgb,baked*0.55+vec3(0.027,0.045,0.055),door*0.55);
+           // Subtle material grain, roof seams and equipment-like relief shading.
+           // The original scan remains authoritative for physical rooftop shapes.
+           vec2 roofUV=p.xz/4.2;
+           vec2 roofAA=clamp(fwidth(roofUV),vec2(0.012),vec2(0.25));
+           vec2 roofCell=fract(roofUV)-0.5;
+           float roofMask=bpRect(roofCell,vec2(0.27,0.23),roofAA);
+           float roofEdge=roofMask-bpRect(roofCell,vec2(0.20,0.16),roofAA);
+           float rooftop=roof*bpCityDetail*(1.0-smoothstep(0.20,0.48,max(roofAA.x,roofAA.y)));
+           diffuseColor.rgb*=1.0+rooftop*(roofMask*0.055-roofEdge*0.15);
+           diffuseColor.rgb+=vec3(0.045,0.056,0.067)*rooftop*roofEdge*bpCityDay;
+           diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,1.0);`);
+           };
+           out.customProgramCacheKey=()=> 'bp-city-architecture-surface-v1';
+           return out;
+          }
+          function updateCityArchitecturalUniforms(map,u){
+           if(!u)return;
+           const l=window.__BP_WORLD_LIGHT__||{},rad=Math.PI/180,az=(Number.isFinite(Number(l.sunAzimuth))?Number(l.sunAzimuth):135)*rad,el=(Number.isFinite(Number(l.sunAltitude))?Number(l.sunAltitude):35)*rad;
+           const bearing=map.getBearing()*rad,pitch=map.getPitch()*rad;
+           u.bpCitySun.value.set(Math.sin(az)*Math.cos(el),Math.sin(el),-Math.cos(az)*Math.cos(el));
+           u.bpCityView.value.set(-Math.sin(bearing)*Math.sin(pitch),Math.cos(pitch),Math.cos(bearing)*Math.sin(pitch));
+           u.bpCityDetail.value=Math.max(0,Math.min(1,(map.getZoom()-15.2)/2.2));
+           u.bpCityDay.value=Math.max(0,Math.min(1,(el/rad+4)/12));
+          }
+          '''+anchor)
+          old="if(row.cityScan){const materials=new Map();root.traverse(o=>{if(!o.isMesh||!o.material)return;const convert=m=>{if(!m.map)return m;if(!materials.has(m))materials.set(m,new T.MeshBasicMaterial({map:m.map,color:m.color||0xffffff,side:T.FrontSide,vertexColors:m.vertexColors,transparent:m.transparent,opacity:m.opacity,alphaTest:m.alphaTest}));return materials.get(m)};o.material=Array.isArray(o.material)?o.material.map(convert):convert(o.material)});for(const m of materials.keys())m.dispose();}"
+          new="""if(row.cityScan){
+            state.cityArchitecturalUniforms||={bpCitySun:{value:new T.Vector3(.5,.7,-.5)},bpCityView:{value:new T.Vector3(0,1,0)},bpCityDetail:{value:0},bpCityDay:{value:1}};
+            const materials=new Map();
+            root.traverse(o=>{if(!o.isMesh||!o.material)return;
+              const convert=m=>{if(!materials.has(m)){if(m.map)m.map.anisotropy=Math.min(8,state.renderer.capabilities.getMaxAnisotropy());materials.set(m,cityArchitecturalMaterial(T,m,state.cityArchitecturalUniforms))}return materials.get(m)};
+              o.material=Array.isArray(o.material)?o.material.map(convert):convert(o.material);
+            });
+            for(const m of materials.keys())m.dispose();
+            api.cityMaterialDetail={originalTexturePreserved:true,viewDependentSunGlare:true,proceduralFacadeAccents:true,physicalRoofGeometryUnchanged:true};
+           }"""
+          s=one(s,old,new)
+          s=one(s,'state.renderer.resetState();state.renderer.render(entry.scene,state.camera);','if(row.cityScan)updateCityArchitecturalUniforms(map,state.cityArchitecturalUniforms);state.renderer.resetState();state.renderer.render(entry.scene,state.camera);')
+          # Keep exact scan transform and replacement mask. Avoid broad layer changes.
+          assert 'function syncCityReplacement(state)' in s and 'cityCovered' in s
+          p.write_text(s)
+          for rel in (world,'app/'+world):
+              p=site/rel;s=p.read_text()
+              # On mobile the adaptive tier must not postpone facade detail indefinitely.
+              # No extra buildings or geometry are requested: reuse the existing shell
+              # texture atlas and preserve the layer switches and data caps.
+              a=s.index('function activeWorldLodProfile(){');b=s.index('window.__BP_WORLD_FIX_V5542__=',a)
+              block=s[a:b]
+              block=one(block,'return next;',"""next.facadeMin=Math.min(next.facadeMin,16.6);
+                      next.roofMin=Math.min(next.roofMin,16.1);
+                      next.partsMin=Math.min(next.partsMin,17.0);
+                      return next;""")
+              s=s[:a]+block+s[b:]
+              # Restore the context source outside the high-resolution tile coverage.
+              # A single rendered building must not suppress the whole context viewport.
+              # Keep an original fallback only in a source gap, never on top of the NYC scan.
+              anchor="const bpReady=PUBLIC_TECH_FAST&&bpRendered;"
+              s=one(s,anchor,"""const bpReady=PUBLIC_TECH_FAST&&bpRendered;
+            let bpPartial=false;
+            if(bpReady&&z>=12&&z<19){
+              try{const source=map.getSource('bpBuildings');bpPartial=!!source&&!map.isSourceLoaded('bpBuildings')}catch(_){}
+            }""")
+              s=one(s,"vis(map,'gta-context-buildings',z>=11.2&&!cityReady&&!bpReady);","vis(map,'gta-context-buildings',z>=11.2&&!cityReady&&(!bpReady||bpPartial));")
+              # Make the existing native facade pattern more detailed while maintaining
+              # the same texture count. Avoid repeating the flat gray mode.
+              s,n=re.subn(r"(function facadePatternImage\([^)]*\)\s*\{[\s\S]{0,260}?\bsolid\s*=\s*)true\b",r"\g<1>false",s,count=1)
+              print('FACADE_SOLID_MODE',rel,n)
+              # Always favor the existing detailed material layer at close settled zoom.
+              # Existing source-specific facade, roof and building-parts logic is retained.
+              s=one(s,"const autoDetailOn=detailSettled&&lod.fineDetail&&z>=lod.facadeMin,detailModeOn=realismOn||autoDetailOn;","const autoDetailOn=detailSettled&&z>=lod.facadeMin,detailModeOn=realismOn||autoDetailOn;")
+              s=one(s,"const closeRealism=detailModeOn&&detailSettled&&z>=lod.facadeMin;","const closeRealism=detailModeOn&&detailSettled&&z>=lod.facadeMin;")
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'('+re.escape(world)+r'\?[^"\'\s]+)',lambda m:m[1]+'&buildingmaterials=20261125v1',s)
+              assert n>=1,(rel,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text()
+              for key in (entry,scan):
+                  s,n=re.subn(r'('+re.escape(key)+r'\?[^"\'\s]+)',lambda m:m[1]+'&buildingmaterials=20261125v1',s)
+                  assert n>=1,(rel,key,n)
+              p.write_text(s)
+          assert before==snapshot(),'UNRELATED RELEASE FILE CHANGED'
+          print('BUILDING_SURFACE_SCOPE_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-auto-reality-v1.js"
+          for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+          const s=fs.readFileSync(process.env.SITE+'/bridgepoint-auto-reality-v1.js','utf8');
+          const start=s.indexOf('function cityArchitecturalMaterial('),end=s.indexOf('async function load(',start);
+          assert(start>=0&&end>start);
+          class Vec{set(...v){this.v=v;return this;}}
+          class Material{constructor(opts){Object.assign(this,opts)}}
+          const sandbox={window:{__BP_WORLD_LIGHT__:{sunAzimuth:90,sunAltitude:40}}};
+          vm.createContext(sandbox);vm.runInContext(s.slice(start,end),sandbox);
+          const u={bpCitySun:{value:new Vec()},bpCityView:{value:new Vec()},bpCityDetail:{value:0},bpCityDay:{value:0}};
+          let b=0;
+          const map={getZoom:()=>18,getBearing:()=>b,getPitch:()=>65};
+          sandbox.updateCityArchitecturalUniforms(map,u);
+          const prior=u.bpCityView.value.v.slice();b=90;sandbox.updateCityArchitecturalUniforms(map,u);
+          assert.notDeepEqual(prior,u.bpCityView.value.v);
+          assert.equal(u.bpCityDetail.value,1);assert.equal(u.bpCityDay.value,1);
+          const texture={};const m=sandbox.cityArchitecturalMaterial({MeshBasicMaterial:Material,FrontSide:0},{map:texture},u);
+          assert.equal(m.map,texture);
+          const shader={uniforms:{},vertexShader:'#include <common>\n#include <project_vertex>',fragmentShader:'#include <common>\n#include <color_fragment>'};m.onBeforeCompile(shader);
+          assert(shader.vertexShader.includes('modelMatrix*vec4(transformed,1.0)')&&shader.fragmentShader.includes('dot(n,halfDir)')&&shader.fragmentShader.includes('doorUV'));
+          console.log('SCAN_ORIGINAL_TEXTURE_AND_VIEW_DEPENDENT_MATERIAL_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
