@@ -1,0 +1,301 @@
+name: Publish BridgePoint native building streaming and mapped roofs V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-native-building-streaming-roofs-v2.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful legacy building recovery V1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45667360116 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45667360116 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Fix bounded native source handoff and mapped roof equipment
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 -m pip install --quiet shapely
+          python3 - <<'PY'
+          import os,re,json,hashlib,math,urllib.request,urllib.parse,datetime
+          from pathlib import Path
+          from shapely.geometry import shape,mapping
+          site=Path(os.environ['SITE']);world='world-v2300-map.js'
+          roof='data/bp-nyc-rooftop-cooling-v2.geojson';ref='data/manhattan-photo-reference-v2.json'
+          allowed={world,'app/'+world,'index.html','app/index.html','landing.js','app.js',roof,ref}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          def one(s,a,b):
+              assert s.count(a)==1,('NATIVE_STREAMING_ANCHOR',a[:120],s.count(a))
+              return s.replace(a,b,1)
+          def get(url,params={}):
+              req=urllib.request.Request(url+('?' + urllib.parse.urlencode(params) if params else ''),headers={'User-Agent':'BridgePoint public GIS building materials/2.0 (https://bridgepointintelligence.online)'})
+              with urllib.request.urlopen(req,timeout=85) as r:return json.load(r)
+          # Actual mapped cooling-tower polygons, joined to NYC building footprints.
+          # Never create equipment based only on a street-address point or put a
+          # fictional tower on a building with no recorded footprint.
+          domain='https://data.cityofnewyork.us'
+          def fields(id):
+              return {c['fieldName']:c for c in get(domain+'/api/views/'+id+'.json')['columns']}
+          coolid='x748-37q7';bldgid='5zhs-2jue'
+          def findfield(cols,patterns):
+              for p in patterns:
+                  for k,c in cols.items():
+                      if re.fullmatch(p,k,re.I):return k
+              raise ValueError(('missing data column',patterns,list(cols)))
+          def geomfield(cols):
+              return next(k for k,c in cols.items() if c.get('dataTypeName') in ('multipolygon','polygon','point'))
+          cf=fields(coolid);bf=fields(bldgid);cg=geomfield(cf);bg=geomfield(bf)
+          cb=findfield(cf,['bin','building_identification_number']);bb=findfield(bf,['bin','building_identification_number']);bh=findfield(bf,['height_roof','roof_height'])
+          region='POLYGON((-74.032 40.687,-73.895 40.687,-73.895 40.883,-74.032 40.883,-74.032 40.687))'
+          def fetchgeo(id,params):
+              d=get(domain+'/resource/'+id+'.geojson',params)
+              assert d.get('type')=='FeatureCollection',str(d)[:200]
+              return d['features']
+          cool=fetchgeo(coolid,{'$where':"intersects("+cg+", '"+region+"')",'$limit':20000})
+          assert 50<len(cool)<20000,('COOLING_SOURCE_COUNT',len(cool))
+          def binstr(v):
+              try:return str(int(float(v)))
+              except:return ''
+          bins=sorted({binstr(c['properties'].get(cb)) for c in cool if binstr(c['properties'].get(cb)).startswith('1')})
+          assert len(bins)>30
+          builds={}
+          for i in range(0,len(bins),150):
+              batch=bins[i:i+150]
+              quoted=','.join(("'"+v+"'") if bf[bb].get('dataTypeName')=='text' else v for v in batch)
+              for b in fetchgeo(bldgid,{'$where':bb+' in ('+quoted+')','$limit':10000}):
+                  props=b['properties'];bid=binstr(props.get(bb))
+                  try:
+                      g=shape(b['geometry']);h=float(props[bh])*.3048
+                      if g.is_valid and g.geom_type in ('Polygon','MultiPolygon') and 3<=h<=650:builds.setdefault(bid,[]).append((g,h))
+                  except (TypeError,ValueError,KeyError):continue
+          features=[]
+          for f in cool:
+              bid=binstr(f['properties'].get(cb))
+              if bid not in builds or not f.get('geometry'):continue
+              g=shape(f['geometry'])
+              if not g.is_valid or g.geom_type not in ('Polygon','MultiPolygon') or g.is_empty:continue
+              for b,h in sorted(builds[bid],key=lambda x:-x[1]):
+                  if not b.covers(g.representative_point()):continue
+                  clip=g.intersection(b)
+                  if clip.geom_type not in ('Polygon','MultiPolygon') or clip.is_empty or clip.area<g.area*.7:continue
+                  # Source supplies a real outline and roof height, not equipment
+                  # height or make/model. Render a modest explicitly estimated height.
+                  features.append({'type':'Feature','geometry':mapping(clip.simplify(.0000005,preserve_topology=True)),'properties':{'bin':bid,'roof_m':round(h,2),'top_m':round(h+2,2),'equipment_height_m':2,'height_estimated':True,'source':'NYC Planimetric Cooling Towers x748-37q7 / Building Footprints 5zhs-2jue'}})
+                  break
+          assert len(features)>=30,('JOINED_ROOF_FOOTPRINTS',len(features))
+          (site/roof).write_text(json.dumps({'type':'FeatureCollection','features':features},separators=(',',':')))
+          print('NYC_MAPPED_ROOF_EQUIPMENT_READY',len(features),len(bins),(site/roof).stat().st_size)
+          assert (site/roof).stat().st_size<8_000_000
+          # Actual freely licensed photo reference metadata. These are references,
+          # not photographs pasted on unidentified or incorrectly aligned walls.
+          photo_titles=[
+           ('One World Trade Center','One World Trade Center Facade.jpg'),
+           ('One World Trade Center','One World Trade Center, Financial District, Manhattan, New York.jpg'),
+           ('New York Stock Exchange','Wall St May 2025 43.jpg'),
+           ('New York Stock Exchange','NYSE facade.jpg'),
+           ('Chrysler Building','Exterior of the Chrysler Building-Manhattan-New York.jpg'),
+           ('Manhattan Municipal Building','Manhattan Municipal Building facade looking up.jpg'),
+           ('Bergdorf Goodman','5 Av Apr 2024 145.jpg')]
+          photos=[]
+          for name,title in photo_titles:
+              try:
+                  p=get('https://commons.wikimedia.org/w/api.php',{'action':'query','format':'json','titles':'File:'+title,'prop':'imageinfo','iiprop':'url|size|extmetadata'})['query']['pages']
+                  img=next(iter(p.values()))['imageinfo'][0];m=img.get('extmetadata',{});lic=m.get('LicenseShortName',{}).get('value','')
+                  if not (lic.startswith('CC BY') or lic.startswith('CC0') or lic=='Public domain'):continue
+                  photos.append({'building':name,'page':img['descriptionurl'],'original':img['url'],'width':img['width'],'height':img['height'],'license':lic,'artist':m.get('Artist',{}).get('value','')})
+              except Exception as e:print('PHOTO_REFERENCE_UNAVAILABLE',name,str(e)[:140])
+          (site/ref).write_text(json.dumps({'status':'licensed photo reference catalog; facade projection not performed','photos':photos,'roofSource':domain+'/d/'+coolid},indent=2))
+          print('PHOTO_REFERENCES_VERIFIED',len(photos))
+          for rel in (world,'app/'+world):
+              p=site/rel;s=p.read_text()
+              assert 'bpDeviceQuality.bind(map)' in s and 'overlayMeshes:false' in s
+              # Avoid unbounded full-viewport/source-feature enumeration every source burst.
+              a=s.index(' function bridgePointBuildingCoverageReady(){');b=s.index(' function cityStructuresReady(){',a)
+              s=s[:a]+""" function bridgePointBuildingCoverageReady(){
+            if(map.getZoom()<11.4||moving||map.isMoving?.())return false;
+            const now=performance.now(),c=map.getCenter(),z=map.getZoom(),sig=[c.lng.toFixed(4),c.lat.toFixed(4),z.toFixed(2)].join('|');
+            const prior=map.__bpPublicBuildingReadyCheck;
+            if(prior&&prior.sig===sig&&now-prior.at<1800)return prior.ready;
+            let ready=false,covered=0,expected=0,sourceLoaded=false;
+            try{
+              sourceLoaded=!!map.isSourceLoaded?.('bpBuildings');
+              if(sourceLoaded&&map.getLayer('gta-bp-buildings')){
+                const canvas=map.getCanvas(),w=canvas.clientWidth||map.getContainer().clientWidth,h=canvas.clientHeight||map.getContainer().clientHeight;
+                if(w>20&&h>20){
+                  for(const [x,y] of [[.25,.35],[.75,.35],[.50,.56],[.25,.77],[.75,.77]]){
+                    const px=w*x,py=h*y,box=[[px-12,py-12],[px+12,py+12]];
+                    const hits=map.queryRenderedFeatures(box,{layers:['gta-context-buildings','gta-bp-buildings']})||[];
+                    const bp=hits.some(f=>f.layer?.id==='gta-bp-buildings'),ctx=hits.some(f=>f.layer?.id==='gta-context-buildings');
+                    if(ctx||bp)expected++;if(bp)covered++;
+                  }
+                  // Do not replace an entire fallback viewport on evidence of one feature.
+                  // Rural/empty/partially loaded viewports keep the global native source.
+                  ready=covered>=2&&covered===expected;
+                }
+              }
+            }catch(_){}
+            map.__bpPublicBuildingReadyCheck={at:now,sig,ready,sourceLoaded,covered,expected};
+            window.__BP_FAST_BUILDING_SOURCE_V1120__={ready,sourceLoaded,covered,expected,rule:'bounded settled viewport samples',zoom:z,updatedAt:Date.now()};
+            return ready
+           }
+          """+s[b:]
+              s=one(s,"let bpRendered=false;\n  if(PUBLIC_TECH_FAST&&z>=11.4){\n   try{bpRendered=(map.queryRenderedFeatures?.({layers:['gta-bp-buildings']})||[]).length>0}catch(_){}\n  }\n  const bpReady=PUBLIC_TECH_FAST&&bpRendered;","const bpRendered=bpSourceReady;\n  const bpReady=PUBLIC_TECH_FAST&&bpSourceReady;")
+              # Keep BP source requesting tiles but never draw a second coincident shell
+              # while the coverage check is waiting. Base fallback stays native.
+              anchor="vis(map,'gta-context-buildings',z>=11.2&&!cityReady&&!bpReady);"
+              s=one(s,anchor,anchor+"""
+            if(map.__bpNativeSourceOpacity!==bpReady){map.__bpNativeSourceOpacity=bpReady;paint(map,'gta-bp-buildings','fill-extrusion-opacity',bpReady?1:0);}
+          """)
+              # Avoid style changes while dragging. Do not delay base shell selection
+              # for the additional detail-settle window.
+              s,n=re.subn(r'if\(!force&&\(moving\|\|map\.isMoving\?\.\(\)\|\|performance\.now\(\)<Math\.max\(buildingShellQuietUntil,lastMotionEndAt\+\(MOBILE\?1800:0\)\)\)\)',"if(!force&&(moving||map.isMoving?.()))",s,count=1)
+              assert n==1,('BASE_SHELL_QUIET_GUARD',rel)
+              # Retain the prior source across the gesture; on completion, invalidate
+              # expensive query once, allowing the fallback to recover before detail.
+              s=one(s,'lastMotionEndAt=performance.now();','lastMotionEndAt=performance.now();map.__bpPublicBuildingReadyCheck=null;')
+              s=one(s,'cancelPendingTileRequestsWhileZooming:false','cancelPendingTileRequestsWhileZooming:true')
+              # The old source-burst handler reset roof base to zero, drawing an
+              # overlapping full building extrusion. Keep the real roof-only geometry.
+              a=s.index(' function refreshGlobalLodPaint(){');b=s.index(' function worldClientPressureBlocked()',a)
+              s=s[:a]+""" function refreshGlobalLodPaint(){
+            if(worldMapSurfaceInactive()||moving||map.isMoving?.())return false;
+            const roofVisible=(map.getLayoutProperty('gta-context-roofs','visibility')||'visible')!=='none';
+            const floorVisible=(map.getLayoutProperty('gta-context-floor-lines','visibility')||'visible')!=='none';
+            window.__BP_GLOBAL_LOD_SOURCE_REFRESH__={roofVisible,floorVisible,zoom:map.getZoom(),updatedAt:Date.now(),roofBasePreserved:true,sourceBurstNoStyleRewrite:true};
+            return roofVisible||floorVisible
+           }
+          """+s[b:]
+              # Only change a building paint property when it really differs. Avoid
+              # unnecessary style reparses and tile bucket churn.
+              s=one(s,"const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}catch(_){}};","const paint=(map,id,k,v)=>{try{if(map.getLayer(id)){if(/^gta-(context-|bp-|exact-|city-).*(building|roof|facade|floor-lines|night-windows)/.test(id)&&JSON.stringify(map.getPaintProperty(id,k)??null)===JSON.stringify(v??null))return;map.setPaintProperty(id,k,v)}}catch(_){}};")
+              # Do not paint facades on inactive source layers; preserve texture
+              # material while moving, and avoid shadow/floor duplicates at close zoom.
+              s=one(s,"const textureKey=String(textureOn)+':'+String(map.getStyle()?.layers?.length||0);","const textureKey=String(textureOn)+':'+realismSource+':'+String(map.getStyle()?.layers?.length||0);")
+              s=one(s,"if(pattern)paint(map,body,'fill-extrusion-pattern',textureOn?pattern:null);","if(pattern){const active=(body==='gta-bp-buildings'&&realismSource==='bp')||(body==='gta-context-buildings'&&realismSource==='context')||(body==='gta-exact-building'&&realismSource==='exact');paint(map,body,'fill-extrusion-pattern',textureOn&&active?pattern:null);}")
+              # Mapped roof equipment is one native vector-extrusion layer, lazily
+              # loaded only when the camera is stationary at a genuinely close zoom.
+              anchor="  window.__BP_LEGACY_BUILDING_MATERIAL_V1__={textureOn,roofTextureOn,originalGeometry:true,overlayMeshes:false,adaptiveTier:lod.tier};"
+              s=one(s,anchor,anchor+"""
+            const cp=map.getCenter(),q=window.__BP_DEVICE_QUALITY_V1__?.profile;
+            const roofEquipmentOn=detailSettled&&z>=(q&&q.level<=3?18.2:17.2)&&cp.lng>=-74.04&&cp.lng<=-73.89&&cp.lat>=40.68&&cp.lat<=40.89;
+            const eqId='gta-nyc-mapped-roof-equipment-v2';
+            if(roofEquipmentOn&&!map.getSource('bpNycMappedRoofEquipmentV2')){
+              try{
+                map.addSource('bpNycMappedRoofEquipmentV2',{type:'geojson',data:'/data/bp-nyc-rooftop-cooling-v2.geojson?v=20261125v2',maxzoom:18,buffer:16,tolerance:.2,attribution:'NYC Open Data: Cooling Towers / Building Footprints; equipment height estimated'});
+                map.addLayer({id:eqId,type:'fill-extrusion',source:'bpNycMappedRoofEquipmentV2',minzoom:17.2,paint:{'fill-extrusion-base':['get','roof_m'],'fill-extrusion-height':['get','top_m'],'fill-extrusion-color':'#8c979c','fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}},map.getLayer('gta-water-label')?'gta-water-label':undefined);
+              }catch(e){console.warn('NYC mapped rooftop equipment',e)}
+            }
+            vis(map,eqId,roofEquipmentOn);
+            window.__BP_NYC_ROOF_EQUIPMENT_V2__={visible:roofEquipmentOn,source:'NYC mapped footprint polygons joined by BIN',equipmentHeightEstimated:true};
+          """)
+              # Equipment follows the existing building visibility control.
+              s=one(s,"function syncBuildingShells(force=false){\n  if(!layerState.buildings){","function syncBuildingShells(force=false){\n  if(!layerState.buildings){\n   vis(map,'gta-nyc-mapped-roof-equipment-v2',false);")
+              p.write_text(s)
+          for rel in ('landing.js','app.js'):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'(world-v2300-map\.js\?[^"\'\s]+)',lambda m:m[1]+'&nativebuildingstream=20261125v2',s);assert n>=1;p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text();assert 'bridgepoint-auto-reality-v1.js' not in s
+              s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&nativebuildingstream=20261125v2',s);assert n>=1;p.write_text(s)
+          assert before==snap(),'UNRELATED RELEASE FILE CHANGED'
+          print('NATIVE_STREAMING_ROOFS_SCOPE_PASS',len(before))
+          PY
+          for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';import vm from 'node:vm';
+          for(const rel of ['world-v2300-map.js','app/world-v2300-map.js']){
+           const s=fs.readFileSync(process.env.SITE+'/'+rel,'utf8');
+           const a=s.indexOf(' function bridgePointBuildingCoverageReady(){'),b=s.indexOf(' function cityStructuresReady(){',a);
+           let loaded=true,t=1000,mode=0,calls=0;
+           const map={getZoom:()=>17,getCenter:()=>({lng:-74,lat:40.7}),isMoving:()=>false,isSourceLoaded:()=>loaded,getLayer:()=>true,getCanvas:()=>({clientWidth:400,clientHeight:800}),queryRenderedFeatures:()=>{calls++;return mode===0?[{layer:{id:'gta-context-buildings'}}]:[{layer:{id:'gta-context-buildings'}},{layer:{id:'gta-bp-buildings'}}]}};
+           const g={map,window:{},moving:false,performance:{now:()=>t},Date};
+           vm.createContext(g);vm.runInContext(s.slice(a,b),g);
+           assert.equal(g.bridgePointBuildingCoverageReady(),false);assert.equal(calls,5);
+           assert.equal(g.bridgePointBuildingCoverageReady(),false);assert.equal(calls,5);
+           mode=1;t+=1900;assert.equal(g.bridgePointBuildingCoverageReady(),true);
+           loaded=false;t+=1900;assert.equal(g.bridgePointBuildingCoverageReady(),false);
+           g.moving=true;assert.equal(g.bridgePointBuildingCoverageReady(),false);
+           assert(s.includes('sourceBurstNoStyleRewrite:true')&&s.includes('equipmentHeightEstimated:true')&&s.includes('overlayMeshes:false'));
+          }
+          const data=JSON.parse(fs.readFileSync(process.env.SITE+'/data/bp-nyc-rooftop-cooling-v2.geojson'));
+          assert(data.features.length>=30&&data.features.every(f=>f.properties.top_m>f.properties.roof_m&&f.properties.height_estimated===true));
+          console.log('BOUNDED_SOURCE_HANDOFF_AND_MAPPED_ROOF_PASS',data.features.length);
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
