@@ -46,6 +46,7 @@ jobs:
           export SITE="$RUNNER_TEMP/horizon-site"
           export PACK="$SITE/assets/manhattan-rooftop-v3"
           mkdir -p "$PACK" "$RUNNER_TEMP/roof-sources" "$RUNNER_TEMP/roof-tools"
+          for p in vendor/GLTFLoader.bundle.js vendor/KTX2Loader.bundle.js vendor/basis/basis_transcoder.js vendor/basis/basis_transcoder.wasm; do test -s "$SITE/$p"; done
           python3 -m pip install --quiet Pillow
           npm install --prefix "$RUNNER_TEMP/roof-tools" --no-audit --no-fund @gltf-transform/cli@4
           python3 - <<'PY'
@@ -70,9 +71,10 @@ jobs:
               src=tmp/(name+'.glb');dst=pack/(name+'.glb')
               fetch(url,src)
               assert src.read_bytes()[:4]==b'glTF'
-              subprocess.run([str(cli),'optimize',str(src),str(dst),'--compress','false','--texture-compress','webp','--texture-size','512','--simplify','false'],check=True,timeout=120)
+              subprocess.run([str(cli),'optimize',str(src),str(dst),'--compress','false','--texture-compress','webp','--texture-size','512','--simplify','false','--instance','false'],check=True,timeout=120)
               b=dst.read_bytes();j=json.loads(b[20:20+struct.unpack_from('<I',b,12)[0]])
-              assert not set(j.get('extensionsRequired',[]))&{'KHR_draco_mesh_compression','EXT_meshopt_compression','KHR_texture_basisu'},(name,j.get('extensionsRequired'))
+              assert not set(j.get('extensionsRequired',[]))&{'KHR_draco_mesh_compression','EXT_meshopt_compression'},(name,j.get('extensionsRequired'))
+              print('ROOF_MODEL_FORMAT',name,j.get('extensionsRequired',[]),flush=True)
               assert len(b)<4_000_000
               return {'id':name,'source':url,'license':'CC0-1.0','bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'type':'authored reusable equipment mesh, not an individual surveyed rooftop scan'}
           models={'tank':'https://tevy.dev/models/roof-water-tower/v2/lod1.glb','hvac':'https://tevy.dev/models/rooftop-air-handler/v1/lod0.glb','condenser':'https://tevy.dev/models/rooftop-condenser-pair/v1/lod0.glb','vent':'https://tevy.dev/models/rooftop-vent-stacks/v1/lod0.glb','exhaust':'https://tevy.dev/models/rooftop-exhaust-fan/v1/lod0.glb','hatch':'https://tevy.dev/models/rooftop-access-hatch/v1/lod0.glb'}
@@ -97,7 +99,7 @@ jobs:
           atlas=Image.new('RGB',(1536,512),'#a2a2a2')
           for i,name in enumerate(['brick_wall_09','precast_concrete_wall','metal_plate_02']):
               api=tmp/(name+'.json');fetch('https://api.polyhaven.com/files/'+name,api)
-              spec=json.loads(api.read_text())['diff']['1k']['jpg'];path=tmp/(name+'.jpg');fetch(spec['url'],path)
+              material=json.loads(api.read_text());diff=next(v for k,v in material.items() if k.lower() in ('diff','diffuse','albedo','basecolor'));spec=diff['1k']['jpg'];path=tmp/(name+'.jpg');fetch(spec['url'],path)
               atlas.paste(Image.open(path).convert('RGB').resize((512,512),Image.Resampling.LANCZOS),(i*512,0))
               records.append({'id':name,'source':'https://polyhaven.com/a/'+name,'license':'CC0-1.0','type':'photo-derived material, not building-specific facade'})
           atlas.save(pack/'wall-atlas.jpg',quality=88,optimize=True)
@@ -129,20 +131,20 @@ jobs:
           const assetRoot='/assets/manhattan-rooftop-v3/';
           function prefetch(){
            data().catch(()=>{});three().catch(()=>{});
-           if(!modelPromise)modelPromise=Promise.all([three(),import('/vendor/GLTFLoader.bundle.js'),fetch(assetRoot+'manifest.json').then(r=>r.json())]).then(async([T,L,manifest])=>{
-            const loader=new L.GLTFLoader(),result={};const names=manifest.assets.filter(a=>['tank','hvac','condenser','scan'].includes(a.id)).map(a=>a.id);
+           if(!modelPromise)modelPromise=Promise.all([three(),import('/vendor/GLTFLoader.bundle.js'),import('/vendor/KTX2Loader.bundle.js'),fetch(assetRoot+'manifest.json').then(r=>r.json())]).then(async([T,L,K,manifest])=>{
+            const ktx=new K.KTX2Loader().setTranscoderPath('/vendor/basis/').setWorkerLimit(1).detectSupport({extensions:{has:()=>false}});const loader=new L.GLTFLoader().setKTX2Loader(ktx),result={};const names=manifest.assets.filter(a=>['tank','hvac','condenser','scan'].includes(a.id)).map(a=>a.id);
             for(const name of names){try{
              const gltf=await loader.loadAsync(assetRoot+name+'.glb');gltf.scene.updateMatrixWorld(true);
              const box=new T.Box3().setFromObject(gltf.scene),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3());if(!size.x||!size.y||!size.z)continue;
              const parts=[];gltf.scene.traverse(o=>{if(!o.isMesh||Array.isArray(o.material))return;const g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);g.translate(-center.x,-box.min.y,-center.z);g.scale(1/Math.max(size.x,size.z),1/size.y,1/Math.max(size.x,size.z));const mat=o.material.clone();mat.side=T.DoubleSide;parts.push({g,mat})});
              if(parts.length)result[name]=parts;
             }catch(e){console.warn('Manhattan roof mesh unavailable',name,e)}}
-            return result;
+            ktx.dispose();return result;
            }).catch(e=>{console.warn('Manhattan model pack',e);modelPromise=null;return {}});
            return modelPromise;
           }''')
           s=one(s,"let s=states.get(map);","let s=states.get(map);if(enabled)prefetch();")
-          s=one(s,"diagnostics.status='installing-layer';s.layer=makeLayer(map,T,d);","diagnostics.status='installing-layer';s.layer=makeLayer(map,T,d);prefetch()?.then(models=>{if(s.enabled&&s.layer&&Object.keys(models).length){s.layer.installModels(models);queue(map,s)}});")
+          s=one(s,"diagnostics.status='installing-layer';s.layer=makeLayer(map,T,d);","diagnostics.status='installing-layer';s.layer=makeLayer(map,T,d);prefetch()?.then(models=>{if(s.enabled&&s.layer&&Object.keys(models).length){s.layer.installModels(models);setTimeout(()=>queue(map,s),100)}});")
           s=one(s,"},180);","},50);")
           s=one(s,"let scene,camera,renderer,anchor,batches={},rotors=[],repaintTimer=0,active=false,removed=false,origin,lastFrame=-1,touching=false,lastRender=0,frameGap=100,gestureEnd=0,facadeMesh,facadeMat,facadeCount=0;","let scene,camera,renderer,anchor,batches={},rotors=[],repaintTimer=0,active=false,removed=false,origin,lastFrame=-1,touching=false,lastRender=0,frameGap=100,gestureEnd=0,facadeMesh,facadeMat,facadeCount=0,modelBatches={},importedCount=0;")
           marker="           function nativeBuildings(){"
