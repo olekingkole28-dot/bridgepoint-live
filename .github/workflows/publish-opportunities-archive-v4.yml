@@ -1,0 +1,151 @@
+name: Publish BridgePoint Opportunities Archive Recovery V4 Only
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-opportunities-archive-v4.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful Listings release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45561907164 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45561907164 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore archived opportunities without altering Listings
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 - <<'PY'
+          import os,hashlib,json,base64,gzip,struct,collections
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          module='bridgepoint-property-markers-v1.js'
+          snap='data/bp-opportunity-marker-snapshot-v1.json'
+          allowed={module,snap,'index.html','app/index.html'}
+          def hashes():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=hashes()
+          listing_file=site/'data/bp-hud-listings-marker-snapshot-v1.json'
+          listing_before=listing_file.read_bytes()
+          assert len(json.loads(listing_before)['features'])==2616
+          raw=gzip.decompress(base64.b64decode(Path('rebuild-v5000/data/opportunity-public-teaser-archive-v4.b64').read_text()))
+          assert hashlib.sha256(raw).hexdigest()=='95ae65f92898d77a97ee9fe7c838f140b97d597f0a12b76d3abf9faa7bc07576'
+          kinds=[('ROOF','Roofing','roofing','property_damage'),('INVESTMENT','Investment / acquisition','property_investment','acquisition'),('CONSTRUCTION','General contracting / construction','general_contracting','construction'),('RESTORATION','Restoration','restoration','property_damage'),('CLAIMS','Public adjusting / claims','public_adjusting','claims'),('DEVELOPMENT','Development / permits','development','redevelopment')]
+          rows=[]
+          for i,(x,y,k,s,p) in enumerate(struct.iter_unpack('<iiBBB',raw)):
+              lon,lat=x/1e5,y/1e5
+              assert -74<=lon<=-71 and 40<=lat<=43 and s>0 and p>0 and 0<=k<len(kinds)
+              icon,label,vertical,family=kinds[k]
+              rows.append({'type':'Feature','id':'bp-archive-20260923-'+str(i),'geometry':{'type':'Point','coordinates':[lon,lat]},'properties':{'icon_key':icon,'specific_opportunity':label+' opportunity','label':label,'vertical_key':vertical,'opportunity_family':family,'source_count':s,'matched_pattern_count':p,'freshness':'ARCHIVED · 2026-09-23 SNAPSHOT','archived_snapshot':True,'source_key':'BridgePoint verified public teaser archive · 2026-09-23','public_teaser':True}})
+          assert len(rows)==668
+          print('VERIFIED_ARCHIVED_OPPORTUNITY_COUNT',len(rows),dict(collections.Counter(f['properties']['icon_key'] for f in rows)))
+          p=site/snap
+          p.parent.mkdir(parents=True,exist_ok=True)
+          p.write_text(json.dumps({'type':'FeatureCollection','snapshot_date':'2026-09-23','live':False,'coverage':'Connecticut archived verified records only','features':rows},separators=(',',':')))
+          p=site/module
+          old=p.read_text()
+          line,sep,code=old.partition('\n')
+          seedprefix='window.__BP_PROPERTY_MARKER_SEED_V3__='
+          assert line.startswith(seedprefix) and line.endswith(';')
+          seed=json.loads(line[len(seedprefix):-1])
+          old_listings=seed['listings']
+          assert len(old_listings)==2616
+          assert not seed['opportunities']
+          seed['opportunities']=rows
+          # Only change opportunity-specific UI labels. Do not alter Listings code.
+          replacements=[
+            ("add(a,'Evidence',p.freshness||p.latest_evidence_at);","add(a,'Evidence',p.freshness||p.latest_evidence_at);if(p.archived_snapshot)add(a,'Archive','Previously verified September 23, 2026. Current status is unknown.');"),
+            ("p.global_risk_review||p.record_kind==='RISK_REVIEW'?'Exposure screening, not proof of damage.':'Source-backed opportunity; verify evidence before acting.'","p.archived_snapshot?'Archived opportunity preview; not a current lead or proof of damage.':p.global_risk_review||p.record_kind==='RISK_REVIEW'?'Exposure screening, not proof of damage.':'Source-backed opportunity; verify evidence before acting.'"),
+            ("s.status=s.rows.size?'Retained verified source snapshot; refresh unavailable':String(err.message||err);","s.status=s.rows.size?'Retained verified source snapshot; refresh unavailable':String(err.message||err);if(k==='opportunities'&&s.rows.size){const archived=[...s.rows.values()].filter(f=>f.properties.archived_snapshot).length;notice(archived+' archived opportunity markers available · live source unavailable');return}")
+          ]
+          for a,b in replacements:
+              assert code.count(a)==1, a
+              code=code.replace(a,b,1)
+          assert seed['listings']==old_listings
+          p.write_text(seedprefix+json.dumps(seed,separators=(',',':'),ensure_ascii=True)+';\n'+code)
+          for rel in ('index.html','app/index.html'):
+              p=site/rel
+              old=p.read_bytes()
+              a=b'/bridgepoint-property-markers-v1.js?v=20261125v3-source-recovery'
+              b=b'/bridgepoint-property-markers-v1.js?v=20261125v4-opportunity-archive'
+              assert old.count(a)==1
+              new=old.replace(a,b,1)
+              assert new.replace(b,a,1)==old
+              p.write_bytes(new)
+          assert listing_file.read_bytes()==listing_before
+          assert hashes()==before, 'Unrelated production files changed'
+          print('OPPORTUNITIES_ONLY_PRESERVATION_PASS',len(before),'including byte-identical listing snapshot')
+          PY
+          node --check "$SITE/bridgepoint-property-markers-v1.js"
+          node --input-type=module <<'JS'
+          import vm from 'node:vm';import assert from 'node:assert/strict';import fs from 'node:fs';
+          const window={addEventListener(){}};
+          vm.runInNewContext(fs.readFileSync(process.env.SITE+'/bridgepoint-property-markers-v1.js','utf8'),{window,setInterval:()=>0});
+          const api=window.__BP_PROPERTY_MARKERS_V1__;
+          assert.equal(api.states.listings.rows.size,2616);
+          assert.equal(api.states.opportunities.rows.size,668);
+          assert.equal(api.states.opportunities.on,false);
+          const categories=new Set([...api.states.opportunities.rows.values()].map(f=>f.properties.bp_marker_type));
+          assert.equal(categories.size,6);
+          assert.ok([...api.states.opportunities.rows.values()].every(f=>f.properties.archived_snapshot));
+          console.log('BOTH_LAYERS_READY_BEFORE_TAP_PASS',api.states.listings.rows.size,api.states.opportunities.rows.size,[...categories]);
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish Opportunities-only archive recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify deployed opportunity and preserved listing files online
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in index.html app/index.html bridgepoint-property-markers-v1.js data/bp-hud-listings-marker-snapshot-v1.json data/bp-opportunity-marker-snapshot-v1.json bridgepoint-top-packages-v1.js bridgepoint-temperature-v1.js bridgepoint-rain-3d-v1.js bridgepoint-bottom-card-categories-v1.js world-v2300-map.js world-v2300-water.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?opportunity=$GITHUB_SHA" -o "$RUNNER_TEMP/opportunity-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/opportunity-live"
+          done
+          echo OPPORTUNITIES_ARCHIVE_V4_LIVE_BYTES_PASS
