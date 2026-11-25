@@ -1,0 +1,54 @@
+name: Verify published unified terrain and rooftop recovery
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-topobathy-live-v1.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Retrieve the exact deployed artifact (no deployment)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release"
+          gh run download 45677028223 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/release"
+          test -s "$RUNNER_TEMP/release/artifact.tar"
+      - name: Verify public response bytes against the deployed artifact
+        run: |
+          set -euo pipefail
+          export RELEASE="$RUNNER_TEMP/release"
+          mkdir -p "$RELEASE/site"
+          tar -xf "$RELEASE/artifact.tar" -C "$RELEASE/site"
+          cd "$RELEASE/site"
+          for p in index.html app/index.html landing.js app.js bridgepoint-device-quality-v1.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json data/bp-nyc-rooftop-cooling-v2.geojson bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json; do
+            ok=0
+            for attempt in 1 2 3 4 5 6; do
+              if curl --retry 2 --retry-all-errors --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?verify=$GITHUB_RUN_ID-$attempt" -o "$RELEASE/live" && cmp -s "$p" "$RELEASE/live"; then
+                echo "LIVE_BYTES_MATCH $p"
+                ok=1
+                break
+              fi
+              sleep 5
+            done
+            if [ "$ok" -ne 1 ]; then echo "::error::Live content mismatch: $p"; exit 1; fi
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          roof=json.loads(Path('data/bp-nyc-rooftop-cooling-v2.geojson').read_text())
+          assert roof['bp_import']['status']=='ready' and len(roof['features'])==15321
+          manifest=json.loads(Path('data/bp-nyc-terrain-v1/manifest.json').read_text())
+          assert manifest['noaa']=='ready' and manifest['count']==403
+          for name in ('world-v2300-map.js','app/world-v2300-map.js'):
+              s=Path(name).read_text()
+              assert 'const roofEquipmentOn=false&&' not in s and 'unifiedTerrainURL(DEM)' in s
+          print('LIVE_ARTIFACT_VERIFICATION_PASS',len(roof['features']),manifest['count'])
+          PY
+          echo "Verified release 45677028223; no redeploy performed."
