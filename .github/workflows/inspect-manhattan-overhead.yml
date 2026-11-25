@@ -1,0 +1,52 @@
+name: Inspect Manhattan scan overhead
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/inspect-manhattan-overhead.yml']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Restore original verified GLB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 45576774527 --repo "$GITHUB_REPOSITORY" --name exact-manhattan-source --dir "$RUNNER_TEMP/manhattan"
+      - name: Inspect source geometry
+        run: |
+          python3 -m pip install --quiet numpy pillow scipy
+          python3 - <<'PY'
+          import os,struct,json,base64,io
+          import numpy as np
+          from PIL import Image
+          from scipy.ndimage import maximum_filter, binary_fill_holes
+          from pathlib import Path
+          raw=(Path(os.environ['RUNNER_TEMP'])/'manhattan/manhattan.glb').read_bytes()
+          jl=struct.unpack_from('<I',raw,12)[0];doc=json.loads(raw[20:20+jl]);b=memoryview(raw)[28+jl:]
+          pts=[]
+          for mesh in doc['meshes']:
+            for p in mesh['primitives']:
+              a=doc['accessors'][p['attributes']['POSITION']];v=doc['bufferViews'][a['bufferView']]
+              q=np.ndarray((a['count'],3),dtype='<f4',buffer=b,offset=v.get('byteOffset',0)+a.get('byteOffset',0),strides=(v.get('byteStride',12),4))
+              pts.append(q[:,[0,2,1]].copy()*[1,1,-1])
+          pts=np.concatenate(pts)
+          x,y,z=pts.T;step=.04;ix=np.floor((x-x.min())/step).astype(int);iz=np.floor((z-z.min())/step).astype(int)
+          h=np.full((iz.max()+1,ix.max()+1),-3.);np.maximum.at(h,(iz,ix),y);h=maximum_filter(h,size=3)
+          print('SOURCE_RASTER_BOUNDS',x.min(),z.min(),step,h.shape,y.min(),y.max())
+          peaks=np.argwhere((h==maximum_filter(h,size=17))&(h>-.15))
+          peaklist=sorted([(float(h[i,j]),float(x.min()+j*step),float(z.min()+i*step)) for i,j in peaks],reverse=True)
+          unique=[]
+          for q in peaklist:
+            if all((q[1]-p[1])**2+(q[2]-p[2])**2>.18 for p in unique):unique.append(q)
+          print('SOURCE_PEAKS',unique[:30])
+          # Compact ASCII height raster with x increasing right, z increasing downward.
+          for i in range(0,h.shape[0],4):
+            line=''
+            for j in range(0,h.shape[1],4):
+              v=h[i:i+4,j:j+4].max()
+              line+=' ' if v<-2 else '.' if v<-1.05 else ':' if v<-.8 else '+' if v<-.5 else 'o' if v<-.15 else 'O' if v<.2 else '#'
+            print('SOURCE_GRID',line)
+          PY
