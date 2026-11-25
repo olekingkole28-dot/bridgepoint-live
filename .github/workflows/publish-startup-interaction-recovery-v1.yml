@@ -1,0 +1,204 @@
+name: Publish BridgePoint startup interaction recovery V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-startup-interaction-recovery-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact deployed terrain and rooftop artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45677028223/jobs --jq '[.jobs[].steps[] | select(.name=="Publish only the validated recovery" and .conclusion=="success")] | length')" -ge 1
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45677028223 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore fast opening globe without removing terrain or roofs
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 - <<'PY'
+          import os,re,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          allowed={'vendor/bp-unified-topobathy-v1.mjs','vendor/bp-ocean-relief-v4.mjs','world-v2300-map.js','app/world-v2300-map.js','world-v2300-water.js','app/world-v2300-water.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs'}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          def one(s,a,b):
+              assert s.count(a)==1,(a[:120],s.count(a))
+              return s.replace(a,b,1)
+          p=site/'vendor/bp-unified-topobathy-v1.mjs'
+          s=p.read_text()
+          # Keep the signed elevation protocol, but do not send opening-globe terrain
+          # through TIFF reads and two-worker queues. The original direct terrain source
+          # serves low zoom. Only settled close views use the expensive fusion worker.
+          s=one(s,"let worker=null,seq=0,installed=false;const requests=new Map();","let worker=null,seq=0,installed=false;const requests=new Map();\nconst FAST_ZOOM=10,MAX_INFLIGHT=4;\nlet lastGesture=performance.now(),firstInteractiveAt=0;\nexport function noteTerrainGesture(){lastGesture=performance.now()}\nexport function markTerrainInteractive(){if(!firstInteractiveAt)firstInteractiveAt=performance.now()}\nexport function canEnhanceTerrain(){return !!firstInteractiveAt&&performance.now()-firstInteractiveAt>1400&&performance.now()-lastGesture>900;}\nasync function baseTile(z,x,y,signal){const r=await fetch(AWS+z+'/'+x+'/'+y+'.png',{signal});if(!r.ok)throw Error('Base elevation HTTP '+r.status);return {data:await r.arrayBuffer(),cacheControl:'public,max-age=3600'}}")
+          s=one(s,"try{const data=await unifiedTile(z,x,y,relief,signal);","if(!relief&&(z<FAST_ZOOM||!canEnhanceTerrain()||requests.size>=MAX_INFLIGHT)){status().fallbackTiles++;return baseTile(z,x,y,signal);}\n  if(relief&&requests.size>=MAX_INFLIGHT)throw Error('Relief deferred under tile pressure');\n  try{const data=await unifiedTile(z,x,y,relief,signal);")
+          # A failed enhanced tile must release its request instead of holding the
+          # visible globe for nearly ten seconds. Keep fallback, not an empty surface.
+          s=one(s,"},9500);","},2400);")
+          s=one(s,"status().fallbackTiles++;const r=await fetch(AWS+z+'/'+x+'/'+y+'.png',{signal});if(!r.ok)throw Error('Fallback elevation HTTP '+r.status);return {data:await r.arrayBuffer(),cacheControl:'public,max-age=3600'}","status().fallbackTiles++;return baseTile(z,x,y,signal)")
+          # Refresh only once after a settled close view, using the existing DEM source.
+          # No global source refresh or animation-loop retries.
+          s+=r"""
+          export function bindTerrainStartup(map){
+           if(map.__bpTerrainStartupBound)return;
+           map.__bpTerrainStartupBound=true;
+           let timer=0,lastKey='',disposed=false;
+           const settle=()=>{
+            clearTimeout(timer);
+            if(disposed||map.getZoom()<10)return;
+            timer=setTimeout(()=>{
+             if(disposed||map.isMoving?.()||!canEnhanceTerrain())return;
+             const center=map.getCenter(),z=map.getZoom(),key=[Math.floor(center.lng*100),Math.floor(center.lat*100),Math.floor(z)].join(':');
+             if(key===lastKey)return;
+             const source=map.getSource('dem');
+             if(typeof source?.setTiles!=='function')return;
+             // Same tile protocol, versioned to prevent reusing the initial fallback.
+             lastKey=key;
+             source.setTiles(['bp-topobathy://dem/{z}/{x}/{y}.png']);
+            },1800);
+           };
+           map.once('render',()=>{markTerrainInteractive();settle()});
+           map.on('movestart',()=>{noteTerrainGesture();clearTimeout(timer)});
+           map.on('move',noteTerrainGesture);
+           map.on('moveend',()=>{noteTerrainGesture();settle()});
+           map.once('remove',()=>{disposed=true;clearTimeout(timer)});
+          }
+          """
+          # Do not force tile invalidation on every pan; the native source already
+          # requests new visible tiles. Avoid reloading the entire cache.
+          s=s[:s.index('export function bindTerrainStartup')]+r"""
+          export function bindTerrainStartup(map){
+           if(map.__bpTerrainStartupBound)return;
+           map.__bpTerrainStartupBound=true;
+           map.once('render',markTerrainInteractive);
+           map.on('movestart',noteTerrainGesture);
+           map.on('move',noteTerrainGesture);
+           map.on('moveend',noteTerrainGesture);
+          }
+          """
+          # Only use the time/gesture gate for global zoom, never cache a low-quality
+          # close view simply because the user is moving. At close zoom direct native
+          # fallback remains bounded to provider pressure and request deadline.
+          s=s.replace("z<FAST_ZOOM||!canEnhanceTerrain()||requests.size>=MAX_INFLIGHT","z<FAST_ZOOM||requests.size>=MAX_INFLIGHT")
+          p.write_text(s)
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+              p=site/rel;s=p.read_text()
+              s=one(s,"import {unifiedTerrainURL,TERRAIN_ATTRIBUTION} from '/vendor/bp-unified-topobathy-v1.mjs';","import {unifiedTerrainURL,TERRAIN_ATTRIBUTION,bindTerrainStartup} from '/vendor/bp-unified-topobathy-v1.mjs?v=startup1';")
+              s=one(s,"const bpDeviceQuality=window.__BP_DEVICE_QUALITY_V1__;","bindTerrainStartup(map);\n const bpDeviceQuality=window.__BP_DEVICE_QUALITY_V1__;")
+              # Do not repeatedly rebuild global map materials if a style event fires
+              # while startup is already attempting to finalize.
+              s=one(s,"const tryFinalizeWorldCore=()=>{if(!worldCoreReady&&hasWorldBaseStyle())finalizeWorldCore()};","let bpCoreFinalizeQueued=false;\n const tryFinalizeWorldCore=()=>{if(worldCoreReady||worldCoreFinalizing||bpCoreFinalizeQueued)return;bpCoreFinalizeQueued=true;setTimeout(()=>{bpCoreFinalizeQueued=false;if(!worldCoreReady&&hasWorldBaseStyle())finalizeWorldCore()},0)};")
+              s=one(s,"const worldCoreRecovery=setInterval(()=>{if(finalizeWorldCore())clearInterval(worldCoreRecovery)},250);","const worldCoreRecovery=setInterval(()=>{if(worldCoreReady)clearInterval(worldCoreRecovery);else tryFinalizeWorldCore()},900);")
+              p.write_text(s)
+          p=site/'vendor/bp-ocean-relief-v4.mjs';s=p.read_text()
+          s=one(s,"import {installUnifiedTerrain,TERRAIN_ATTRIBUTION} from '/vendor/bp-unified-topobathy-v1.mjs';","import {installUnifiedTerrain,TERRAIN_ATTRIBUTION,canEnhanceTerrain} from '/vendor/bp-unified-topobathy-v1.mjs?v=startup1';")
+          # The relief raster is additional close-view work, not a prerequisite for
+          # a visible globe. Existing surface water remains on at every zoom.
+          s=one(s,"if(!map?.getSource('dem')||!map.getLayer('gta-coast-shadow'))return false;","if(!map?.getSource('dem')||!map.getLayer('gta-coast-shadow'))return false;\n const diving=Number(window.__BP_WATER_SUBMERGENCE_V2__||0)>.02;\n if(!diving&&map.getZoom()<8){if(map.getLayer(DEPTH_LAYER)&&map.getLayoutProperty(DEPTH_LAYER,'visibility')!=='none')map.setLayoutProperty(DEPTH_LAYER,'visibility','none');return false;}\n if(!diving&&!map.getLayer(DEPTH_LAYER)&&(!canEnhanceTerrain()||map.isMoving?.()))return false;")
+          s=one(s,"// Keep relief beneath water but above all imagery, including after style reorders.","if(map.getLayoutProperty(DEPTH_LAYER,'visibility')==='none')map.setLayoutProperty(DEPTH_LAYER,'visibility','visible');\n// Keep relief beneath water but above all imagery, including after style reorders.")
+          p.write_text(s)
+          for rel in ('world-v2300-water.js','app/world-v2300-water.js'):
+              p=site/rel;s=p.read_text();s=one(s,"bp-ocean-relief-v4.mjs?v=unifiedtopobathy1","bp-ocean-relief-v4.mjs?v=startup1");p.write_text(s)
+          for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(world-v2300-(?:map|water)\.js\?[^"\'\s]+)',lambda m:m[1]+'&startuprecovery=20261125v1',s)
+              if rel!='vendor/bp-public-globe-v4.mjs':assert n>=2,(rel,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&startuprecovery=20261125v1',s);assert n>=1;p.write_text(s)
+          assert before==snapshot(),'UNRELATED FILE CHANGED'
+          print('STARTUP_RECOVERY_SCOPE_PASS',len(before))
+          PY
+          for p in vendor/bp-unified-topobathy-v1.mjs vendor/bp-ocean-relief-v4.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+          let source=fs.readFileSync(process.env.SITE+'/vendor/bp-unified-topobathy-v1.mjs','utf8').replace(/export /g,'');
+          let callback,workerCalls=0,fetches=0;
+          const env={window:{maplibregl:{addProtocol:(name,cb)=>callback=cb},Worker:true,OffscreenCanvas:true},Worker:class{constructor(){workerCalls++}},fetch:async()=>{fetches++;return {ok:true,arrayBuffer:async()=>new ArrayBuffer(8)}},performance:{now:()=>100},Map,ArrayBuffer,Error};
+          vm.createContext(env);vm.runInContext(source+';installUnifiedTerrain();',env);
+          for(let i=0;i<12;i++)await callback({url:'bp-topobathy://dem/3/'+(i%8)+'/2.png'},{signal:undefined});
+          assert.equal(workerCalls,0);assert.equal(fetches,12);
+          console.log('GLOBAL_TERRAIN_NO_WORKER_STARTUP_PASS',fetches);
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json; do
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then ok=1; break; fi
+              sleep 5
+            done
+            test "$ok" = 1 || { echo "LIVE_MISMATCH $p"; exit 1; }
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
