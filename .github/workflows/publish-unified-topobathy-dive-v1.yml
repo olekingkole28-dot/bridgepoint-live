@@ -47,15 +47,124 @@ jobs:
             curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
             cmp "$SITE/$p" "$RUNNER_TEMP/current"
           done
-          python3 -m pip install --quiet numpy rasterio pillow
+          python3 -m pip install --quiet numpy rasterio pillow shapely
           python3 - <<'PY'
           import os,re,hashlib
           from pathlib import Path
           site=Path(os.environ['SITE']);world='world-v2300-map.js';sensor='world-v2300-sensor-layers.js';water='world-v2300-water.js';relief='vendor/bp-ocean-relief-v4.mjs'
-          allowed={world,'app/'+world,sensor,'app/'+sensor,water,'app/'+water,relief,'vendor/bp-unified-topobathy-v1.mjs','vendor/bp-unified-topobathy-worker-v1.js','index.html','app/index.html','landing.js','app.js','vendor/bp-public-globe-v4.mjs'}
+          allowed={world,'app/'+world,sensor,'app/'+sensor,water,'app/'+water,relief,'vendor/bp-unified-topobathy-v1.mjs','vendor/bp-unified-topobathy-worker-v1.js','index.html','app/index.html','landing.js','app.js','vendor/bp-public-globe-v4.mjs','data/bp-nyc-rooftop-cooling-v2.geojson'}
           def snap():
               return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed and not p.relative_to(site).as_posix().startswith('data/bp-nyc-terrain-v1/')}
           before=snap()
+          import json,urllib.request,urllib.parse
+          from shapely.geometry import shape,mapping
+          roof='data/bp-nyc-rooftop-cooling-v2.geojson'
+          def get(url,params={}):
+              req=urllib.request.Request(url+('?' + urllib.parse.urlencode(params) if params else ''),headers={'User-Agent':'BridgePoint public GIS building materials/2.0 (https://bridgepointintelligence.online)'})
+              import time, urllib.error
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req,timeout=40) as r:return json.load(r)
+                  except (urllib.error.URLError,TimeoutError):
+                      if attempt==4:raise
+                      time.sleep(2**attempt+1)
+          # Actual mapped cooling-tower polygons, joined to NYC building footprints.
+          # Never create equipment based only on a street-address point or put a
+          # fictional tower on a building with no recorded footprint.
+          domain='https://data.cityofnewyork.us'
+          def fields(id):
+              return {c['fieldName']:c for c in get(domain+'/api/views/'+id+'.json')['columns']}
+          coolid='x748-37q7';bldgid='5zhs-2jue'
+          def findfield(cols,patterns):
+              for p in patterns:
+                  for k,c in cols.items():
+                      if re.fullmatch(p,k,re.I):return k
+              raise ValueError(('missing data column',patterns,list(cols)))
+          def geomfield(cols):
+              return next(k for k,c in cols.items() if c.get('dataTypeName') in ('multipolygon','polygon','point'))
+          def fetchgeo(id,params):
+              d=get(domain+'/resource/'+id+'.geojson',params)
+              assert d.get('type')=='FeatureCollection',str(d)[:200]
+              return d['features']
+          features=[];bins=[];roofStatus='unavailable';roofError=None;cool=[];failed_batches=[]
+          def compact_coords(x):
+              if isinstance(x,(tuple,list)):return [compact_coords(y) for y in x]
+              return round(float(x),6)
+          def compact_geometry(g):
+              m=mapping(g);return {'type':m['type'],'coordinates':compact_coords(m['coordinates'])}
+          def binstr(v):
+              try:return str(int(float(v)))
+              except:return ''
+          try:
+              cf=fields(coolid);bf=fields(bldgid);cg=geomfield(cf)
+              cb=findfield(cf,['bin','building_identification_number']);bb=findfield(bf,['bin','building_identification_number']);bh=findfield(bf,['height_roof','roof_height'])
+              # Filter Manhattan at the provider, then page with stable row ordering.
+              # A full page means more records, not a failed import.
+              binWhere=cb+" between 1000000 and 1999999" if cf[cb].get('dataTypeName')!='text' else cb+" like '1%'"
+              pageSize=5000;seen=set()
+              for offset in range(0,100000,pageSize):
+                  page=fetchgeo(coolid,{'$where':binWhere,'$order':':id','$limit':pageSize,'$offset':offset})
+                  if not page:break
+                  for c in page:
+                      if not c.get('geometry'):continue
+                      bid=binstr(c.get('properties',{}).get(cb))
+                      if len(bid)!=7 or not bid.startswith('1'):continue
+                      key=hashlib.sha256(json.dumps([bid,c['geometry']],sort_keys=True).encode()).hexdigest()
+                      if key not in seen:seen.add(key);cool.append(c)
+                  if len(page)<pageSize:break
+              else:raise ValueError('Manhattan source pagination exceeded safety bound')
+              bins=sorted({binstr(c['properties'].get(cb)) for c in cool})
+              assert len(cool)>=30 and len(bins)>=10,('MANHATTAN_COOLING_SOURCE_COUNT',len(cool),len(bins))
+              print('PAGINATED_MANHATTAN_COOLING_SOURCE',len(cool),len(bins),flush=True)
+              from concurrent.futures import ThreadPoolExecutor
+              def building_batch(batch):
+                  quoted=','.join(("'"+v+"'") if bf[bb].get('dataTypeName')=='text' else v for v in batch)
+                  rows=[];offset=0
+                  while True:
+                      try:page=fetchgeo(bldgid,{'$where':bb+' in ('+quoted+')','$order':':id','$limit':5000,'$offset':offset})
+                      except Exception as exc:
+                          failed_batches.append({'firstBIN':batch[0],'size':len(batch),'error':str(exc)[:150]})
+                          return rows
+                      rows.extend(page)
+                      if len(page)<5000:return rows
+                      offset+=5000
+                      if offset>=20000:raise ValueError('Building batch exceeded safety bound')
+              builds={}
+              with ThreadPoolExecutor(max_workers=2) as pool:
+                  for rows in pool.map(building_batch,[bins[i:i+75] for i in range(0,len(bins),75)]):
+                      for b in rows:
+                          props=b['properties'];bid=binstr(props.get(bb))
+                          try:
+                              g=shape(b['geometry']);h=float(props[bh])*.3048
+                              if g.is_valid and g.geom_type in ('Polygon','MultiPolygon') and 3<=h<=650:builds.setdefault(bid,[]).append((g,h))
+                          except (TypeError,ValueError,KeyError):continue
+              for f in cool:
+                  bid=binstr(f['properties'].get(cb))
+                  if bid not in builds:continue
+                  try:
+                      g=shape(f['geometry'])
+                      if not g.is_valid or g.geom_type not in ('Polygon','MultiPolygon') or g.is_empty:continue
+                      for b,h in sorted(builds[bid],key=lambda x:-x[1]):
+                          if not b.covers(g.representative_point()):continue
+                          clip=g.intersection(b)
+                          if clip.geom_type not in ('Polygon','MultiPolygon') or clip.is_empty or clip.area<g.area*.7:continue
+                          features.append({'type':'Feature','geometry':compact_geometry(clip.simplify(.0000005,preserve_topology=True)),'properties':{'bin':bid,'roof_m':round(h,2),'top_m':round(h+2,2),'equipment_height_m':2,'height_estimated':True}})
+                          break
+                  except (TypeError,ValueError,KeyError):continue
+              assert len(features)>=30,('JOINED_ROOF_FOOTPRINTS',len(features))
+              roofStatus='ready'
+          except Exception as exc:
+              # Never make up equipment locations. Optional data cannot block the
+              # independent native building repair.
+              features=[];roofError=str(exc)[:300];print('NYC_ROOF_IMPORT_UNAVAILABLE',roofError,flush=True)
+          payload=json.dumps({'type':'FeatureCollection','features':features,'bp_import':{'status':roofStatus,'error':roofError,'matched':len(features),'inputRecords':len(cool),'buildingIds':len(bins),'failedBatches':failed_batches,'source':'NYC Open Data cooling tower footprints x748-37q7 and building footprints 5zhs-2jue','equipmentHeightEstimated':True}},separators=(',',':'))
+          if len(payload.encode())>=10_000_000:
+              features=[];roofStatus='unavailable';roofError='Joined payload exceeds mobile asset budget'
+              payload=json.dumps({'type':'FeatureCollection','features':[],'bp_import':{'status':roofStatus,'error':roofError,'matched':0}})
+          (site/roof).write_text(payload)
+          print('NYC_MAPPED_ROOF_IMPORT_RESULT',roofStatus,len(features),len(bins),flush=True)
+          assert roofStatus=='ready' and len(features)>=30,('NO_VALIDATED_ROOFTOP_DATA',roofError)
+          assert not failed_batches or len(features)>=1000,('INSUFFICIENT_PARTIAL_ROOF_COVERAGE',len(features),len(failed_batches))
           def one(s,a,b):
               assert s.count(a)==1,('TOPOBATHY_ANCHOR',a[:130],s.count(a))
               return s.replace(a,b,1)
@@ -69,6 +178,12 @@ jobs:
               s=one(s,'if(groundCameraBusy||!terrainOn||typeof map.queryTerrainElevation', 'if(isUnderwaterDiveActive()||groundCameraBusy||!terrainOn||typeof map.queryTerrainElevation')
               # Heavy idle geometry should not compete with a new gesture. Preserve
               # building, tree, water and sidewalk controls and their cached geometry.
+              # Enable the nonempty validated roof source and keep it visible while moving.
+              s=one(s,"const roofEquipmentOn=false&&detailSettled&&z>=(q&&q.level<=3?18.2:17.2)","const roofEquipmentOn=z>=(q&&q.level<=3?16.8:16.2)")
+              s=one(s,"if(roofEquipmentOn&&!map.getSource('bpNycMappedRoofEquipmentV2'))","if(roofEquipmentOn&&!map.isMoving?.()&&!map.getSource('bpNycMappedRoofEquipmentV2'))")
+              s=one(s,"/data/bp-nyc-rooftop-cooling-v2.geojson?v=20261125v2","/data/bp-nyc-rooftop-cooling-v2.geojson?v=20261125v3")
+              s=one(s,"source:'bpNycMappedRoofEquipmentV2',minzoom:17.2","source:'bpNycMappedRoofEquipmentV2',minzoom:16.2")
+              s=one(s,"source:'NYC mapped footprint polygons joined by BIN',equipmentHeightEstimated:true","source:'NYC mapped footprint polygons joined by BIN',equipmentHeightEstimated:true,matched:"+str(len(features)))
               s=one(s,'const refreshStartedAt=performance.now();','const refreshStartedAt=performance.now();\n    if(window.__BP_UNDERWATER_DIVE_TRANSITION__===true||map.isMoving?.())return false;')
               p.write_text(s)
           for rel in (sensor,'app/'+sensor):
@@ -87,7 +202,7 @@ jobs:
           """+s[b:]
               # Native signed terrain already exists; do not wait for every imagery
               # tile before allowing the camera to move beneath water.
-              s=one(s,"const clearance=Math.min(35,Math.max(2,Math.abs(bed)*.08)),targetAltitude=Math.min(-3,Math.max(-95,bed+clearance));","const clearance=Math.min(35,Math.max(1.0,Math.abs(bed)*.08)),targetAltitude=Math.min(-.8,Math.max(-95,bed+clearance));")
+              s=one(s,"const clearance=Math.min(120,Math.max(2,Math.abs(bed)*.08)),targetAltitude=Math.min(-3,bed+clearance);","const clearance=Math.min(120,Math.max(1.0,Math.abs(bed)*.08)),targetAltitude=Math.min(-.8,bed+clearance);")
               # Verify actual camera altitude, not merely a requested altitude or
               # zoom. Keep original rollback on an unsuccessful dive.
               marker="const actualCenter=map.getCenter?.(),actualPitch="
@@ -97,7 +212,7 @@ jobs:
               # The center can shift a little with a tilted camera. Use the original
               # verified bed point if the target center tile is still being loaded.
               s=one(s,"actualBed=map.queryTerrainElevation?.(actualCenter,{exaggerated:true});","actualBed=map.queryTerrainElevation?.(point,{exaggerated:true});")
-              s=s.replace("source:'GEBCO',bedMeters:bed,cameraAltitudeMeters:targetAltitude","source:'Unified signed terrain (GEBCO/Mapzen/regional survey where available)',bedMeters:bed,cameraAltitudeMeters:Number.isFinite(actualCameraAltitude)?actualCameraAltitude:targetAltitude")
+              s=s.replace("source:'Mapzen/ETOPO1',bedMeters:bed,cameraAltitudeMeters:targetAltitude","source:'Unified signed terrain (GEBCO/Mapzen/regional survey where available)',bedMeters:bed,cameraAltitudeMeters:Number.isFinite(actualCameraAltitude)?actualCameraAltitude:targetAltitude")
               # MapLibre versions expose different camera altitude methods; try
               # all supported variants without inventing a measured altitude.
               a=s.index(' function cameraAltitude(){');b=s.index('\n function ',a+2)
@@ -372,6 +487,11 @@ jobs:
            assert(map.includes('unifiedTerrainURL(DEM)')&&map.includes('bpNativeHeight()')&&map.includes('isUnderwaterDiveActive()||groundCameraBusy'));
            assert(sensor.includes("map.getTerrain?.()?.source==='dem'")&&sensor.includes('actualCameraAltitude'));
           }
+          const roof=JSON.parse(fs.readFileSync(root+'/data/bp-nyc-rooftop-cooling-v2.geojson'));
+          assert(roof.bp_import.status==='ready'&&roof.features.length>=30);
+          assert(roof.features.every(f=>f.properties.top_m>f.properties.roof_m&&f.properties.height_estimated===true));
+          for(const prefix of ['', 'app/']){const map=fs.readFileSync(root+'/'+prefix+'world-v2300-map.js','utf8');assert(map.includes('const roofEquipmentOn=z>=')&&!map.includes('const roofEquipmentOn=false&&'));}
+          console.log('NYC_ROOF_DATA_AND_ACTIVATION_PASS',roof.features.length,roof.bp_import.failedBatches?.length||0);
           const manifest=JSON.parse(fs.readFileSync(root+'/data/bp-nyc-terrain-v1/manifest.json'));
           assert(manifest.count===manifest.tiles.length&&manifest.tiles.every(x=>fs.existsSync(root+'/data/bp-nyc-terrain-v1/'+x+'.png')));
           const worker=fs.readFileSync(root+'/vendor/bp-unified-topobathy-worker-v1.js','utf8');
