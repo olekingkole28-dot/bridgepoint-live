@@ -28,7 +28,7 @@ lon0,lat0=-74.010,40.709;mx=111320*math.cos(math.radians(lat0));my=111132
 def get(url,params):
  with urllib.request.urlopen(urllib.request.Request(url+'?'+urllib.parse.urlencode(params),headers={'User-Agent':'BridgePoint/3.0'}),timeout=100) as r:return json.load(r)
 def metric(a,b):return ((a-lon0)*mx,(lat0-b)*my)
-bb=get('https://services2.arcgis.com/IsDCghZ73NgoYoz5/ArcGIS/rest/services/nybb/FeatureServer/0/query',{'where':'1=1','outFields':'*','returnGeometry':'true','outSR':4326,'f':'geojson'})
+bb=get('https://data.cityofnewyork.us/resource/63ge-mke6.geojson',{'$where':"boroname='Manhattan'",'$limit':500})
 assert bb.get('features')
 g=5.;n=1201;half=(n-1)/2
 land=Image.new('L',(n,n),0);draw=ImageDraw.Draw(land)
@@ -38,7 +38,7 @@ for f in bb['features']:
   for i,ring in enumerate(p):
    draw.polygon([(a/g+half,b/g+half) for a,b in (metric(*q[:2]) for q in ring)],fill=1 if i==0 else 0)
 land=np.asarray(land)>0
-inside=distance_transform_edt(land)*g;outside=distance_transform_edt(~land)*g;coast=inside+outside
+inside=distance_transform_edt(land)*g;outside=distance_transform_edt(~land)*g;coast=np.where(land,inside,outside)
 features=get('https://data.cityofnewyork.us/resource/5zhs-2jue.json',{'$select':'the_geom,height_roof,construction_year','$where':"intersects(the_geom, 'POLYGON((-74.025 40.695,-73.988 40.695,-73.988 40.729,-74.025 40.729,-74.025 40.695))')",'$limit':16000})
 assert isinstance(features,list) and len(features)>200
 roof=Image.new('F',(n,n),0);draw=ImageDraw.Draw(roof); refs=[]
