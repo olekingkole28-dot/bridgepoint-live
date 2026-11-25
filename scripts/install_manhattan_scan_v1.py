@@ -14,7 +14,7 @@ jlen=struct.unpack_from('<I',raw,12)[0]; j=json.loads(raw[20:20+jlen]); b=memory
 assert j['images'] and j['meshes']
 asset='assets/manhattan-photogrammetry-v1/manhattan.glb'
 cat='bridgepoint-public-scan-catalog-v1.json'; manifest='data/bp-auto-reality-v1.json'; renderer='bridgepoint-auto-reality-v1.js'
-allowed={cat,manifest,renderer,'index.html','app/index.html',asset,'assets/manhattan-photogrammetry-v1/registration.json'}
+allowed={cat,manifest,renderer,'bridgepoint-public-scans-v1.js','index.html','app/index.html',asset,'assets/manhattan-photogrammetry-v1/registration.json'}
 def hashes():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
 before=hashes()
 def positions():
@@ -111,8 +111,13 @@ p=site/renderer;s=p.read_text();old="if(row.targetHeightM)root.scale.multiplySca
 s=s.replace(old,"if(finite(row.sourceScaleM)&&row.sourceScaleM>0){root.scale.multiplyScalar(row.sourceScaleM);root.position.y-=row.groundSourceY*row.sourceScaleM;}else "+old)
 s=s.replace("fetch('/data/bp-auto-reality-v1.json',{cache:'force-cache'})","fetch('/data/bp-auto-reality-v1.json?v=20261125manhattan1',{cache:'force-cache'})")
 p.write_text(s)
+p=site/'bridgepoint-public-scans-v1.js'
+s=p.read_text()
+assert "const VERSION = '1.1.0';" in s
+p.write_text(s.replace("const VERSION = '1.1.0';","const VERSION = '1.1.1-manhattan';",1))
+import re
 for rel in ('index.html','app/index.html'):
- p=site/rel; s=p.read_text();assert 'bridgepoint-auto-reality-v1.js?v=20261125v1' in s;s=s.replace('bridgepoint-auto-reality-v1.js?v=20261125v1','bridgepoint-auto-reality-v1.js?v=20261125manhattan1');p.write_text(s)
+ p=site/rel; s=p.read_text();assert 'bridgepoint-auto-reality-v1.js?v=20261125v1' in s;s=s.replace('bridgepoint-auto-reality-v1.js?v=20261125v1','bridgepoint-auto-reality-v1.js?v=20261125manhattan1');s=re.sub(r'bridgepoint-public-scans-v1\.js(?:\?v=[^"\x27\s<>]+)?','bridgepoint-public-scans-v1.js?v=20261125manhattan1',s);p.write_text(s)
 assert hashes()==before
 print('MANHATTAN_ONLY_BYTE_PRESERVATION_PASS',len(before))
 print('MANHATTAN_NATIVE_VIEWER_READY',len(raw),'AUTO_PLACEMENT',bool(reg.get('accepted')),'CATALOG_TOTAL',data['total'],'NATIVE_TOTAL',d['nativeCount'])
