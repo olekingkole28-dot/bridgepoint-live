@@ -40,192 +40,23 @@ jobs:
             curl --retry 4 --retry-all-errors --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
             cmp "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"
           done
-      - name: Build native rooftop vector tiles and reference-guided facade atlas
+      - name: Restore previously validated aligned native tiles
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          export SITE="$RUNNER_TEMP/horizon-site"
-          python3 -m pip install --quiet 'shapely>=2.1,<3' mapbox-vector-tile Pillow
-          python3 - <<'PY'
-          import os,json,math,urllib.request,urllib.parse,hashlib,collections,random,concurrent.futures
+          OUT="$RUNNER_TEMP/horizon-site/assets/manhattan-native-v6"
+          mkdir -p "$OUT"
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/artifacts/15070232344 --jq '.workflow_run.id')" = 45716296526
+          gh run download 45716296526 --repo "$GITHUB_REPOSITORY" --name manhattan-aligned-native-tiles --dir "$OUT"
+          python3 - "$OUT" <<'PY'
+          import json,sys
           from pathlib import Path
-          from shapely.geometry import Point,Polygon,box,mapping,shape
-          from shapely.affinity import rotate,translate,scale
-          from shapely.ops import transform
-          from shapely.strtree import STRtree
-          from mapbox_vector_tile import encode,decode
-          from PIL import Image,ImageDraw,ImageEnhance
-          site=Path(os.environ['SITE'])
-          out=site/'assets/manhattan-native-v6';out.mkdir(exist_ok=True)
-          pack=site/'assets/manhattan-rooftop-v3'
-          payload=json.loads((site/'data/bp-manhattan-roof-detail-v1.json').read_text())
-          old=site/'assets/manhattan-native-v5'
-          import shutil
-          for p in old.glob('*.png'):shutil.copyfile(p,out/p.name)
-          # Retrieve the official ground and roof elevations needed to convert
-          # water-tank absolute survey heights to terrain-relative native heights.
-          def get(offset):
-              q={'$select':'the_geom,bin,height_roof,ground_elevation,construction_year,name,doitt_id','$where':'bin between 1000000 and 1999999','$order':':id','$limit':5000,'$offset':offset}
-              url='https://data.cityofnewyork.us/resource/5zhs-2jue.geojson?'+urllib.parse.urlencode(q)
-              for retry in range(3):
-                  try:
-                      req=urllib.request.Request(url,headers={'User-Agent':'BridgePoint native roof alignment/5.0'})
-                      with urllib.request.urlopen(req,timeout=80) as r:return json.load(r)['features']
-                  except Exception:
-                      if retry==2:raise
-          builds=[];heights=[];props=[]
-          try:
-              for start in range(0,100000,20000):
-                  with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:pages=list(pool.map(get,range(start,start+20000,5000)))
-                  for page in pages:
-                      for f in page:
-                          try:
-                              p=f['properties'];h=float(p['height_roof'])*.3048;g=float(p['ground_elevation'])*.3048;geom=shape(f['geometry'])
-                              if geom.is_valid and not geom.is_empty and 3<=h<=650:builds.append(geom);heights.append((h,g));props.append(p)
-                          except (ValueError,TypeError,KeyError):continue
-                  if any(len(page)<5000 for page in pages):break
-          except Exception as e:print('TANK_ALIGNMENT_PARTIAL',str(e)[:180])
-          assert len(builds)>40000,len(builds)
-          tree=STRtree(builds)
-          print('NYC_GROUND_ROOF_REFERENCE_COUNT',len(builds),flush=True)
-          R=6378137.;world=math.pi*R
-          def merc(lng,lat):return R*math.radians(lng),R*math.log(math.tan(math.pi/4+math.radians(lat)/2))
-          def rect(w,d,x=0,y=0,a=0):return translate(rotate(box(-w/2,-d/2,w/2,d/2),a,use_radians=True,origin=(0,0)),x,y)
-          def disk(r,x=0,y=0):return Point(x,y).buffer(r,quad_segs=5)
-          def ring(r,width):return disk(r).difference(disk(max(.02,r-width)))
-          bins={z:collections.defaultdict(list) for z in (16,17)}
-          shellbins={z:collections.defaultdict(list) for z in (16,17)}
-          counts=collections.Counter()
-          host_geom=None;host_id=None;host_height=None
-          def add(unit,geom,low,high,color,part,levels=(16,17)):
-              lng,lat,cx,cy,coslat=unit
-              if geom.is_empty or not geom.is_valid or high<=low:return
-              g=translate(scale(geom,xfact=1/coslat,yfact=1/coslat,origin=(0,0)),cx,cy)
-              if host_geom is None or host_height is None:return
-              g=g.intersection(host_geom)
-              if g.is_empty or g.geom_type not in ('Polygon','MultiPolygon') or g.area<.001:return
-              assert low>=host_height+.11-1e-6,(part,low,host_height)
-              prop={'b':round(low,2),'h':round(high,2),'c':color,'part':part,'host':host_id,'roof':round(host_height,2)}
-              for z in levels:
-                  size=2*world/(2**z);a,b,c,d=g.bounds
-                  for x in range(math.floor((a+world)/size),math.floor((c+world)/size)+1):
-                      for y in range(math.floor((world-d)/size),math.floor((world-b)/size)+1):
-                          bins[z][x,y].append((g,prop))
-          # A single shared source of truth for all roof surfaces and equipment.
-          # All shell and equipment heights use the same terrain-relative roof elevation.
-          projected=[]
-          for i,(g,(h,ground),p) in enumerate(zip(builds,heights,props)):
-              geom=transform(lambda x,y,z=None:merc(x,y),g)
-              projected.append(geom)
-              year=int(float(p.get('construction_year') or 0))
-              name=str(p.get('name') or '')
-              seed=int(p.get('doitt_id') or i+1)
-              material='glass' if h>65 and year>=1970 else 'brick' if 0<year<1940 and h<50 else 'limestone' if 0<year<1960 else 'steel' if h>85 else 'concrete' if seed%3 else 'castiron'
-              roofmat=['roof-light','roof-dark','roof-gravel'][seed%3]
-              prop={'h':round(h,2),'roof':round(h,2),'host':i+1,'bin':str(p.get('bin') or ''),'name':name,'building_id':str(seed),'height_m':round(h,2),'construction_year':year,'material':material,'roofmat':roofmat}
-              for z in (16,17):
-                  size=2*world/(2**z);a,b,c,d=geom.bounds
-                  for x in range(math.floor((a+world)/size),math.floor((c+world)/size)+1):
-                      for y in range(math.floor((world-d)/size),math.floor((world-b)/size)+1):
-                          shellbins[z][x,y].append((geom,prop))
-          for rows in payload['cells'].values():
-              for row in rows:
-                  lng,lat,roof,top,r,a,*kind=row
-                  if not (-74.04<=lng<=-73.89 and 40.68<=lat<=40.89):continue
-                  cx,cy=merc(lng,lat);unit=(lng,lat,cx,cy,math.cos(math.radians(lat)))
-                  r=max(.18,min(10.,r));tank=bool(kind and kind[0]=='tank')
-                  ids=tree.query(Point(lng,lat),predicate='within')
-                  if len(ids)==0:counts['unmatched']+=1;continue
-                  # Highest containing roof prevents placement on a lower footprint
-                  # underneath an overlapping tall building or rooftop structure.
-                  i=max(ids,key=lambda j:heights[j][0]);h,ground=heights[i]
-                  host_geom=projected[i];host_id=int(i)+1;host_height=h
-                  if tank:
-                      # Ground survey and building shell already share the matched host.
-                      if abs(h+ground-roof)>12:counts['ambiguousTank']+=1;continue
-                      base=h+.15;hh=max(.7,min(12,top-roof));rr=r*.80;leg=min(1.8,hh*.27);wall=base+leg
-                      add(unit,disk(rr),wall,wall+hh*.69,'#806951','tank-body')
-                      add(unit,disk(rr*1.02),wall+hh*.69,wall+hh*.80,'#5f5245','tank-cap')
-                      add(unit,disk(rr*.68),wall+hh*.80,wall+hh*.90,'#6f6050','tank-cap')
-                      # The 4 steel legs and 3 hoop bands are solid, non-camera-facing polygons.
-                      for k in range(4):
-                          t=k*math.pi/2
-                          add(unit,rect(max(.07,rr*.10),max(.07,rr*.10),rr*.66*math.cos(t),rr*.66*math.sin(t)),base,wall,'#424c50','tank-support')
-                      for k in (.13,.37,.60):
-                          y=wall+hh*k;add(unit,ring(rr*1.025,max(.045,rr*.065)),y,y+.075,'#50575a','tank-band',(17,))
-                      counts['tanks']+=1
-                      continue
-                  # Cooling tower outlines were joined to NYC building footprints.
-                  # Rounded fan assemblies, cabinet, recessed fan well and metal
-                  # protective rails stay inside each measured inscribed circle.
-                  base=h+.17;hh=max(.4,min(2.8,top-roof));rr=r*.53;w=r*1.34;d=r*1.22
-                  add(unit,rect(w,d,a=a),base,base+hh*.72,'#a1a6a8','hvac-cabinet')
-                  add(unit,rect(w*1.03,d*1.03,a=a),base+hh*.72,base+hh*.82,'#c5cbcb','hvac-lid')
-                  y=base+hh*.82
-                  add(unit,disk(rr),y,y+.055,'#303b42','fan-well')
-                  add(unit,ring(rr*1.06,max(.045,rr*.12)),y,y+.16,'#84969d','fan-rim')
-                  add(unit,disk(max(.045,rr*.16)),y+.055,y+.14,'#a7b2b5','fan-hub',(17,))
-                  for k in range(4):
-                      t=a+k*math.pi/2
-                      add(unit,rect(rr*.74,max(.06,rr*.20),math.cos(t)*rr*.42,math.sin(t)*rr*.42,t),y+.055,y+.105,'#63767e','fan-blade',(17,))
-                  for k in (-1,0,1):
-                      offset=k*rr*.48;length=2*math.sqrt(max(0,rr*rr-offset*offset))
-                      # grille bars rotated as a unit; physically above the blades.
-                      g=rotate(rect(max(.045,rr*.045),length,offset,0),a,use_radians=True,origin=(0,0))
-                      add(unit,g,y+.16,y+.22,'#bac2c2','fan-guard',(17,))
-                  counts['cooling']+=1
-          # Native MVT pyramid: browser requests only visible tiles, no full-city
-          # GeoJSON parse, no Three.js or new WebGL renderer.
-          tile_count=0;largest=0;features=0
-          for z,roof_tiles in bins.items():
-              tiles={key:roof_tiles.get(key,[]) for key in set(roof_tiles)|set(shellbins[z])}
-              size=2*world/(2**z)
-              for (x,y),items in tiles.items():
-                  xmin=-world+x*size;ymax=world-y*size;ymin=ymax-size;xmax=xmin+size
-                  clip=box(xmin-2,ymin-2,xmax+2,ymax+2)
-                  fs=[]
-                  for g,p in items:
-                      q=g if clip.contains(g) else g.intersection(clip)
-                      if not q.is_empty and q.geom_type in ('Polygon','MultiPolygon'):fs.append({'geometry':q,'properties':p})
-                  shells=[]
-                  for g,p in shellbins[z].get((x,y),[]):
-                      q=g if clip.contains(g) else g.intersection(clip)
-                      if not q.is_empty and q.geom_type in ('Polygon','MultiPolygon'):shells.append({'geometry':q,'properties':p,'id':p['host']})
-                  raw=encode([{'name':'rooftops','features':fs},{'name':'buildings','features':shells}],default_options={'quantize_bounds':(xmin,ymin,xmax,ymax),'extents':8192})
-                  path=out/'tiles'/str(z)/str(x)/(str(y)+'.pbf');path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(raw)
-                  largest=max(largest,len(raw));features+=len(fs);tile_count+=1
-              # Make empty tiles inside the bounded region explicit instead of HTTP 404s.
-              x0=min(x for x,y in tiles);x1=max(x for x,y in tiles);y0=min(y for x,y in tiles);y1=max(y for x,y in tiles)
-              empty=encode([{'name':'rooftops','features':[]},{'name':'buildings','features':[]}],default_options={'extents':8192})
-              for x in range(x0,x1+1):
-                  folder=out/'tiles'/str(z)/str(x);folder.mkdir(parents=True,exist_ok=True)
-                  for y in range(y0,y1+1):
-                      path=folder/(str(y)+'.pbf')
-                      if not path.exists():path.write_bytes(empty)
-          assert counts['cooling']>=12000 and counts['tanks']>=1000,(counts,len(builds))
-          assert largest<1_500_000,largest
-          # One sample tile decode, verify native extrusion heights and source layer.
-          sample=next(p for p in (out/'tiles/17').rglob('*.pbf') if p.stat().st_size>100)
-          ff=decode(sample.read_bytes());assert 'buildings' in ff and 'rooftops' in ff
-          for p in (out/'tiles/17').rglob('*.pbf'):
-              d=decode(p.read_bytes());hosts={f['properties']['host']:f['properties']['h'] for f in d['buildings']['features']}
-              for f in d['rooftops']['features']:
-                  v=f['properties'];assert v['h']>v['b']>=v['roof']+.11-1e-6 and v['host'] in hosts and abs(v['roof']-hosts[v['host']])<.011,(p,v)
-          print('ALL_NATIVE_ROOFTOP_COMPONENTS_SHARE_RENDERED_HOST_HEIGHT',flush=True)
-          manifest={'buildings':len(builds),'unmatched':counts['unmatched'],'ambiguousTank':counts['ambiguousTank'],'cooling':counts['cooling'],'waterTanks':counts['tanks'],'nonemptyTiles':tile_count,'polygonFeatures':features,'maxTileBytes':largest,'source':'NYC 2022 water tanks and cooling towers / NYC building footprint roof and ground elevations','appearance':'Representative solid native polygon components; not surveyed machinery make/model. User-supplied skyline and SoHo photographs used as visual reference only. Photo materials from CC0 Poly Haven atlas. No Getty photo pixels embedded. No automatic heavy GLB renderer.'}
-          req=urllib.request.Request('https://data.cityofnewyork.us/resource/gthc-hcne.geojson?'+urllib.parse.urlencode({'$where':'borocode=1','$limit':1}),headers={'User-Agent':'BridgePoint alignment/6.0'})
-          with urllib.request.urlopen(req,timeout=60) as r:borough=shape(json.load(r)['features'][0]['geometry'])
-          # Tolerant coastal boundary only; other boroughs remain untouched.
-          borough=borough.buffer(.00006).simplify(.00018,preserve_topology=True)
-          (out/'boundary.json').write_text(json.dumps(mapping(borough),separators=(',',':')))
-          (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
-          print('MANHATTAN_NATIVE_POLYGON_TILES',json.dumps(manifest),flush=True)
+          p=Path(sys.argv[1]);m=json.loads((p/'manifest.json').read_text())
+          assert m['buildings']==44918 and m['cooling']==15260 and m['waterTanks']==4985
+          assert (p/'boundary.json').is_file() and len(list((p/'tiles').rglob('*.pbf')))>1500
+          print('REUSED_VALIDATED_ALIGNMENT_TILES',m['buildings'],m['cooling'],m['waterTanks'])
           PY
-      - name: Preserve generated alignment tiles for diagnosis and retries
-        uses: actions/upload-artifact@v4
-        with:
-          name: manhattan-aligned-native-tiles
-          path: ${{ runner.temp }}/horizon-site/assets/manhattan-native-v6
-          retention-days: 3
       - name: Use unified Manhattan building and roof tiles
         run: |
           set -euo pipefail
@@ -302,15 +133,16 @@ jobs:
               s=s.replace("['gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']","['bp-manhattan-surveyed-body-v6','gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']")
               p.write_text(s)
           for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs','index.html','app/index.html'):
-              p=site/rel;p.write_text(p.read_text().replace('manhattanroofdetail=8','manhattanroofdetail=11'))
+              p=site/rel;p.write_text(p.read_text().replace('manhattanroofdetail=8','manhattanroofdetail=12'))
           assert snap()==before,'unrelated asset changed'
           PY
           for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
           TEST="$RUNNER_TEMP/input-smoke"
           mkdir -p "$TEST"
-          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1 pngjs@7
           cat > "$TEST/test.mjs" <<'JS'
           import {chromium} from 'playwright-core';
+          import {PNG} from 'pngjs';
           import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
           const root=process.env.SITE,origin='https://bridgepointintelligence.online';
           const mime={'.js':'application/javascript','.mjs':'application/javascript','.html':'text/html','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.wasm':'application/wasm','.glb':'model/gltf-binary','.pbf':'application/x-protobuf','.mvt':'application/vnd.mapbox-vector-tile','.woff2':'font/woff2'};
@@ -379,12 +211,42 @@ jobs:
             try{return m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length>0&&m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-cap-v6']}).length>0&&m.querySourceFeatures('bp-manhattan-native-roof-v5',{sourceLayer:'buildings'}).length>0&&m.getPaintProperty('bp-manhattan-surveyed-body-v6','fill-extrusion-opacity')===1&&!!m.getPaintProperty('bp-manhattan-surveyed-body-v6','fill-extrusion-pattern')&&m.queryRenderedFeatures({layers:['gta-bp-buildings','gta-context-buildings']}).length===0}catch(e){return false}
            },null,{timeout:90000}).catch(async e=>{console.log('ALIGNMENT_BROWSER_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const ids=['bp-manhattan-native-roof-v5','bp-manhattan-surveyed-body-v6','bp-manhattan-surveyed-cap-v6','gta-bp-buildings','gta-context-buildings'];return {state:window.__BP_MANHATTAN_NATIVE_V5__,center:m.getCenter(),layers:ids.map(id=>{try{return {id,exists:!!m.getLayer(id),visibility:m.getLayoutProperty(id,'visibility'),opacity:m.getPaintProperty(id,'fill-extrusion-opacity'),rendered:m.queryRenderedFeatures({layers:[id]}).length,filter:JSON.stringify(m.getFilter(id)||null).slice(0,140)}}catch(e){return {id,error:String(e)}}})}})));throw e});
            console.log('NATIVE_ROOF_TILES_RENDERED',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return {state:window.__BP_MANHATTAN_NATIVE_V5__,features:m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length,customLayer:!!m.getLayer('bp-manhattan-roof-detail-v1')}})));
-           // Validate the building wall layer itself, independently of occluding roof caps.
-           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setLayoutProperty('bp-manhattan-surveyed-cap-v6','visibility','none')});
+           // The query can omit occluded extrusion faces. Test real framebuffer
+           // differences with the same settled camera and actual wall layer.
+           // Filters, unlike visibility, are not reset by the settled-camera handler.
+           const wallProbe=await page.evaluate(()=>{
+             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;
+             const ids=['bp-manhattan-surveyed-body-v6','bp-manhattan-surveyed-cap-v6','bp-manhattan-native-roof-v5'];
+             const saved=ids.map(id=>[id,m.getFilter(id)||null]);
+             const no=['==',['get','host'],-1];
+             m.setFilter(ids[1],no);m.setFilter(ids[2],no);
+             return {saved,pitch:m.getPitch(),bearing:m.getBearing(),zoom:m.getZoom(),center:m.getCenter()};
+           });
+           async function painted(){
+             await page.evaluate(()=>new Promise(resolve=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.once('render',()=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));m.triggerRepaint()}));
+             await page.waitForTimeout(1400);
+             return PNG.sync.read(await page.screenshot({timeout:30000}));
+           }
            try{
-             await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length>0},null,{timeout:20000});
-             console.log('SURVEYED_WALL_LAYER_RENDER_PASS');
-           }finally{await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setLayoutProperty('bp-manhattan-surveyed-cap-v6','visibility','visible')})}
+             const withWall=await painted();
+             const hits=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length});
+             await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setFilter('bp-manhattan-surveyed-body-v6',['==',['get','host'],-1])});
+             const withoutWall=await painted();
+             await page.evaluate(saved=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setFilter(saved[0][0],saved[0][1])},wallProbe.saved);
+             const restoredWall=await painted();
+             // Require repeatable visible geometry, not a single transient frame.
+             let changed=0,stable=0;
+             for(let y=160;y<withWall.height-120;y+=2)for(let x=40;x<withWall.width-40;x+=2){
+               const i=(y*withWall.width+x)*4;
+               const diff=(a,b)=>Math.abs(a.data[i]-b.data[i])+Math.abs(a.data[i+1]-b.data[i+1])+Math.abs(a.data[i+2]-b.data[i+2]);
+               if(diff(withWall,withoutWall)>70){changed++;if(diff(withWall,restoredWall)<25&&diff(restoredWall,withoutWall)>70)stable++}
+             }
+             console.log('SURVEYED_WALL_PIXEL_PROBE',JSON.stringify({hits,changed,stable}));
+             assert(stable>100,'Surveyed building wall did not produce repeatable visible pixels');
+           }finally{
+             await page.evaluate(saved=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;for(const [id,f] of saved)m.setFilter(id,f)},wallProbe.saved);
+           }
+           await painted();
            const close=await page.evaluate(()=>{
             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,canvas=m.getCanvas(),r=canvas.getBoundingClientRect(),c=m.getCenter();
             // Choose an unobstructed real map canvas point; the mobile dock may overlap the center.
@@ -410,7 +272,7 @@ jobs:
            console.log('MANHATTAN_NATIVE_OBLIQUE_TOUCH_PASS',JSON.stringify({detail:close.detail,trace}));
           }finally{await browser.close()}
           JS
-          timeout 420s node "$TEST/test.mjs"
+          timeout 520s node "$TEST/test.mjs"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
