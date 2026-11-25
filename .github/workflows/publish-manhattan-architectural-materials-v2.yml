@@ -1,0 +1,277 @@
+name: Publish BridgePoint Manhattan architectural materials V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-manhattan-architectural-materials-v2.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact successful building surface recovery V1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45658560082 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45658560082 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Enhance registered Manhattan scan materials
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 - <<'PY'
+          import os,re,hashlib,json
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          scan='bridgepoint-auto-reality-v1.js'
+          allowed={scan,'index.html','app/index.html'}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          p=site/scan;s=p.read_text()
+          a=s.index('function cityArchitecturalMaterial(');b=s.index('function updateCityArchitecturalUniforms(',a)
+          assert 'bp-city-architecture-surface-v1' in s[a:b]
+          s=s[:a]+r'''function cityArchitecturalMaterial(T,m,uniforms){
+           const out=new T.MeshBasicMaterial({map:m.map||null,color:m.color||0xffffff,side:T.FrontSide,vertexColors:m.vertexColors,transparent:m.transparent,opacity:m.opacity,alphaTest:m.alphaTest});
+           out.onBeforeCompile=shader=>{
+            Object.assign(shader.uniforms,uniforms);
+            shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 bpArchitecturalPosition;').replace('#include <project_vertex>','#include <project_vertex>\nbpArchitecturalPosition=(modelMatrix*vec4(transformed,1.0)).xyz;');
+            shader.fragmentShader=shader.fragmentShader.replace('#include <common>',String.raw`#include <common>
+          varying vec3 bpArchitecturalPosition;
+          uniform vec3 bpCitySun;
+          uniform vec3 bpCityView;
+          uniform float bpCityDetail;
+          uniform float bpCityDay;
+          float bpHash(vec2 p){return fract(sin(dot(mod(p,2048.0),vec2(127.1,311.7)))*43758.5453);}
+          float bpRect(vec2 p,vec2 size,vec2 aa){
+           vec2 e=abs(p)-size;
+           return (1.0-smoothstep(-aa.x,aa.x,e.x))*(1.0-smoothstep(-aa.y,aa.y,e.y));
+          }
+          vec3 bpSky(vec3 d){
+           float sky=smoothstep(-0.12,0.8,d.y);
+           vec3 c=mix(vec3(0.16,0.21,0.25),mix(vec3(0.56,0.71,0.84),vec3(0.12,0.30,0.53),sky),smoothstep(-0.25,0.08,d.y));
+           float cloud=smoothstep(0.22,0.72,sin(d.x*17.0+d.z*13.0)*sin(d.z*15.0-d.y*11.0)*0.5+0.28);
+           c=mix(c,vec3(0.78,0.81,0.83),cloud*sky*0.28);
+           float sun=pow(max(dot(d,bpCitySun),0.0),110.0);
+           return c+vec3(1.0,0.81,0.52)*sun*1.4*bpCityDay;
+          }`).replace('#include <color_fragment>',String.raw`#include <color_fragment>
+           // Three.js r169 has already sampled map_fragment here. Retain the photo
+           // as the material classification and color base, not a flat replacement.
+           vec3 p=bpArchitecturalPosition;
+           vec3 baked=diffuseColor.rgb;
+           vec3 crossNormal=cross(dFdx(p),dFdy(p));
+           vec3 n=crossNormal/max(length(crossNormal),1e-9);
+           if(!gl_FrontFacing)n=-n;
+           float wall=1.0-smoothstep(0.16,0.54,abs(n.y));
+           float roof=smoothstep(0.70,0.94,n.y)*smoothstep(7.0,14.0,p.y);
+           float detail=bpCityDetail;
+           float lum=dot(baked,vec3(0.2126,0.7152,0.0722));
+           float chroma=max(max(baked.r,baked.g),baked.b)-min(min(baked.r,baked.g),baked.b);
+           // Select local material from the actual scanned coloration. Blue-gray
+           // curtain walls, warm brick and pale stone remain different.
+           float glazed=smoothstep(0.012,0.13,baked.b-baked.r+0.032)*(1.0-smoothstep(0.20,0.43,chroma));
+           float brick=smoothstep(0.018,0.14,baked.r-baked.b)*smoothstep(0.025,0.16,chroma);
+           float masonry=(1.0-glazed)*(1.0-brick);
+           // Stabilize wall direction to the dominant Manhattan grid; choose the
+           // nearest of eight wall orientations, rather than wobbling on scan triangles.
+           float angle=atan(n.z,n.x);
+           float snapAngle=floor((angle-0.49)/0.78539816+0.5)*0.78539816+0.49;
+           vec2 tangent=vec2(-sin(snapAngle),cos(snapAngle));
+           float across=dot(p.xz,tangent);
+           float bay=mix(2.15,1.62,glazed),floorH=mix(3.05,3.75,glazed);
+           vec2 uv=vec2(across/bay,p.y/floorH);
+           vec2 fw=fwidth(uv),aa=clamp(fw,vec2(0.008),vec2(0.24));
+           vec2 cell=fract(uv)-0.5;
+           float stable=1.0-smoothstep(0.17,0.48,max(fw.x,fw.y));
+           vec2 winSize=mix(vec2(0.32,0.34),vec2(0.465,0.445),glazed);
+           float frame=bpRect(cell,winSize+vec2(0.038),aa);
+           float pane=bpRect(cell,winSize-vec2(0.026),aa);
+           float vertical=bpRect(cell,vec2(0.014,winSize.y),aa)*pane;
+           float horizontal=bpRect(cell,vec2(winSize.x,0.013),aa)*pane*(1.0-glazed*0.65);
+           float mask=pane*(1.0-max(vertical,horizontal))*wall*stable*detail;
+           float r=bpHash(floor(uv));
+           vec3 v=normalize(bpCityView+vec3(0.00001));
+           vec3 reflected=reflect(-v,n);
+           vec3 h=normalize(bpCitySun+v+vec3(0.00001));
+           float ndl=max(dot(n,bpCitySun),0.0);
+           float fresnel=0.07+0.83*pow(1.0-clamp(dot(n,v),0.0,1.0),4.0);
+           float spec=pow(max(dot(n,h),0.0),72.0)*ndl*bpCityDay;
+           float broad=pow(max(dot(n,h),0.0),12.0)*ndl*bpCityDay;
+           vec3 sky=bpSky(reflected);
+           // Pane variation, dark interior depth, and warm blinds. Reflection direction
+           // follows the real camera and sun; no screen-space overlay.
+           vec3 interior=mix(vec3(0.025,0.038,0.052),vec3(0.11,0.13,0.14),r);
+           float blinds=smoothstep(0.40,0.48,cell.y)*step(0.73,r);
+           interior=mix(interior,vec3(0.29,0.25,0.19),blinds*0.65);
+           vec3 glass=mix(interior,sky,mix(0.42,0.78,glazed)*fresnel+0.15);
+           glass=mix(glass,baked*0.8,0.22);
+           glass+=vec3(1.0,0.79,0.47)*(spec*1.5+broad*0.12);
+           glass+=vec3(0.93,0.57,0.23)*(1.0-bpCityDay)*step(0.77,r)*0.54;
+           // Fine brick courses, stone seams, metal spandrels and recessed frames.
+           vec2 brickUV=vec2(across/0.28,p.y/0.085);
+           vec2 brickFW=fwidth(brickUV);
+           vec2 brickCell=fract(brickUV+vec2(mod(floor(brickUV.y),2.0)*0.5,0.0));
+           float mortar=1.0-bpRect(brickCell-0.5,vec2(0.475,0.42),clamp(brickFW,vec2(0.015),vec2(0.2)));
+           float grain=(bpHash(floor(p.xz*22.0)+floor(p.y*22.0))-0.5);
+           float grainFade=1.0-smoothstep(0.015,0.10,length(dFdx(p))+length(dFdy(p)));
+           vec3 facade=baked*(0.93+0.12*ndl*bpCityDay);
+           facade*=1.0+wall*detail*(brick*mortar*(1.0-smoothstep(0.17,0.5,max(brickFW.x,brickFW.y)))*0.11+grain*grainFade*0.10);
+           float sill=bpRect(cell-vec2(0.0,-winSize.y-0.045),vec2(winSize.x+0.05,0.023),aa);
+           facade=mix(facade,baked*1.22,sill*wall*stable*detail*(0.7-0.45*glazed));
+           facade=mix(facade,baked*0.50,(frame-pane)*wall*stable*detail*0.75);
+           facade=mix(facade,vec3(0.12,0.16,0.19),max(vertical,horizontal)*wall*stable*detail*(0.38+0.45*glazed));
+           diffuseColor.rgb=mix(facade,glass,mask*mix(0.82,0.98,glazed));
+           // Door frames and handles at the ground band only. These are visual
+           // approximations, not claims about a specific surveyed entrance.
+           vec2 dUV=vec2(fract(across/9.0)-0.5,(p.y-1.55)/3.4);
+           float door=bpRect(dUV,vec2(0.115,0.43),vec2(0.01,0.02))*wall*stable*detail;
+           door*=smoothstep(0.05,0.35,p.y)*(1.0-smoothstep(3.05,3.5,p.y));
+           float doorPane=bpRect(dUV,vec2(0.095,0.40),vec2(0.012,0.025));
+           float handle=bpRect(dUV-vec2(0.025,-0.05),vec2(0.009,0.055),vec2(0.004,0.008));
+           diffuseColor.rgb=mix(diffuseColor.rgb,mix(baked*0.42,glass,doorPane*0.92)+vec3(0.38)*handle,door*0.92);
+           // Preserve scanned roof geometry. Add fine membrane seams, metal housing
+           // rims and gravel texture with derivative antialiasing; no floating objects.
+           vec2 ruv=p.xz/3.1,rfw=fwidth(ruv),rc=fract(ruv)-0.5;
+           vec2 raa=clamp(rfw,vec2(0.008),vec2(0.24));
+           float roofDetail=roof*detail*(1.0-smoothstep(0.17,0.48,max(rfw.x,rfw.y)));
+           float seam=1.0-bpRect(rc,vec2(0.485,0.485),raa);
+           float vent=bpRect(rc,vec2(0.23,0.20),raa)*step(0.86,bpHash(floor(ruv)));
+           float rim=vent*(1.0-bpRect(rc,vec2(0.18,0.15),raa));
+           float fan=(1.0-smoothstep(0.08,0.15,length(rc)))*vent;
+           float blades=0.5+0.5*cos(atan(rc.y,rc.x)*7.0);
+           diffuseColor.rgb=mix(diffuseColor.rgb,baked*(0.94+grain*grainFade*0.12-seam*0.14),roofDetail);
+           diffuseColor.rgb=mix(diffuseColor.rgb,baked*0.65+vec3(0.09),vent*roofDetail*0.60);
+           diffuseColor.rgb+=roofDetail*(rim*0.10-fan*blades*0.07);
+           diffuseColor.rgb=mix(baked,clamp(diffuseColor.rgb,0.0,1.0),detail);`);
+           };
+           out.customProgramCacheKey=()=> 'bp-city-architecture-surface-v2';
+           return out;
+          }
+          '''+s[b:]
+          # Fade detail in early enough to improve intermediate close-up views.
+          assert s.count('(map.getZoom()-15.2)/2.2')==1
+          s=s.replace('(map.getZoom()-15.2)/2.2','(map.getZoom()-13.6)/2.8')
+          assert 'api.cityMaterialDetail=' in s
+          s=s.replace('proceduralFacadeAccents:true,physicalRoofGeometryUnchanged:true','proceduralFacadeAccents:true,materialClasses:["glass","brick","stone","metal"],physicalRoofGeometryUnchanged:true,referenceVisualVersion:2')
+          p.write_text(s)
+          for rel in ('index.html','app/index.html'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(bridgepoint-auto-reality-v1\.js\?[^"\'\s]+)',lambda m:m[1]+'&architecturalmaterials=20261125v2',s)
+              assert n>=1,(rel,n);p.write_text(s)
+          # The original mesh, registration, data catalog, water and all other layers
+          # must remain byte-for-byte identical.
+          assert before==snapshot(),'UNRELATED RELEASE FILE CHANGED'
+          print('MANHATTAN_ARCHITECTURAL_MATERIAL_SCOPE_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-auto-reality-v1.js"
+          TEST="$RUNNER_TEMP/architecture-test"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          python3 -m http.server 8769 --bind 127.0.0.1 --directory "$SITE" > "$RUNNER_TEMP/architecture-http.log" 2>&1 &
+          SERVER=$!
+          trap 'kill "$SERVER" 2>/dev/null || true' EXIT
+          for i in $(seq 1 15); do if curl -fsS http://127.0.0.1:8769/vendor/three.module.js -o /dev/null; then break; fi; sleep 1; done
+          cat > "$TEST/test.mjs" <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';import {chromium} from 'playwright-core';
+          const root=process.env.SITE,s=fs.readFileSync(root+'/bridgepoint-auto-reality-v1.js','utf8');
+          const a=s.indexOf('function cityArchitecturalMaterial('),b=s.indexOf('function updateCityArchitecturalUniforms(',a),c=s.indexOf('async function load(',b);
+          assert(a>=0&&b>a&&c>b);
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+           const page=await browser.newPage({viewport:{width:512,height:512}});
+           await page.route('http://127.0.0.1:8769/__bp_material_test',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Material test</title>'}));
+           await page.goto('http://127.0.0.1:8769/__bp_material_test');
+           const report=await page.evaluate(async code=>{
+            const T=await import('/vendor/three.module.js');
+            const fn=new Function(code+';return {cityArchitecturalMaterial,updateCityArchitecturalUniforms};')();
+            const u={bpCitySun:{value:new T.Vector3(.5,.7,.5).normalize()},bpCityView:{value:new T.Vector3(.3,.2,1).normalize()},bpCityDetail:{value:1},bpCityDay:{value:1}};
+            const tex=new T.DataTexture(new Uint8Array([98,125,159,255]),1,1);tex.colorSpace=T.SRGBColorSpace;tex.needsUpdate=true;
+            const m=fn.cityArchitecturalMaterial(T,{map:tex},u);
+            const renderer=new T.WebGLRenderer({preserveDrawingBuffer:true});renderer.setSize(384,384);renderer.debug.checkShaderErrors=true;
+            const errors=[];renderer.debug.onShaderError=(gl,program,vs,fs)=>errors.push(gl.getProgramInfoLog(program),gl.getShaderInfoLog(vs),gl.getShaderInfoLog(fs));
+            const scene=new T.Scene(),geo=new T.BoxGeometry(16,36,16),mesh=new T.Mesh(geo,m);mesh.position.y=18;scene.add(mesh);
+            const camera=new T.PerspectiveCamera(50,1,.1,200);camera.position.set(35,24,45);camera.lookAt(0,18,0);
+            renderer.render(scene,camera);
+            const gl=renderer.getContext(),before=new Uint8Array(384*384*4);gl.readPixels(0,0,384,384,gl.RGBA,gl.UNSIGNED_BYTE,before);
+            u.bpCityView.value.set(-.9,.1,.2).normalize();renderer.render(scene,camera);
+            const after=new Uint8Array(before.length);gl.readPixels(0,0,384,384,gl.RGBA,gl.UNSIGNED_BYTE,after);
+            let changed=0;for(let i=0;i<before.length;i+=4)if(Math.abs(before[i]-after[i])+Math.abs(before[i+1]-after[i+1])+Math.abs(before[i+2]-after[i+2])>4)changed++;
+            return {errors,changed,texturePreserved:m.map===tex,programs:renderer.info.programs.length};
+           },s.slice(a,c));
+           console.log('MANHATTAN_REAL_WEBGL_MATERIAL_TEST',JSON.stringify(report));assert.equal(report.errors.length,0);assert(report.texturePreserved&&report.programs>0&&report.changed>100);
+          }finally{await browser.close();}
+          JS
+          node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA" -o "$RUNNER_TEMP/live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/live"
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
