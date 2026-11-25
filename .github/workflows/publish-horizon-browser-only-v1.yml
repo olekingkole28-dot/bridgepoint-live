@@ -1,0 +1,123 @@
+name: Publish BridgePoint Horizon Browser Preview Only V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-horizon-browser-only-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact last successful water and layout release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45485718935 --jq '.conclusion')" = success
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45485718935 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Add only the Horizon game and its existing button
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          python3 - <<'PY'
+          import hashlib,os,re
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          rel='app/horizon/survival/index.html'
+          allowed={'index.html','app/index.html','bridgepoint-view-v5917.js','app/bridgepoint-view-v5917.js',rel}
+          def snap():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          for required in ('index.html','app/index.html','bridgepoint-view-v5917.js','world-v2300-map.js','world-v2300-water.js','bridgepoint-wildfire-realistic-mesh-v4.js','vendor/maplibre-gl.js','vendor/maplibre-gl.css'):
+              assert (site/required).is_file(),required
+          for name in ('bridgepoint-view-v5917.js','app/bridgepoint-view-v5917.js'):
+              p=site/name
+              if not p.is_file(): continue
+              s=p.read_text()
+              pattern=r'<button\b[^>]*data-bp-horizon-gate="1"[^>]*>[\s\S]*?</button>'
+              def enable(m):
+                  b=m[0]
+                  b=re.sub(r'\sdisabled(?:="[^"]*")?(?=\s|>)','',b)
+                  b=re.sub(r'\saria-disabled="[^"]*"','',b)
+                  b=re.sub(r'\stitle="[^"]*"','',b)
+                  b=re.sub(r'\sdata-bpv-action="[^"]*"','',b)
+                  b=b.replace('data-bp-horizon-gate="1"','data-bp-horizon-gate="1" aria-disabled="false" title="Play free Horizon survival preview"')
+                  b=re.sub(r'<small[^>]*class="bpv-horizon-launch-state"[^>]*>[\s\S]*?</small>','',b)
+                  return b
+              s,n=re.subn(pattern,enable,s)
+              assert n==1,(name,'Horizon button',n)
+              anchor='mapHost.append(dock);'
+              assert s.count(anchor)==1,(name,'dock insertion',s.count(anchor))
+              s=s.replace(anchor,anchor+"\n dock.querySelector('[data-bp-horizon-gate=\"1\"]').addEventListener('click',()=>location.assign('/app/horizon/survival/'));",1)
+              s=s.replace('New Unreal Engine 5.8 world · launch locked until the native build passes testing','Free browser survival preview')
+              p.write_text(s)
+          for name in ('index.html','app/index.html'):
+              p=site/name;s=p.read_text()
+              s,n=re.subn(r'(bridgepoint-view-v5917\.js\?[^"\'\s<>]+)',lambda m:m[1]+'&horizonsurvival=20261125v1',s)
+              assert n>=1,(name,'dock cache key',n)
+              p.write_text(s)
+          out=site/rel;out.parent.mkdir(parents=True,exist_ok=True);out.write_bytes(Path(rel).read_bytes())
+          assert before==snap(),'Unexpected non-Horizon file changed'
+          print('HORIZON_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/bridgepoint-view-v5917.js"
+          if test -f "$SITE/app/bridgepoint-view-v5917.js"; then node --check "$SITE/app/bridgepoint-view-v5917.js"; fi
+          node --input-type=module --check < <(python3 -c "from pathlib import Path; print(Path('app/horizon/survival/index.html').read_text().split('<script type=\"module\">')[1].split('</script>')[0])")
+          grep -Fq 'Array(10).fill(null)' "$SITE/app/horizon/survival/index.html"
+          grep -Fq 'pickupSeconds>=3' "$SITE/app/horizon/survival/index.html"
+          grep -Fq "location.assign('/app/horizon/survival/')" "$SITE/bridgepoint-view-v5917.js"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish preserved site with Horizon
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify Horizon and preserved production files online
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in index.html app/index.html bridgepoint-view-v5917.js app/horizon/survival/index.html world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-wildfire-realistic-mesh-v4.js bridgepoint-bottom-card-mobile-v2.js; do
+            curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?horizon=$GITHUB_SHA" -o "$RUNNER_TEMP/horizon-live"
+            cmp "$SITE/$p" "$RUNNER_TEMP/horizon-live"
+          done
+          echo HORIZON_BROWSER_ONLY_LIVE_PASS
