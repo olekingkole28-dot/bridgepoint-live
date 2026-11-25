@@ -24,20 +24,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Restore exact verified Packages release
+      - name: Restore exact verified property marker release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45559047706 --jq '.conclusion')" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45560009190 --jq '.conclusion')" = success
           for attempt in 1 2 3; do
             rm -rf "$RUNNER_TEMP/baseline"
             mkdir -p "$RUNNER_TEMP/baseline"
-            if timeout 180s gh run download 45559047706 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            if timeout 180s gh run download 45560009190 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
             sleep 5
           done
           exit 1
-      - name: Add listing and opportunity markers only; preserve existing site
+      - name: Bundle real property records before enabling icons; preserve existing site
         run: |
           set -euo pipefail
           export SITE="$RUNNER_TEMP/horizon-site"
@@ -55,18 +55,18 @@ jobs:
           def snapshot():
               return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
           before=snapshot()
-          for rel in (module,hudfile,oppfile):
-              assert not (site/rel).exists(), rel
+          assert (site/module).exists(), 'Previous property marker release missing'
           (site/module).write_bytes(Path('rebuild-v5000',module).read_bytes())
           assert b'data-bpv-action="listings"' in (site/'bridgepoint-view-v5917.js').read_bytes()
           assert b'data-bpv-action="opportunities"' in (site/'bridgepoint-view-v5917.js').read_bytes()
           for rel in htmls:
               p=site/rel
               old=p.read_bytes()
-              tag=b'<script defer src="/bridgepoint-property-markers-v1.js?v=20261125v1"></script>\n'
-              assert old.count(b'</body>')==1 and module.encode() not in old
-              new=old.replace(b'</body>',tag+b'</body>',1)
-              assert new.replace(tag,b'',1)==old
+              tag=b'/bridgepoint-property-markers-v1.js?v=20261125v1'
+              newtag=b'/bridgepoint-property-markers-v1.js?v=20261125v2-instant'
+              assert old.count(tag)==1
+              new=old.replace(tag,newtag,1)
+              assert new.replace(newtag,tag,1)==old
               p.write_bytes(new)
           def request(url,params=None,key=None):
               payload=json.dumps(params).encode() if params is not None else None
@@ -81,25 +81,50 @@ jobs:
               p=site/rel;p.parent.mkdir(parents=True,exist_ok=True)
               p.write_text(json.dumps({'type':'FeatureCollection','features':rows},separators=(',',':')))
               print('SOURCE_SNAPSHOT',rel,len(rows),flush=True)
-          hud='https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services/SF_REO/FeatureServer/0/query'
-          def hudquery(**params):return request(hud+'?'+urllib.parse.urlencode(params))
-          try:
-              from datetime import datetime, timezone
-              ids=hudquery(where='1=1',returnIdsOnly='true',f='json')['objectIds']
+          from datetime import datetime, timezone
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+          hudurls=[
+              'https://services.arcgis.com/VTyQ9soqVukalItT/ArcGIS/rest/services/SF_REO/FeatureServer/0/query',
+              'https://egis.hud.gov/arcgis/rest/services/cpdmaps/HudSfReo/MapServer/0/query',
+          ]
+          download='https://hudgis-hud.opendata.arcgis.com/api/download/v1/items/a54aff75cc0a42de8456cc36a7335663/geojson?layers=0'
+          def normalize_hud(records):
               rows=[]
+              for r in records:
+                  a={str(k).upper():v for k,v in (r.get('attributes') or r.get('properties') or {}).items()}
+                  g=r.get('geometry') or {}
+                  xy=g.get('coordinates') or [g.get('x'),g.get('y')]
+                  if len(xy)<2:continue
+                  try:x,y=float(xy[0]),float(xy[1])
+                  except (ValueError,TypeError):continue
+                  if not (-180<=x<=180 and -90<=y<=90):continue
+                  if a.get('CASE_STEP_NUMBER') is not None and str(a['CASE_STEP_NUMBER']).strip() not in ('6','6.0'):continue
+                  ident='HUD-FHA-'+str(a.get('CASE_NUM') or a.get('CASE_NUMBER') or a.get('OBJECTID') or str(x)+','+str(y))
+                  address=' '.join(str(a.get(k) or '').strip() for k in ('STREET_NUM','DIRECTION_PREFIX','STREET_NAME')).strip()
+                  address=address or a.get('ADDRESS') or a.get('STREET_ADDRESS') or ''
+                  rows.append({'type':'Feature','id':ident,'geometry':{'type':'Point','coordinates':[x,y]},'properties':{'listing_id':ident,'title':'HUD/FHA home','address':address,'city':a.get('CITY'),'state_code':a.get('STATE_CODE'),'postal_code':a.get('DISPLAY_ZIP_CODE'),'listing_type':'FOR_SALE','listing_status':'HUD published sale record','case_number':a.get('CASE_NUM') or a.get('CASE_NUMBER'),'source_key':'HUD/FHA Single Family REO','source_checked_at':datetime.now(timezone.utc).isoformat(),'accuracy_notice':'HUD source snapshot; verify current availability. Coordinates may be street-interpolated or ZIP+4 centroids; asking price and listing media not supplied.'}})
+              return rows
+          def query_hud(url):
+              def q(**p):return request(url+'?'+urllib.parse.urlencode(p))
+              ids=q(where='1=1',returnIdsOnly='true',f='json')['objectIds']
+              out=[]
               for i in range(0,len(ids),400):
-                  d=hudquery(objectIds=','.join(map(str,ids[i:i+400])),outFields='*',outSR=4326,returnGeometry='true',f='json')
+                  d=q(objectIds=','.join(map(str,ids[i:i+400])),outFields='*',outSR=4326,returnGeometry='true',f='json')
                   assert not d.get('exceededTransferLimit')
-                  for r in d['features']:
-                      a=r.get('attributes',{});g=r.get('geometry',{})
-                      x,y=g.get('x'),g.get('y')
-                      if x is None or y is None or not (-180<=x<=180 and -90<=y<=90):continue
-                      ident='HUD-FHA-'+str(a.get('CASE_NUM') or a.get('OBJECTID'))
-                      address=' '.join(str(a.get(k) or '').strip() for k in ('STREET_NUM','DIRECTION_PREFIX','STREET_NAME')).strip()
-                      acquired=a.get('DATE_ACQUIRED')
-                      rows.append({'type':'Feature','id':ident,'geometry':{'type':'Point','coordinates':[x,y]},'properties':{'listing_id':ident,'title':'HUD/FHA home','address':address,'city':a.get('CITY'),'state_code':a.get('STATE_CODE'),'postal_code':a.get('DISPLAY_ZIP_CODE'),'listing_type':'FOR_SALE','listing_status':'HUD source record','case_number':a.get('CASE_NUM'),'date_acquired':datetime.fromtimestamp(acquired/1000,timezone.utc).date().isoformat() if acquired else '', 'source_key':'HUD/FHA Single Family REO','source_checked_at':datetime.now(timezone.utc).isoformat(),'accuracy_notice':'Published source snapshot. Verify current availability; coordinates may be street-interpolated or ZIP+4 centroids. No asking price or listing media supplied.'}})
-              save(hudfile,rows)
-          except Exception as e: print('HUD_SNAPSHOT_UNAVAILABLE',str(e)[:200],flush=True)
+                  out.extend(d['features'])
+              return normalize_hud(out)
+          jobs=[(download,lambda:normalize_hud(request(download)['features']))]+[(u,lambda u=u:query_hud(u)) for u in hudurls]
+          candidates=[]
+          with ThreadPoolExecutor(max_workers=3) as pool:
+              pending={pool.submit(fn):u for u,fn in jobs}
+              for future in as_completed(pending):
+                  try:
+                      rows=future.result()
+                      print('HUD_CANDIDATE',pending[future],len(rows),flush=True)
+                      if rows:candidates.append(rows)
+                  except Exception as e:print('HUD_CANDIDATE_UNAVAILABLE',pending[future],str(e)[:200],flush=True)
+          if candidates:save(hudfile,max(candidates,key=len))
+          else:print('HUD_SNAPSHOT_UNAVAILABLE_ALL_SOURCES',flush=True)
           try:
               cfg=(site/'world-v2300-config.js').read_text()
               endpoint=re.search(r'https://[a-z0-9-]+\.trycloudflare\.com',cfg)
@@ -120,13 +145,22 @@ jobs:
                               f.setdefault('properties',{})['global_risk_review']=True
                           result.append(f)
                       return result
-                  except Exception:return []
+                  except Exception as e:
+                      print('OPPORTUNITY_SOURCE_UNAVAILABLE',name,b,str(e)[:180],flush=True);return []
               with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
                   result=list(pool.map(region,[(n,b) for b in boxes for n in names]))
               rows=[f for batch in result for f in batch]
               save(oppfile,rows)
               if not rows: print('OPPORTUNITY_SNAPSHOT_UNAVAILABLE_NO_RECORDS',flush=True)
           except Exception as e:print('OPPORTUNITY_SNAPSHOT_UNAVAILABLE',str(e)[:200],flush=True)
+          seeds={}
+          for kind,rel in [('listings',hudfile),('opportunities',oppfile)]:
+              p=site/rel
+              rows=json.loads(p.read_text()).get('features',[]) if p.exists() else []
+              seeds[kind]=rows
+              print('INSTANT_MARKER_SEED_COUNT',kind,len(rows),flush=True)
+          p=site/module
+          p.write_bytes(('window.__BP_PROPERTY_MARKER_SEED_V2__='+json.dumps(seeds,separators=(',',':'),ensure_ascii=True)+';\n').encode()+p.read_bytes())
           assert before==snapshot(),'Unrelated production file changed'
           print('PROPERTY_MARKERS_ONLY_BYTE_PRESERVATION_PASS',len(before))
           PY
@@ -182,4 +216,4 @@ jobs:
             curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?horizon=$GITHUB_SHA" -o "$RUNNER_TEMP/horizon-live"
             cmp "$SITE/$p" "$RUNNER_TEMP/horizon-live"
           done
-          echo PROPERTY_MARKERS_ONLY_LIVE_PASS
+          echo PROPERTY_MARKERS_INSTANT_V2_LIVE_BYTES_PASS
