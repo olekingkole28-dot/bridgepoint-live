@@ -48,7 +48,7 @@ def register():
  split=np.arange(len(h))%4!=0
  # City of New York public building footprints, in feet above local ground.
  lon0,lat0=-74.010,40.707; mx=111320*math.cos(math.radians(lat0)); my=111132
- url='https://data.cityofnewyork.us/resource/5zhs-2jue.json?'+urllib.parse.urlencode({'$select':'the_geom,height_roof,construction_year','$where':'intersects(the_geom, \\'POLYGON((-74.025 40.694,-73.989 40.694,-73.989 40.723,-74.025 40.723,-74.025 40.694))\\')','$limit':10000})
+ url='https://data.cityofnewyork.us/resource/5zhs-2jue.json?'+urllib.parse.urlencode({'$select':'the_geom,height_roof,construction_year','$where':"intersects(the_geom, 'POLYGON((-74.025 40.694,-73.989 40.694,-73.989 40.723,-74.025 40.723,-74.025 40.694))')",'$limit':10000})
  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'BridgePoint-registration/1.0'}),timeout=75) as r:features=json.load(r)
  assert isinstance(features,list) and 200<len(features)<10000
  step=4.; n=801; half=(n-1)/2
