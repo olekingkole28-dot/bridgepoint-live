@@ -37,7 +37,7 @@ jobs:
             sleep 5
           done
           exit 1
-      - name: Add global temperature and county labels only
+      - name: Add global temperature and county labels only (corrected Census import)
         run: |
           set -euo pipefail
           export SITE="$RUNNER_TEMP/horizon-site"
