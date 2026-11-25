@@ -11,9 +11,15 @@ const manifest = JSON.parse(read('app/horizon/manifest.webmanifest'));
 
 const gateMatch = dock.match(/<button[^>]*data-bp-horizon-gate="1"[^>]*>[\s\S]*?<\/button>/);
 assert.ok(gateMatch, 'BridgePoint card must contain the Horizon gate button');
-assert.match(gateMatch[0], /\bdisabled\b/, 'Horizon gate must remain physically disabled');
-assert.match(gateMatch[0], /aria-disabled="true"/, 'Horizon gate must expose disabled state');
-assert.doesNotMatch(gateMatch[0], /data-bpv-action=/, 'Horizon gate must not be wired to a click action');
+assert.doesNotMatch(gateMatch[0], /\sdisabled(?:\s|>)/, 'Browser preview launcher must be enabled');
+assert.match(gateMatch[0], /aria-disabled="false"/, 'Browser preview launcher is enabled');
+assert.match(gateMatch[0], /data-bpv-action="horizon-survival"/, 'Horizon button launches only the separate browser preview');
+assert.ok(dock.includes("location.assign('/app/horizon/survival/')"), 'Preview route must be wired');
+const preview = read('app/horizon/survival/index.html');
+assert.match(preview, /WELCOME TO HORIZON/);
+assert.match(preview, /Array\(10\)\.fill\(null\)/);
+assert.match(preview, /pickupSeconds>=3/);
+assert.match(preview, /world-v2300-water\.js/);
 assert.match(dock, /data-bpv-command-section="horizon"/, 'Horizon gate must be its own final card section');
 assert.match(dockCss, /\.bpv-horizon-launch-btn:disabled/, 'disabled styling must exist');
 
@@ -38,7 +44,8 @@ for (const path of [
 }
 
 console.log('HORIZON_REPLACEMENT_ENTRY_PASS', JSON.stringify({
-  cardGateDisabled: true,
+  cardGateDisabled: false,
+  browserPreviewEnabled: true,
   pwaIdentityPreserved: true,
   pwaRoutesToReplacement: true,
   legacyWebGameEntrypointsRetired: 4,
