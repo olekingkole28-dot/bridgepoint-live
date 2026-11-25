@@ -55,7 +55,7 @@ def add(item):
  c=cal.get(key)
  asset=item.get('asset_url')
  if c and existing_asset(asset):
-  row.update(c);row.update(asset=asset,minZoom=12.2,reachM=max(180,float(c.get('targetLengthM',0))*1.5))
+  row.update(c);row.update(asset=asset,minZoom=c.get('minZoom',12.2),reachM=c.get('reachM',max(180,float(c.get('targetLengthM',0))*1.5)))
   if c.get('precisionExtra'):row['precision']=(row.get('precision') or '')+' '+c['precisionExtra']
  elif asset:
   skipped.append({'id':id,'asset':asset,'reason':'asset missing or no defensible location/depth transform'})
@@ -85,7 +85,8 @@ if p.is_file():
   add(dict(id='wonder:'+uid,title=title1 or title2,category='Landmark scans',coordinates=[float(lon),float(lat)],viewer_url='https://sketchfab.com/models/'+uid+'/embed?autostart=1&preload=1',source_url='https://sketchfab.com/models/'+uid,precision='Published site anchor; creator-hosted viewer, native geometry not available.'))
 native=[x for x in items if x.get('asset')]
 assert len(native)>=7, 'Native scan assets unexpectedly absent from baseline'
-assert len(items)>=312 and len({x['id'] for x in items})==len(items)
+assert len(items)>=sum(1 for x in data['items'] if validxy(x.get('coordinates'))) and len({x['id'] for x in items})==len(items)
+print('UNLOCATED_CATALOG_ITEMS',[(x['title'],x.get('coordinates')) for x in data['items'] if not validxy(x.get('coordinates'))])
 out=site/'data/bp-auto-reality-v1.json';out.parent.mkdir(parents=True,exist_ok=True)
 out.write_text(json.dumps({'schemaVersion':1,'items':items,'nativeCount':len(native),'catalogCount':len(items),'viewerOnlyCount':len(items)-len(native),'unplacedAssets':skipped},separators=(',',':'),ensure_ascii=True))
 print('AUTO_REALITY_CATALOG',len(items),'NATIVE',len(native),'VIEWER_ONLY',len(items)-len(native))
