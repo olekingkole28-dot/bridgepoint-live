@@ -24,39 +24,55 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Restore latest verified Rain V5 release
+      - name: Restore exact verified Temperature V1 release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45554687714 --jq '.conclusion')" = success
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45556618108 --jq '.conclusion')" = success
           for attempt in 1 2 3; do
             rm -rf "$RUNNER_TEMP/baseline"
             mkdir -p "$RUNNER_TEMP/baseline"
-            if timeout 180s gh run download 45554687714 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            if timeout 180s gh run download 45556618108 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
             sleep 5
           done
           exit 1
-      - name: Add global temperature and county labels only (corrected Census import)
+      - name: Change temperature typography only and verify all other bytes
         run: |
           set -euo pipefail
           export SITE="$RUNNER_TEMP/horizon-site"
           mkdir -p "$SITE"
           tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
-          python3 -m pip install --quiet numpy eccodes shapely pyshp
-          python3 scripts/overlay_temperature_v1.py "$SITE"
+          python3 - <<'PY'
+          import os, hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          module='bridgepoint-temperature-v1.js'
+          def snapshot():
+              return {p.relative_to(site).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix()!=module}
+          before=snapshot()
+          original=(site/module).read_bytes()
+          edits=[
+              (b"'text-font':['Noto Sans Regular']",b"'text-font':['Noto Sans Bold']"),
+              (b"'text-size':['interpolate',['linear'],['zoom'],0,10,4,12,7,13,13,16]",b"'text-size':['interpolate',['linear'],['zoom'],0,13,4,15,7,16,13,19]"),
+              (b"'text-color':'#ffffff','text-halo-color':'#0b1423','text-halo-width':1.5,'text-halo-blur':.25",b"'text-color':'#0b1423','text-halo-color':'#ffffff','text-halo-width':1.8,'text-halo-blur':.1"),
+          ]
+          expected=original
+          for old,new in edits:
+              assert expected.count(old)==1, 'Unexpected baseline typography'
+              expected=expected.replace(old,new,1)
+          source=Path('rebuild-v5000',module).read_bytes()
+          assert source==expected, 'Temperature source contains unexpected changes'
+          (site/module).write_bytes(source)
+          assert before==snapshot(), 'Unrelated production file changed'
+          print('TEMPERATURE_TYPOGRAPHY_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
           node --check "$SITE/bridgepoint-temperature-v1.js"
           node tests/temperature-v1.test.mjs
+          node tests/rain-glass-v5.test.mjs
           node --check "$SITE/bridgepoint-rain-3d-v1.js"
           node --check "$SITE/bridgepoint-bottom-card-mobile-v2.js"
           node --check "$SITE/bridgepoint-bottom-card-categories-v1.js"
-          grep -Fq 'projectTileFor3D' "$SITE/bridgepoint-rain-3d-v1.js"
-          grep -Fq 'ensureIcons' "$SITE/bridgepoint-rain-3d-v1.js"
-          grep -Fq 'openRainMarker' "$SITE/bridgepoint-rain-3d-v1.js"
-          grep -Fq 'drawLocalVisibility' "$SITE/bridgepoint-rain-3d-v1.js"
-          grep -Fq 'dynamic.triangles' "$SITE/bridgepoint-rain-3d-v1.js"
-          grep -Fq 'bp-rn-v5-wet-glass' "$SITE/bridgepoint-rain-3d-v1.js"
-          node tests/rain-glass-v5.test.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
@@ -87,4 +103,4 @@ jobs:
             curl --retry 8 --retry-all-errors --retry-delay 4 --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?horizon=$GITHUB_SHA" -o "$RUNNER_TEMP/horizon-live"
             cmp "$SITE/$p" "$RUNNER_TEMP/horizon-live"
           done
-          echo TEMPERATURE_V1_LIVE_PASS
+          echo TEMPERATURE_TYPOGRAPHY_ONLY_LIVE_PASS
