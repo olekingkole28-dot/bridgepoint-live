@@ -1,0 +1,184 @@
+name: Publish BridgePoint globe input recovery V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-globe-input-recovery-v2.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact verified startup recovery artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45679529992/jobs --jq '[.jobs[].steps[] | select(.name=="Publish only the validated recovery" and .conclusion=="success")] | length')" -ge 1
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/baseline"
+            mkdir -p "$RUNNER_TEMP/baseline"
+            if timeout 180s gh run download 45679529992 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Restore native direct elevation and validate globe controls
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE"
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$SITE"
+          for p in index.html app/index.html bridgepoint-auto-reality-v1.js world-v2300-water.js; do
+            curl --retry 3 --retry-all-errors --max-time 40 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$SITE/$p" "$RUNNER_TEMP/current"
+          done
+          python3 - <<'PY'
+          import os,re,hashlib,json
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          allowed={'world-v2300-map.js','app/world-v2300-map.js','vendor/bp-ocean-relief-v4.mjs','world-v2300-water.js','app/world-v2300-water.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs'}
+          def snapshot():
+              return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          def one(s,a,b):
+              assert s.count(a)==1,(a[:120],s.count(a))
+              return s.replace(a,b,1)
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+              p=site/rel;s=p.read_text()
+              s=one(s,"import {unifiedTerrainURL,TERRAIN_ATTRIBUTION,bindTerrainStartup} from '/vendor/bp-unified-topobathy-v1.mjs?v=startup1';","// Emergency navigation recovery: native direct DEM; enhanced terrain assets remain installed.")
+              s=one(s,"tiles:[unifiedTerrainURL(DEM)],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:TERRAIN_ATTRIBUTION","tiles:[DEM],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Mapzen Terrain Tiles · AWS Open Data'")
+              s=one(s,"bindTerrainStartup(map);","window.__BP_TERRAIN_NAVIGATION_RECOVERY_V2__={nativeDirectDEM:true,enhancedTerrainTemporarilyBypassed:true,assetsPreserved:true};")
+              # Finalization is scheduled instead of nested in style callbacks, as in V1.
+              assert 'bpCoreFinalizeQueued' in s
+              assert 'bpNativeHeight()' in s and 'const roofEquipmentOn=z>=' in s
+              p.write_text(s)
+          p=site/'vendor/bp-ocean-relief-v4.mjs';s=p.read_text()
+          s=one(s,"import {installUnifiedTerrain,TERRAIN_ATTRIBUTION,canEnhanceTerrain} from '/vendor/bp-unified-topobathy-v1.mjs?v=startup1';","// Keep the native terrain and relief on the same signed elevation provider during recovery.")
+          s=one(s,"if(!diving&&map.getZoom()<8){","if(!diving){")
+          s=one(s," if(!diving&&!map.getLayer(DEPTH_LAYER)&&(!canEnhanceTerrain()||map.isMoving?.()))return false;"," // Relief is requested only during underwater operation.")
+          s=one(s,"tiles:[installUnifiedTerrain()?'bp-topobathy://relief/{z}/{x}/{y}.png':'bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:15,attribution:TERRAIN_ATTRIBUTION","tiles:['bp-ocean-relief://{z}/{x}/{y}.png'],tileSize:256,minzoom:0,maxzoom:12,attribution:'Mapzen / Tilezen terrain · ETOPO1 bathymetry'")
+          p.write_text(s)
+          for rel in ('world-v2300-water.js','app/world-v2300-water.js'):
+              p=site/rel;s=p.read_text();s=one(s,"bp-ocean-relief-v4.mjs?v=startup1","bp-ocean-relief-v4.mjs?v=inputrecovery2");p.write_text(s)
+          for rel in ('landing.js','app.js','vendor/bp-public-globe-v4.mjs'):
+              p=site/rel;s=p.read_text()
+              s,n=re.subn(r'(world-v2300-(?:map|water)\.js\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v2',s)
+              if rel!='vendor/bp-public-globe-v4.mjs':assert n>=2,(rel,n)
+              p.write_text(s)
+          for rel,entry in (('index.html','landing.js'),('app/index.html','app.js')):
+              p=site/rel;s=p.read_text();s,n=re.subn(r'('+re.escape(entry)+r'\?[^"\'\s]+)',lambda m:m[1]+'&inputrecovery=20261125v2',s);assert n>=1;p.write_text(s)
+          assert before==snapshot(),'UNRELATED FILE CHANGED'
+          roof=json.loads((site/'data/bp-nyc-rooftop-cooling-v2.geojson').read_text())
+          manifest=json.loads((site/'data/bp-nyc-terrain-v1/manifest.json').read_text())
+          assert len(roof['features'])==15321 and manifest['count']==403
+          print('DIRECT_DEM_RECOVERY_AND_ASSETS_PRESERVED',len(before),len(roof['features']),manifest['count'])
+          PY
+          for p in vendor/bp-ocean-relief-v4.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          TEST="$RUNNER_TEMP/input-smoke"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
+          const root=process.env.SITE,origin='https://bridgepointintelligence.online';
+          const mime={'.js':'application/javascript','.mjs':'application/javascript','.html':'text/html','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.wasm':'application/wasm','.glb':'model/gltf-binary','.pbf':'application/x-protobuf','.mvt':'application/vnd.mapbox-vector-tile','.woff2':'font/woff2'};
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+           const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});
+           const errors=[];page.on('pageerror',e=>{errors.push(String(e));console.log('PAGE_ERROR',String(e))});
+           page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost/.test(m.text()))console.log(m.text().slice(0,400))});
+           // Serve the candidate artifact under the real origin, so absolute paths
+           // and startup behavior are the same. External tile requests remain real.
+           await page.route(origin+'/**',async route=>{
+             const url=new URL(route.request().url());let file=path.resolve(root,'.'+decodeURIComponent(url.pathname));
+             if(!file.startsWith(root+'/')&&file!==root)return route.abort();
+             if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');
+             if(!fs.existsSync(file)||!fs.statSync(file).isFile())return route.continue();
+             return route.fulfill({path:file,contentType:mime[path.extname(file)]||'application/octet-stream'});
+           });
+           await page.addInitScript(()=>{window.__bpInputSmokeTicks=0;setInterval(()=>window.__bpInputSmokeTicks++,100);});
+           await page.goto(origin+'/?inputsmoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+           const getMap=()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return w?.map;};
+           await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420)?.map;return !!m&&!!m.getCanvas()?.clientWidth&&m.dragPan?.isEnabled?.()&&m.touchZoomRotate?.isEnabled?.()},{timeout:90000});
+           await page.waitForFunction(()=>!!window.__BP_WORLD_CORE_READY__?.ready,{timeout:45000});
+           const before=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,r=m.getCanvas().getBoundingClientRect(),c=m.getCenter();return {x:r.x+r.width*.5,y:r.y+r.height*.48,lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks,dem:m.getStyle().sources.dem.tiles};});
+           assert(before.dem[0].startsWith('https://s3.amazonaws.com/'),'Native DEM is not direct');
+           const cdp=await page.context().newCDPSession(page);
+           const x=Math.round(before.x),y=Math.round(before.y);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
+           for(let i=1;i<=8;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+Math.round(i*8),y:y+Math.round(i*7),id:1}]});await page.waitForTimeout(35);}
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           await page.waitForFunction(lat=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return Math.abs(m.getCenter().lat-lat)>.15},before.lat,{timeout:12000});
+           const plus=page.locator('.maplibregl-ctrl-zoom-in:visible').first();
+           await plus.click({timeout:10000});
+           await page.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.2},before.z,{timeout:12000});
+           const after=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return {lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks};});
+           assert(after.ticks>before.ticks,'Main thread heartbeat failed');
+           console.log('REAL_MOBILE_TOUCH_AND_ZOOM_PASS',JSON.stringify({before,after,errors:errors.slice(0,8)}));
+          }finally{await browser.close()}
+          JS
+          timeout 210s node "$TEST/test.mjs"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry only explicit transient HTTP 5xx responses to deployment creation.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'POST .*pages/deployments returned HTTP 5[0-9][0-9]' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify live bytes and preserved scan
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json; do
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then ok=1; break; fi
+              sleep 5
+            done
+            test "$ok" = 1 || { echo "LIVE_MISMATCH $p"; exit 1; }
+          done
+          echo RENDER_RECOVERY_LIVE_BYTES_PASS
