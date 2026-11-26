@@ -1,0 +1,157 @@
+name: BridgePoint normal globe camera recovery V8
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-normal-globe-camera-v8.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-viewport-forest-v5.mjs; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <(head -15 "$RUNNER_TEMP/candidates")
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Restore normal globe input and zoom range only
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          def hashes():return {str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          before=hashes();allowed=set()
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text()
+              anchor="ensureMapGestures();map.once('load',ensureMapGestures);"
+              assert s.count(anchor)==1
+              s=s.replace(anchor,anchor+"""
+              // Normal Earth navigation owns its camera. Space views may lock it only
+              // while their explicit UI is open; never leave the Earth camera locked.
+              const bpNormalGlobeInput=()=>{
+                const neo=document.getElementById('bpNeoSpaceRootV2'),sp=window.__BP_APP_SPACE_EXPLORER_V1__;
+                if((neo&&!neo.hidden&&getComputedStyle(neo).display!=='none')||sp?.state?.open||window.__BP_UNDERWATER_DIVE_ACTIVE__)return;
+                try{
+                  const min=map.getMinZoom(),max=map.getMaxZoom();
+                  if(max<22)map.setMaxZoom(22);
+                  if(min>initialMinZoom)map.setMinZoom(initialMinZoom);
+                  for(const k of ['dragPan','touchZoomRotate','touchPitch','dragRotate','scrollZoom','doubleClickZoom','keyboard','boxZoom']){
+                    const h=map[k];if(h&&h.isEnabled?.()===false)h.enable();
+                  }
+                  const c=map.getCanvas(),cc=map.getCanvasContainer();
+                  for(const e of [c,cc])if(e){e.style.setProperty('touch-action','none','important');e.style.setProperty('pointer-events','auto','important')}
+                  window.__BP_NORMAL_GLOBE_INPUT_V8__={min:map.getMinZoom(),max:map.getMaxZoom(),pinch:map.touchZoomRotate?.isEnabled?.(),drag:map.dragPan?.isEnabled?.(),updatedAt:Date.now()};
+                }catch(e){console.warn('Normal globe input',e)}
+              };
+              const bpGlobeCanvasContainer=map.getCanvasContainer();
+              const bpNormalGlobeStart=e=>{
+                if(!bpGlobeCanvasContainer.contains(e.target))return;
+                bpNormalGlobeInput();
+                // Interrupt only the tagged public idle rotation, never user zoom.
+                if(window.__BP_PUBLIC_IDLE_SPIN_V5__||window.__BP_PUBLIC_GLOBE_V4__?.rotating)window.__BP_PUBLIC_GLOBE_V4__?.pause?.();
+              };
+              map.getContainer().addEventListener('pointerdown',bpNormalGlobeStart,true);
+              map.getContainer().addEventListener('touchstart',bpNormalGlobeStart,{capture:true,passive:true});
+              map.getContainer().addEventListener('wheel',bpNormalGlobeStart,{capture:true,passive:true});
+              map.on('load',bpNormalGlobeInput);map.on('moveend',bpNormalGlobeInput);
+              const bpNormalGlobeTimer=setInterval(bpNormalGlobeInput,1200);
+              map.once('remove',()=>{clearInterval(bpNormalGlobeTimer);const c=map.getContainer();for(const e of ['pointerdown','touchstart','wheel'])c.removeEventListener(e,bpNormalGlobeStart,true)});
+              bpNormalGlobeInput();
+          """)
+              p.write_text(s);allowed.add(str(p.relative_to(site)))
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if not p.exists():continue
+                  s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261126-normal-globe-camera-v8',s)
+                  if n!=s:p.write_text(n);allowed.add(str(p.relative_to(site)))
+          after=hashes();assert before.keys()==after.keys();assert {p for p in before if before[p]!=after[p]}==allowed
+          print('NORMAL_GLOBE_CAMERA_ONLY_SCOPE_PASS',sorted(allowed))
+          PY
+          for f in world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify real homepage camera and touch navigation
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GLOBE_PAGE_ERROR',e.message));await p.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:90000});await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()&&window.__BP_NORMAL_GLOBE_INPUT_V8__?.max===22},null,{timeout:120000});const get=()=>p.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const r=m.getCanvas().getBoundingClientRect();return {zoom:m.getZoom(),lng:m.getCenter().lng,lat:m.getCenter().lat,min:m.getMinZoom(),max:m.getMaxZoom(),pinch:m.touchZoomRotate.isEnabled(),drag:m.dragPan.isEnabled(),x:r.x+r.width/2,y:r.y+r.height/2}});const initial=await get();console.log('GLOBE_BEFORE_INPUT',initial);assert(initial.max===22&&initial.pinch&&initial.drag);const button=p.locator('.maplibregl-ctrl-zoom-in').first();await button.click({timeout:20000});await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.5},initial.zoom,{timeout:20000});const plus=await get();const cdp=await p.context().newCDPSession(p);const send=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y],id)=>({x,y,id}))});const x=plus.x,y=plus.y;await send('touchStart',[[x-26,y],[x+26,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x-26-i*7,y],[x+26+i*7,y]]);await p.waitForTimeout(45)}await send('touchEnd',[]);await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.3},plus.zoom,{timeout:20000});const pinch=await get();console.log('GLOBE_PLUS_AND_PINCH_PASS',initial,plus,pinch);await send('touchStart',[[x,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x+i*10,y+i*3]]);await p.waitForTimeout(35)}await send('touchEnd',[]);await p.waitForFunction(v=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return Math.abs(c.lng-v.lng)+Math.abs(c.lat-v.lat)>.1},pinch,{timeout:20000});console.log('GLOBE_REAL_TOUCH_DRAG_PASS',await get());await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-normal-globe-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-normal-globe-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated camera recovery
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify production camera module and preserved renderers
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in world-v2300-map.js app/world-v2300-map.js index.html app/index.html world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-viewport-forest-v5.mjs world-v2300-water.js app/world-v2300-water.js; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?camera=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo NORMAL_GLOBE_CAMERA_V8_LIVE_PASS
