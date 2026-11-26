@@ -1,0 +1,40 @@
+name: Import explicitly selected CC-BY traffic models
+on:
+  push:
+    branches: [asset-intake-traffic-20261126]
+    paths: ['.github/workflows/intake-traffic-source.yml']
+permissions:
+  contents: write
+jobs:
+  intake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Retrieve authorized source models
+        env:
+          MODEL_0: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-daa8-81f5-934d-52f434848d1b/raw?se=2026-11-26T22%3A25%3A23Z&sp=r&sv=2026-06-06&sr=b&scid=be14e0a7-eced-5cb8-b8d9-2e14d3fe7ef8&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-26T12%3A00%3A37Z&ske=2026-11-27T12%3A00%3A37Z&sks=b&skv=2026-06-06&sig=agj6VzHaKj6GgI18emVRuvum47E3s7OqRf3Wm%2B4BgWs%3D"
+          MODEL_1: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-b1a0-81f5-932b-bd3d96e578d0/raw?se=2026-11-26T22%3A25%3A23Z&sp=r&sv=2026-06-06&sr=b&scid=f7eec62c-d541-5196-a587-6f2a9e617440&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-26T13%3A51%3A49Z&ske=2026-11-27T13%3A51%3A49Z&sks=b&skv=2026-06-06&sig=eMMhzwZOQjRUOuP2bwsy5iLQ1cvrwNyjqIqKJYlCzPA%3D"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/traffic"
+          echo "::add-mask::$MODEL_0"
+          curl -fsSL --max-time 45 "$MODEL_0" -o "$RUNNER_TEMP/traffic/retro-traffic-signals.glb"
+          echo "915636e00929c85002132641db6f6c94f25393843ba569c2cdbca02d65a53bab  $RUNNER_TEMP/traffic/retro-traffic-signals.glb" | sha256sum -c -
+          echo "::add-mask::$MODEL_1"
+          curl -fsSL --max-time 45 "$MODEL_1" -o "$RUNNER_TEMP/traffic/road-traffic-sign.glb"
+          echo "ba85977f1cadea1c3dde807e6159b19241616eb190e4e1a59a5fc01e1c9224a3  $RUNNER_TEMP/traffic/road-traffic-sign.glb" | sha256sum -c -
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Store only verified original model assets
+        run: |
+          set -euo pipefail
+          mkdir -p street-detail-v1/traffic-source
+          cp "$RUNNER_TEMP/traffic/"*.glb street-detail-v1/traffic-source/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add street-detail-v1/traffic-source
+          if ! git diff --cached --quiet; then
+            git commit -m 'Import source CC-BY traffic signal and road gantry assets'
+            git push origin HEAD:main
+          fi
