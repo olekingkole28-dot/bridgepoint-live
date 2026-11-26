@@ -1,0 +1,152 @@
+name: BridgePoint Bus Stops blue and gold shelter icons V4
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-bus-icons-v4.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <(head -15 "$RUNNER_TEMP/candidates")
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Apply blue and gold icon distinction only
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          def rep(s,a,b):
+              assert s.count(a)==1,(a,s.count(a))
+              return s.replace(a,b)
+          def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+          unchanged=['vendor/bp-bus-models-v3.mjs','vendor/bp-street-detail-v1.mjs','assets/street-detail-v1/busshelter.glb.gz','data/bp-nyc-bus-v1/stops.geojson','data/bp-nyc-bus-v1/shelters.geojson','world-v2300-water.js','app/world-v2300-water.js','world-v2300-tree-instanced.js','app/world-v2300-tree-instanced.js']
+          before={f:digest(site/f) for f in unchanged}
+          p=site/'vendor/bp-nyc-bus-v1.mjs';s=p.read_text()
+          s=rep(s,"icon='bp-nyc-bus-icon-v1';","icon='bp-nyc-bus-icon-v1',shelterIcon='bp-nyc-bus-shelter-gold-v4';")
+          s=rep(s,"function paintIcon(){","function paintIcon(color='#1478ca'){")
+          assert s.count("x.fillStyle='#1478ca';")==2
+          s=s.replace("x.fillStyle='#1478ca';","x.fillStyle=color;")
+          s=rep(s,"if(!map.hasImage(icon))map.addImage(icon,paintIcon(),{pixelRatio:2});","if(!map.hasImage(icon))map.addImage(icon,paintIcon(),{pixelRatio:2});if(!map.hasImage(shelterIcon))map.addImage(shelterIcon,paintIcon('#c58b00'),{pixelRatio:2});")
+          s=rep(s,"layout:{'icon-image':icon,'icon-size':['interpolate',['linear'],['zoom'],12,.48,16,.75,20,.9]","layout:{'icon-image':i?shelterIcon:icon,'icon-size':['interpolate',['linear'],['zoom'],12,.48,16,.75,20,.9]")
+          a=s.index(" if(!map.getLayer('bp-bus-global-icon-v3'))")
+          b=s.index('\n',a)
+          global_line=s[a:b]
+          gold_line=global_line.replace('bp-bus-global-icon-v3','bp-bus-global-shelter-icon-v4').replace('source:ids[0]','source:ids[1]').replace("'icon-image':icon","'icon-image':shelterIcon")
+          s=s[:b]+'\n'+gold_line+s[b:]
+          s=rep(s,"!map.getLayer('bp-bus-global-icon-v3'))install()","!map.getLayer('bp-bus-global-icon-v3')||!map.getLayer('bp-bus-global-shelter-icon-v4'))install()")
+          s=rep(s,"'bpBusModelsV2-probe','bp-bus-global-icon-v3','bp-nyc-bus-poles'","'bpBusModelsV2-probe','bp-bus-global-icon-v3','bp-bus-global-shelter-icon-v4','bp-nyc-bus-poles'")
+          s=rep(s,"...ids.map(id=>id+'-icon'),'bp-bus-global-icon-v3']","...ids.map(id=>id+'-icon'),'bp-bus-global-icon-v3','bp-bus-global-shelter-icon-v4']")
+          # Same shape and scale; retain all source records. At close zoom the gold marker is
+          # ordered above any coincident ordinary stop. At overview zoom collision culling stays active.
+          p.write_text(s)
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text();s=rep(s,'/vendor/bp-nyc-bus-v1.mjs?v=bus3','/vendor/bp-nyc-bus-v1.mjs?v=bus4');p.write_text(s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():
+                      s=p.read_text();n=s.replace('world-v2300-map.js?v=20261126-bus3','world-v2300-map.js?v=20261126-bus4')
+                      if s!=n:p.write_text(n)
+          assert before=={f:digest(site/f) for f in unchanged}
+          print('BUS_V4_GOLD_SHELTER_BLUE_STOP_AND_UNCHANGED_MODELS_PASS')
+          PY
+          node --input-type=module --check < "$SITE/vendor/bp-bus-models-v3.mjs"
+          node --input-type=module --check < "$SITE/vendor/bp-nyc-bus-v1.mjs"
+          node --input-type=module --check < "$SITE/vendor/bp-street-detail-v1.mjs"
+          for f in world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify existing street renderer and globe startup
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          node street-detail-v1/verify.mjs
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace('<div id="map"></div>','<div id="map"></div><div id="bpv-dock-actions"></div>')
+          s=s.replace("import * as T from", "import {attachNYCBusStops} from '/vendor/bp-nyc-bus-v1.mjs';\nimport * as T from")
+          s=s.replace("const center=[-72.6502,41.56]","const center=[-73.9857,40.7484]").replace("zoom:18.5,pitch:50","zoom:2,pitch:0")
+          s=s.replace("map.once('load',()=>attachStreetDetail(map))","map.once('load',()=>attachNYCBusStops(map))")
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:840,height:780}});await p.route('**/data/bp-nyc-bus-v1/*.geojson',async route=>{const isShelter=route.request().url().includes('shelters');await route.fulfill({json:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Point',coordinates:isShelter?[-73.9857,40.7484]:[-73.9856,40.7484]},properties:{class:isShelter?'bus_shelter':'bus_stop',name:'Test stop'}}]}})});await p.goto(origin+'/__street_fixture');const btn=p.locator('#bp-bus-stops-v2');await btn.waitFor();await btn.evaluate(b=>b.click());await p.waitForFunction(()=>!!window.testMap.getLayer('bp-bus-global-icon-v3')&&!!window.testMap.getLayer('bp-bus-global-shelter-icon-v4'));const colors=await p.evaluate(()=>{const m=window.testMap;return [m.getLayoutProperty('bp-bus-global-icon-v3','icon-image'),m.getLayoutProperty('bp-bus-global-shelter-icon-v4','icon-image'),m.getLayoutProperty('bpNYCBusStops-icon','icon-image'),m.getLayoutProperty('bpNYCBusShelters-icon','icon-image'),m.getLayer('bp-bus-global-shelter-icon-v4').source,m.hasImage('bp-nyc-bus-shelter-gold-v4')]});assert.deepEqual(colors,['bp-nyc-bus-icon-v1','bp-nyc-bus-shelter-gold-v4','bp-nyc-bus-icon-v1','bp-nyc-bus-shelter-gold-v4','bpNYCBusShelters',true]);assert.equal(await p.evaluate(()=>window.testMap.getLayer('bp-bus-global-icon-v3').maxzoom),12);await p.evaluate(()=>window.testMap.jumpTo({center:[-73.9857,40.7484],zoom:19,pitch:50}));await p.waitForFunction(()=>window.__BP_BUS_MODELS_V2__?.objects===1&&window.__BP_BUS_MODELS_V2__?.drawCalls>0&&window.__BP_BUS_MODELS_V2__?.localCoordinates,null,{timeout:60000});const anchor=await p.evaluate(()=>window.__BP_BUS_MODELS_V2__.anchor);assert.deepEqual(anchor,[-73.9857,40.7484]);await p.evaluate(()=>window.testMap.jumpTo({center:[-73.98568,40.74841],zoom:20,bearing:90,pitch:65}));await p.waitForTimeout(1200);assert.deepEqual(await p.evaluate(()=>window.__BP_BUS_MODELS_V2__.anchor),anchor);assert.equal(await p.evaluate(()=>window.testMap.__bpBusModelFeaturesV3.length),1);await btn.evaluate(b=>b.click());await p.waitForFunction(()=>!window.testMap.getLayer('bp-bus-global-icon-v3')&&!window.testMap.getLayer('bp-bus-global-shelter-icon-v4')&&window.__BP_BUS_MODELS_V2__?.objects===0);console.log('BUS_V4_BLUE_GOLD_GLOBAL_AND_CLOSE_TOGGLE_PASS');await p.close();\n"""+s[b:]
+          Path('street-detail-v1/verify-bus-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-bus-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated NYC bus stops
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify deployed asset hashes and unchanged water
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          cd "$SITE"
+          for p in data/bp-nyc-bus-v1/* assets/street-detail-v1/busshelter.glb.gz vendor/bp-bus-models-v3.mjs bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?street=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo BUS_ICONS_V4_LIVE_BYTES_PASS
