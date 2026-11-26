@@ -70,7 +70,7 @@ jobs:
           assert all(k in before or k.startswith('assets/street-detail-v1/') or k=='vendor/bp-street-detail-v1.mjs' for k in after),'Unexpected addition'
           print('STREET_SCOPE_BYTE_PRESERVATION_PASS',len(before),len(after))
           PY
-          size=$(du -sb "$SITE" | cut -f1); echo "Release bytes: $size"; test "$size" -lt 1000000000
+          size=$(du -sb "$SITE" | cut -f1); echo "Release bytes: $size"; added=$(du -sb "$SITE/assets/street-detail-v1" | cut -f1); echo "Street assets bytes: $added"; test "$added" -lt 25000000
       - name: Browser-test real optimized GLB meshes and map startup
         run: |
           set -euo pipefail
