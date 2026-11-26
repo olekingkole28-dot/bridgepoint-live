@@ -1,0 +1,258 @@
+name: BridgePoint original textured forest V6
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-original-forest-v6.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <(head -15 "$RUNNER_TEMP/candidates")
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install only viewport-wide source-derived forest layer
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          mkdir -p "$SITE/vendor"
+          cat > "$SITE/vendor/bp-viewport-forest-v5.mjs" <<'JS'
+          import {loadStreetGLTF,normalizedBounds} from '/vendor/bp-street-detail-v1.mjs';
+          const ID='bp-viewport-forest-v5',R=6378137,C=2*Math.PI*R,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+          const X=lng=>(lng+180)/360,Y=lat=>(1-Math.asinh(Math.tan(clamp(lat,-85.051128,85.051128)*Math.PI/180))/Math.PI)/2;
+          const lon=x=>x*360-180,lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y)))*180/Math.PI;
+          const wrap=x=>((x%1)+1)%1,near=(x,c)=>x+Math.round(c-x);
+          const hash=(x,y)=>{let a=(Math.imul(x,73856093)^Math.imul(y,19349663))>>>0;a=Math.imul(a^(a>>>16),0x45d9f3b)>>>0;return a/4294967296};
+          // Rasterize the actual mapped forest polygons, including interior holes.
+          // Grid is geographic and deterministic, never centered on a circular camera radius.
+          export function forestGrid(features,bounds,zoom,budget){
+            const c=X(bounds.center),w=near(X(bounds.west),c),raw=near(X(bounds.east),c);
+            let a=w,b=raw;if(b<a)b+=1;if(b-a>.75){a=c-.375;b=c+.375}
+            const n=Y(bounds.north),s=Y(bounds.south);if(!(b>a&&s>n))return{cells:[],step:0};
+            let level=clamp(Math.floor(zoom)+7,10,23),size=2**level;
+            while((Math.ceil((b-a)*size)+5)*(Math.ceil((s-n)*size)+5)>budget*1.3&&size>128)size/=2;
+            const x0=Math.floor(a*size)-2,x1=Math.ceil(b*size)+2,y0=Math.max(0,Math.floor(n*size)-2),y1=Math.min(size,Math.ceil(s*size)+2);
+            const width=x1-x0,height=y1-y0;if(width*height>budget*3)return{cells:[],step:1/size};
+            const mask=new Uint8Array(width*height);
+            for(const f of features){
+              const p=f.properties||{},k=String(p.class||p.subclass||p.landuse||p.natural||'').toLowerCase();
+              if(!['forest','wood','woodland','tree_cover'].includes(k))continue;
+              const polys=f.geometry?.type==='Polygon'?[f.geometry.coordinates]:f.geometry?.type==='MultiPolygon'?f.geometry.coordinates:[];
+              for(const poly of polys){
+                const rings=poly.filter(q=>q.length>=4).map(q=>q.map(p=>[near(X(p[0]),c)*size,Y(p[1])*size]));
+                if(!rings.length)continue;
+                const outer=rings[0];let ymin=Infinity,ymax=-Infinity;for(const v of outer){ymin=Math.min(ymin,v[1]);ymax=Math.max(ymax,v[1]);}
+                const lo=Math.max(y0,Math.floor(ymin)),hi=Math.min(y1,Math.ceil(ymax));
+                for(let y=lo;y<hi;y++){
+                  const yy=y+.5,edges=[];
+                  for(const ring of rings)for(let j=0,i=ring.length-1;j<ring.length;i=j++){
+                    const A=ring[i],B=ring[j];if((A[1]>yy)!==(B[1]>yy))edges.push(A[0]+(B[0]-A[0])*(yy-A[1])/(B[1]-A[1]));
+                  }
+                  edges.sort((a,b)=>a-b);
+                  for(let j=0;j+1<edges.length;j+=2){
+                    const from=Math.max(x0,Math.ceil(edges[j]-.5)),to=Math.min(x1,Math.ceil(edges[j+1]-.5));
+                    if(to>from)mask.fill(1,(y-y0)*width+from-x0,(y-y0)*width+to-x0);
+                  }
+                }
+              }
+            }
+            const cells=[];for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+              if(!mask[(y-y0)*width+x-x0])continue;
+              const yy=(y+.5)/size,xx=wrap((x+.5)/size),latitude=lat(yy),spacing=C*Math.cos(latitude*Math.PI/180)/size;
+              cells.push({x,y,lng:lon(xx),lat:latitude,spacing,seed:hash(x,y)});
+            }
+            return{cells,step:1/size,gridWidth:width,gridHeight:height};
+          }
+          // Preserve the original imported geometry and its materials.
+          function sourceLOD(T,root){
+            const b=normalizedBounds(T,root),parts=[];
+            root.traverse(o=>{if(!o.isMesh||!o.geometry?.attributes?.position)return;
+              const g=o.geometry.clone().applyMatrix4(o.matrixWorld);
+              g.translate(-b.base.x,-b.box.min.y,-b.base.z);
+              g.scale(1/b.size.y,1/b.size.y,1/b.size.y);
+              g.computeBoundingSphere();
+              parts.push({geometry:g,material:o.material,tri:(g.index?.count||g.attributes.position.count)/3});
+            });
+            if(!parts.length)throw Error('SOURCE_MODEL_EMPTY');
+            return {parts,tri:parts.reduce((n,p)=>n+p.tri,0),textured:parts.some(p=>p.geometry.attributes.uv&&(Array.isArray(p.material)?p.material:[p.material]).some(m=>m.map||m.alphaMap)),dispose(){for(const p of parts)p.geometry.dispose()}};
+          }
+          export function attachViewportForest(map,options={}){
+            if(map.__BP_VIEWPORT_FOREST_V5__)return map.__BP_VIEWPORT_FOREST_V5__;
+            const state=map.__BP_VIEWPORT_FOREST_V5__={status:'waiting',source:'OPENFREEMAP_FOREST_WOOD_POLYGONS',representation:'SOURCE_MESH_CANOPY_AGGREGATES_NOT_TREE_INVENTORY',instances:0,representedTreeEquivalent:0};
+            window.__BP_VIEWPORT_FOREST_V5__=state;
+            const mobile=options.mobile??(Math.min(innerWidth,screen.width||innerWidth)<=900||matchMedia('(pointer: coarse)').matches||Number(navigator.deviceMemory||4)<=4),budget=mobile?8500:22000,triangleBudget=mobile?2200000:6500000;state.mobile=mobile;state.triangleBudget=triangleBudget;
+            let T,geometry,material,scene,camera,renderer,mesh,anchor,dead=false,loading=false,timer=0,last='',lastAttempt=0;
+            const detailed=()=>{const d=window.__BP_TREE_INSTANCE_RENDERER_V1__;return d?.sourceStreetTreeCount>0&&d?.gpuDrawCalls>0;};
+            const read=()=>{let out=[];try{const src=map.getSource('ofm');if(src)out=map.querySourceFeatures('ofm',src.type==='geojson'?{}:{sourceLayer:'landcover'})||[]}catch(_){}return out;};
+            function release(){if(mesh){scene.remove(mesh);mesh.dispose?.();mesh=null}state.instances=0;state.drawCalls=0;state.representedTreeEquivalent=0;anchor=null;}
+            function refresh(){
+              if(dead||!geometry||!scene)return;
+              const z=map.getZoom();
+              if(z<6||(z>=17&&detailed())){if(mesh)release();state.status='standby';return;}
+              const b=map.getBounds(),c=map.getCenter(),features=read();
+              if(!features.length){state.status=mesh?'retaining-previous-forest':'waiting-for-forest-tiles';return;}
+              const grid=forestGrid(features,{west:b.getWest(),east:b.getEast(),south:b.getSouth(),north:b.getNorth(),center:c.lng},z,budget);
+              if(!grid.cells.length){if(mesh)release();state.status='no-mapped-forest';return;}
+              const tri=geometry.tri,limit=Math.max(1,Math.min(budget,Math.floor(triangleBudget/tri)));
+              // Spatial stride rather than nearest-center truncation keeps every quadrant covered.
+              const stride=Math.max(1,Math.ceil(grid.cells.length/limit));
+              const cells=grid.cells.length<=limit?grid.cells:grid.cells.slice().sort((a,b)=>a.seed-b.seed).slice(0,limit);
+              const sig=[Math.floor(z*4),grid.step,cells.length,cells[0]?.x,cells[0]?.y,cells.at(-1)?.x,cells.at(-1)?.y].join('|');
+              if(sig===last&&mesh)return;
+              const centerHeight=Number(map.queryTerrainElevation?.([c.lng,c.lat],{exaggerated:true})??0),center=[c.lng,c.lat];
+              const centerMatrix=map.transform?.getMatrixForModel?.(center,centerHeight);if(!centerMatrix)return;
+              const inv=new T.Matrix4().fromArray(centerMatrix).invert(),m=new T.Matrix4(),rot=new T.Matrix4(),scl=new T.Matrix4();
+              const next=new T.Group();for(const part of geometry.parts){const inst=new T.InstancedMesh(part.geometry,part.material,cells.length);inst.frustumCulled=false;next.add(inst);}next.dispose=()=>{for(const inst of next.children)inst.dispose()};
+              let count=0,equiv=0,minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;const tileHeights=new Map();
+              for(const p of cells){
+                const tile=Math.floor(p.x/4)+':'+Math.floor(p.y/4);
+                if(!tileHeights.has(tile)){const v=map.queryTerrainElevation?.([p.lng,p.lat],{exaggerated:true});tileHeights.set(tile,Number.isFinite(v)?v:centerHeight)}
+                const altitude=z>=14?(map.queryTerrainElevation?.([p.lng,p.lat],{exaggerated:true})??tileHeights.get(tile)):tileHeights.get(tile);
+                const raw=map.transform?.getMatrixForModel?.([p.lng,p.lat],altitude);if(!raw)continue;
+                const h=18+p.seed*16;
+                m.fromArray(raw).premultiply(inv).multiply(rot.makeRotationY(p.seed*Math.PI*2)).multiply(scl.makeScale(h,h,h));
+                for(const inst of next.children)inst.setMatrixAt(count,m);count++;equiv++;
+                minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);
+              }
+              if(!count){next.dispose();return;}for(const inst of next.children){inst.count=count;inst.instanceMatrix.needsUpdate=true;}
+              if(mesh){scene.remove(mesh);mesh.dispose?.()}mesh=next;scene.add(mesh);anchor={center,height:centerHeight};last=sig;
+              Object.assign(state,{status:'ready',instances:count,representedTreeEquivalent:equiv,triangleCount:count*tri,originalMesh:true,originalTextures:geometry.textured,uniformScale:true,gridWidth:grid.gridWidth,gridHeight:grid.gridHeight,coveredColumns:maxX-minX+1,coveredRows:maxY-minY+1,zoom:z,sourceAsset:'/assets/street-detail-v1/oak.glb.gz',localMeterAnchors:true});
+              map.triggerRepaint();
+            }
+            function schedule(){if(dead||timer)return;timer=setTimeout(()=>{timer=0;try{refresh()}catch(e){state.error=String(e).slice(0,180)}},mobile?420:250)}
+            async function init(){
+              if(dead||loading||geometry||map.getZoom()<5.5||Date.now()-lastAttempt<5000)return;
+              loading=true;lastAttempt=Date.now();
+              try{
+                const [three,loaderModule]=await Promise.all([import('/vendor/three.module.js?v=169-local'),import('/vendor/GLTFLoader.bundle.js?v=169-local')]);T=three;
+                const gltf=await loadStreetGLTF(new loaderModule.GLTFLoader(),{url:'/assets/street-detail-v1/oak.glb.gz'});if(dead)return;
+                const candidates=gltf.scenes.slice(0,4).map(root=>sourceLOD(T,root));geometry=candidates.filter(v=>v.textured).sort((a,b)=>a.tri-b.tri)[0];if(!geometry)throw Error('SOURCE_TEXTURE_MISSING');for(const v of candidates)if(v!==geometry)v.dispose();
+                map.addLayer({id:ID,type:'custom',renderingMode:'3d',
+                  onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false});renderer.autoClear=false;camera=new T.Camera();scene=new T.Scene();scene.add(new T.HemisphereLight(0xe6f3ff,0x35442b,2.2));const sun=new T.DirectionalLight(0xfff2d8,1.7);sun.position.set(-30,70,45);scene.add(sun);schedule()},
+                  render(gl,args){if(!mesh||!anchor||!renderer||map.getZoom()<6||(map.getZoom()>=17&&detailed()))return;const raw=map.transform?.getMatrixForModel?.(anchor.center,anchor.height);if(!raw)return;camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix).multiply(new T.Matrix4().fromArray(raw));renderer.resetState();renderer.render(scene,camera);state.drawCalls=renderer.info.render.calls;state.frames=(state.frames||0)+1;},
+                  onRemove(){release();geometry?.dispose();material?.dispose();renderer?.dispose();}
+                });state.status='loading-forest-tiles';schedule();
+              }catch(e){state.status='source-unavailable';state.error=String(e).slice(0,180);geometry?.dispose();geometry=null;}finally{loading=false;}
+            }
+            function event(){void init();schedule();}
+            for(const k of ['move','moveend','zoomend','idle','sourcedata'])map.on(k,event);
+            map.once('remove',()=>{dead=true;clearTimeout(timer);for(const k of ['move','moveend','zoomend','idle','sourcedata'])map.off(k,event);});
+            event();return state;
+          }
+          JS
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          def hashes():return {str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          before=hashes();allowed=set()
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text()
+              assert s.count('/vendor/bp-viewport-forest-v5.mjs')==1
+              s=s.replace('/vendor/bp-viewport-forest-v5.mjs','/vendor/bp-viewport-forest-v5.mjs?v=20261126-original-v6')
+              p.write_text(s);allowed.add(str(p.relative_to(site)))
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if not p.exists():continue
+                  s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261126-original-forest-v6',s)
+                  if s!=n:p.write_text(n);allowed.add(str(p.relative_to(site)))
+          after=hashes()
+          assert before.keys()==after.keys()
+          assert {p for p in before if before[p]!=after[p]}==allowed
+          print('FOREST_V6_SCOPED_HASH_PASS',sorted(allowed))
+          PY
+          for f in world-v2300-map.js app/world-v2300-map.js vendor/bp-viewport-forest-v5.mjs; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify dense regional coverage, forest holes and source-mesh browser rendering
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace('<meta charset="utf-8">','<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">')
+          a=s.index("import {attachStreetDetail");b=s.index("</script>",a)
+          s=s[:a]+"""import {attachViewportForest,forestGrid} from '/vendor/bp-viewport-forest-v5.mjs';
+          const center=[-60,-3],ring=(x,y,w,h)=>[[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]],feature={type:'Feature',properties:{class:'forest'},geometry:{type:'Polygon',coordinates:[ring(-62,-5,4,4),ring(-60.4,-3.4,.8,.8)]}};
+          window.gridProbe=()=>{const d=forestGrid([feature],{west:-61,east:-59,south:-4,north:-2,center:-60},9,8500);return {count:d.cells.length,hole:d.cells.some(p=>Math.abs(p.lng+60)<.39&&Math.abs(p.lat+3)<.39),west:d.cells.some(p=>p.lng<-60.5),east:d.cells.some(p=>p.lng>-59.5),north:d.cells.some(p=>p.lat>-2.5),south:d.cells.some(p=>p.lat<-3.5)}};
+          const style={version:8,sources:{ofm:{type:'geojson',data:{type:'FeatureCollection',features:[feature]}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#314d43'}},{id:'forest-probe',type:'fill',source:'ofm',paint:{'fill-opacity':.001}}]};const map=new maplibregl.Map({container:'map',style,center:[-60.8,-3],zoom:9,pitch:30,bearing:12,projection:'globe',antialias:false});window.testMap=map;map.once('load',()=>attachViewportForest(map));
+          """+s[b:]
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('FOREST_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>typeof window.gridProbe==='function');const grid=await p.evaluate(()=>window.gridProbe());assert(grid.count>1000&&!grid.hole&&grid.west&&grid.east&&grid.north&&grid.south);console.log('FOREST_GRID_FULL_VIEW_AND_HOLES_PASS',grid);for(const [zoom,pitch,bearing] of [[9,30,12],[12,45,100],[15,55,190]]){await p.evaluate(v=>window.testMap.jumpTo({zoom:v[0],pitch:v[1],bearing:v[2]}),[zoom,pitch,bearing]);await p.waitForFunction(z=>{const d=window.__BP_VIEWPORT_FOREST_V5__;return d?.status==='ready'&&d.zoom===z&&d.instances>0&&d.drawCalls>0&&d.originalMesh&&d.originalTextures&&d.uniformScale},zoom,{timeout:60000});const d=await p.evaluate(()=>window.__BP_VIEWPORT_FOREST_V5__);console.log('FOREST_GPU_BUDGET_DIAGNOSTIC',zoom,d);assert(d.mobile===true&&d.triangleBudget===2200000&&d.triangleCount<=d.triangleBudget&&d.localMeterAnchors&&d.originalMesh&&d.originalTextures&&d.uniformScale);console.log('FOREST_SOURCE_MESH_RENDER_PASS',zoom,d);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'forest-v5-'+zoom+'.png')});}await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-forest-v5-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-forest-v5-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated viewport forest
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live forest and unchanged existing detailed trees and water
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-viewport-forest-v5.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?forest=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo VIEWPORT_FOREST_V5_LIVE_BYTES_PASS
