@@ -84,8 +84,8 @@ export function layout(elements,polys=[]){
   if(veh){
    for(const [i,x] of chosen.entries()){
     const half=clamp(x.width/2,2.1,16),physical=!a.length&&absolute!==null;
-    const q=physical?p:offset(offset(p,wrap(x.face+180),a.length>2?half+1:2),wrap(x.face-90*side),half+1);
-    out.push({id:n.id+'-v-'+i,node:n.id,kind:'vehicle',q,face:x.face,side,arm:half+1.7,source:p,estimated:!physical||!t['traffic_signals:mount']});
+    const gantry=t['traffic_signals:mount']==='gantry'||t.support==='gantry';const q=physical?p:gantry?offset(p,wrap(x.face+180),2):offset(offset(p,wrap(x.face+180),a.length>2?half+1:2),wrap(x.face-90*side),half+1);
+    out.push({id:n.id+'-v-'+i,node:n.id,kind:'vehicle',q,face:x.face,side,arm:half+1.7,gantry,source:p,estimated:!physical||!t['traffic_signals:mount']});
    }
   }
   if(ped){
@@ -128,7 +128,7 @@ export function attachTrafficFurniture(map,{provider}={}){
  if(!map||map.__BP_TRAFFIC_FURNITURE_V1__)return;
  const st=map.__BP_TRAFFIC_FURNITURE_V1__={status:'standby',objects:0,frames:0,drawCalls:0,triangleCount:0,source:'OpenStreetMap control nodes',models:'Original CC-BY Sketchfab meshes',signalState:'illustrative simulation, not live',minRenderZoom:14,sourceCoverage:'mapped locations; hardware and unmeasured offsets estimated'};window.__BP_TRAFFIC_FURNITURE_V1__=st;
  const mobile=Math.min(innerWidth,screen.width||innerWidth)<900||matchMedia('(pointer:coarse)').matches,cap=mobile?110:300,triCap=mobile?260000:750000;
- let T,loader,scene,camera,renderer,group,anchor,job,worker,waiting=null,timer=0,closed=false,dirty=true,busy=false,last='',lastFetch=0;
+ let T,loader,scene,camera,renderer,group,anchor,job,worker,gantryJob,helpersModule,prewarmed=false,timer=0,closed=false,dirty=true,busy=false,last='',lastFetch=0;
  const cache=new Map(),inflight=new Map(),templates=new Map();
  const getTile=(x,y)=>{const key=x+'-'+y;if(provider)return Promise.resolve(provider({x,y})).then(j=>Array.isArray(j)?layout(j):layout(j.elements||[]));if(!worker){worker=new Worker(import.meta.url,{type:'module'});worker.onmessage=e=>{const p=inflight.get(e.data.id);if(!p)return;inflight.delete(e.data.id);e.data.error?p.reject(Error(e.data.error)):p.resolve(e.data.rows);};}return new Promise((resolve,reject)=>{inflight.set(key,{resolve,reject});worker.postMessage({x,y,id:key});});};
  function wanted(){
@@ -147,7 +147,7 @@ export function attachTrafficFurniture(map,{provider}={}){
  async function init(){
   if(job)return job;
   job=(async()=>{
-   const [three,gl,helpers]=await Promise.all([import('/vendor/three.module.js?v=169-local'),import('/vendor/GLTFLoader.bundle.js?v=169-local'),import('/vendor/bp-street-detail-v1.mjs')]);T=three;loader=new gl.GLTFLoader();
+   const [three,gl,helpers]=await Promise.all([import('/vendor/three.module.js?v=169-local'),import('/vendor/GLTFLoader.bundle.js?v=169-local'),import('/vendor/bp-street-detail-v1.mjs')]);T=three;loader=new gl.GLTFLoader();helpersModule=helpers;
    const [signal,signs]=await Promise.all([helpers.loadStreetGLTF(loader,{url:BASE+'retro-traffic-signals.glb.gz'}),helpers.loadStreetGLTF(loader,{url:BASE+'signs.glb.gz'})]);
    const r=signal.scene;r.updateMatrixWorld(true);
    templates.set('pole',[part(r,'Object_38',[-.0115,0,-5.4958],[2.0,2.02,2.0])]);
@@ -166,11 +166,12 @@ export function attachTrafficFurniture(map,{provider}={}){
    }
    st.sourceTemplates=templates.size;st.originalPedestrianDisplays=['PEDSIG1','PEDSIG2'];st.originalSignalPhases=['red','amber','green'];
    if(closed)return;
-   if(!map.getLayer(ID))map.addLayer({id:ID,type:'custom',renderingMode:'3d',onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false});renderer.autoClear=false;renderer.outputColorSpace=T.SRGBColorSpace;camera=new T.Camera();scene=new T.Scene();scene.add(new T.HemisphereLight(0xe5f2ff,0x4b4b43,2));const sun=new T.DirectionalLight(0xffefd6,2);sun.position.set(-40,70,35);scene.add(sun);},render(gl,args){if(!renderer||!group||!anchor||map.getZoom()<14||document.hidden)return;const raw=map.transform?.getMatrixForModel?.(anchor.q,anchor.z);if(!raw||!args?.defaultProjectionData?.mainMatrix)return;camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix).multiply(new T.Matrix4().fromArray(raw));const tick=Math.floor(Date.now()/1000)%48;for(const g of group.children){const p=g.userData.phase;if(!p)continue;const t=(tick+(g.userData.axis?24:0))%48;g.visible=p==='walk'?t>=24&&t<42:p==='stop'?!(t>=24&&t<42):p==='green'?t<19:p==='amber'?t>=19&&t<23:t>=23;}renderer.resetState();renderer.render(scene,camera);st.drawCalls=renderer.info.render.calls;st.frames++;},onRemove(){release();renderer?.dispose();scene=null;renderer=null;}});
+   if(!map.getLayer(ID))map.addLayer({id:ID,type:'custom',renderingMode:'3d',onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false});renderer.autoClear=false;renderer.outputColorSpace=T.SRGBColorSpace;camera=new T.Camera();scene=new T.Scene();scene.add(new T.HemisphereLight(0xe5f2ff,0x4b4b43,2));const sun=new T.DirectionalLight(0xffefd6,2);sun.position.set(-40,70,35);scene.add(sun);},render(gl,args){if(!renderer||!group||!anchor||map.getZoom()<14||document.hidden)return;const raw=map.transform?.getMatrixForModel?.(anchor.q,anchor.z);if(!raw||!args?.defaultProjectionData?.mainMatrix)return;camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix).multiply(new T.Matrix4().fromArray(raw));const tick=Math.floor(Date.now()/1000)%48;for(const g of group.children){const p=g.userData.phase;if(!p)continue;const t=(tick+(g.userData.axis?24:0))%48;g.visible=p==='walk'?t<19:p==='stop'?t>=19:p==='green'?t<19:p==='amber'?t>=19&&t<23:t>=23;}renderer.resetState();renderer.render(scene,camera);st.drawCalls=renderer.info.render.calls;st.frames++;},onRemove(){release();renderer?.dispose();scene=null;renderer=null;}});
    st.status='models-ready';dirty=true;schedule(80);
   })().catch(e=>{job=null;st.status='model-error';st.error=String(e).slice(0,200);});
   return job;
  }
+ function ensureGantry(){if(gantryJob||!helpersModule)return;gantryJob=helpersModule.loadStreetGLTF(loader,{url:BASE+'road-traffic-sign.glb.gz'}).then(gltf=>{const r=gltf.scene;r.updateMatrixWorld(true);templates.set('gantry',[part(r,'hang_04__0',[0,0,-102.24],[1/254.72,6.6/155.42,.042])]);dirty=true;last='';schedule(120);}).catch(e=>{st.gantryError=String(e).slice(0,140)});}
  function release(){if(group){scene?.remove(group);group.traverse(o=>{if(o.isInstancedMesh)o.dispose();});group=null;}anchor=null;st.objects=0;st.drawCalls=0;last='';}
  function select(){
   const c=map.getCenter(),p=[c.lng,c.lat],canvas=map.getCanvas(),seen=new Set(),rows=[];
@@ -191,9 +192,9 @@ export function attachTrafficFurniture(map,{provider}={}){
    const m=base.clone().multiply(new T.Matrix4().makeRotationY(-x.face*rad));
    let need=0;
    if(x.kind==='vehicle'){
-     const arm=x.side===-1?'arm-left':'arm-right';need=cost('pole')+cost(arm)+Math.max(...['red','amber','green'].map(p=>cost('head-'+p)));
-     if(triangles+need>triCap)continue;add('pole',m);add(arm,m.clone().multiply(new T.Matrix4().makeScale(x.arm,1,1)));
-     const head=m.clone().multiply(new T.Matrix4().makeTranslation(x.side*x.arm,0,0));for(const p of ['red','amber','green'])add('head-'+p,head,p,axis);
+     const arm=x.side===-1?'arm-left':'arm-right',phaseCost=Math.max(...['red','amber','green'].map(p=>cost('head-'+p)));
+     if(x.gantry){ensureGantry();if(!templates.has('gantry')){dirty=true;continue;}need=cost('gantry')+phaseCost*2;if(triangles+need>triCap)continue;add('gantry',m.clone().multiply(new T.Matrix4().makeScale(x.arm*2,1,1)));for(const dx of [-x.arm*.35,x.arm*.35]){const head=m.clone().multiply(new T.Matrix4().makeTranslation(dx,0,0));for(const p of ['red','amber','green'])add('head-'+p,head,p,axis);}}
+     else{need=cost('pole')+cost(arm)+phaseCost;if(triangles+need>triCap)continue;add('pole',m);add(arm,m.clone().multiply(new T.Matrix4().makeScale(x.arm,1,1)));const head=m.clone().multiply(new T.Matrix4().makeTranslation(x.side*x.arm,0,0));for(const p of ['red','amber','green'])add('head-'+p,head,p,axis);}
    }else if(x.kind==='pedestrian'){
      need=cost('ped-pole')+Math.max(cost('ped-walk'),cost('ped-stop'));if(triangles+need>triCap)continue;add('ped-pole',m);add('ped-walk',m,'walk',axis);add('ped-stop',m,'stop',axis);
    }else{
@@ -213,17 +214,18 @@ export function attachTrafficFurniture(map,{provider}={}){
  async function pump(){
   if(closed||map.isMoving?.()||map.getZoom()<12.7)return;
   void init();if(map.getZoom()>=14)refresh();
-  if(busy||Date.now()-lastFetch<4000)return schedule(4200);
+  if(busy)return;
   const wantedTiles=wanted(),t=wantedTiles.find(x=>!cache.has(x.key)||Date.now()-cache.get(x.key).at>(cache.get(x.key).rows?86400000:60000));
-  if(!t)return;busy=true;lastFetch=Date.now();st.status=group?'ready':'fetching-mapped-controls';
+  if(!t)return;if(Date.now()-lastFetch<4000)return schedule(4200);busy=true;lastFetch=Date.now();st.status=group?'ready':'fetching-mapped-controls';
   try{const rows=await getTile(t.x,t.y);cache.set(t.key,{rows,at:Date.now()});while(cache.size>45)cache.delete(cache.keys().next().value);st.cachedTiles=cache.size;dirty=true;}
   catch(e){cache.set(t.key,{rows:null,at:Date.now()});st.sourceError=String(e).slice(0,140);}
   finally{busy=false;if(!closed&&!map.isMoving?.())schedule(200);}
  }
  function moved(){dirty=true;schedule(250);}
  function started(){clearTimeout(timer);timer=0;}
- for(const ev of ['moveend','zoomend','idle'])map.on(ev,moved);map.on('movestart',started);
+ function prewarm(){if(closed||prewarmed||map.getZoom()<12.1)return;prewarmed=true;for(const file of ['retro-traffic-signals.glb.gz','signs.glb.gz'])void fetch(BASE+file,{cache:'force-cache'}).then(r=>r.ok?r.arrayBuffer():null).catch(()=>null);if(map.getZoom()>=12.7&&!busy){const [x,y]=tile(map.getCenter()),key=x+'-'+y;busy=true;lastFetch=Date.now();void getTile(x,y).then(rows=>{cache.set(key,{rows,at:Date.now()});st.cachedTiles=cache.size;dirty=true;}).catch(e=>{st.sourceError=String(e).slice(0,140);cache.set(key,{rows:null,at:Date.now()});}).finally(()=>{busy=false;schedule(150)});}}
+ for(const ev of ['moveend','zoomend'])map.on(ev,moved);map.on('movestart',started);map.on('zoom',prewarm);prewarm();
  const phases=setInterval(()=>{if(group&&map.getZoom()>=14&&!map.isMoving?.())map.triggerRepaint();},1000);
- map.once('remove',()=>{closed=true;clearInterval(phases);clearTimeout(timer);worker?.terminate();for(const ev of ['moveend','zoomend','idle'])map.off(ev,moved);map.off('movestart',started);release();});
+ map.once('remove',()=>{closed=true;clearInterval(phases);clearTimeout(timer);worker?.terminate();for(const ev of ['moveend','zoomend'])map.off(ev,moved);map.off('movestart',started);map.off('zoom',prewarm);release();});
  schedule(100);return st;
 }
