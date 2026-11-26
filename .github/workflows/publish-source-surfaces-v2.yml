@@ -62,7 +62,9 @@ jobs:
           npm install --prefix "$BP_TEST" playwright esbuild polygon-clipping@0.15.7
           cp street-detail-v1/source-surfaces-v2.mjs "$BP_TEST/source-surfaces.mjs"
           "$BP_TEST/node_modules/.bin/esbuild" "$BP_TEST/source-surfaces.mjs" --bundle --format=esm --platform=browser --target=es2022 --outfile="$BP_TEST/bp-source-surfaces-v2.mjs"
-          python3 - "$SITE" "$BP_TEST" <<'PY'
+          python3 -m venv "$RUNNER_TEMP/surface-python"
+          "$RUNNER_TEMP/surface-python/bin/python" -m pip install --disable-pip-version-check Pillow==11.3.0
+          "$RUNNER_TEMP/surface-python/bin/python" - "$SITE" "$BP_TEST" <<'PY'
           import sys, re, json, struct, io, hashlib
           from pathlib import Path
           from PIL import Image, ImageOps
