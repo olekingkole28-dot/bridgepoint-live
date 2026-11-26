@@ -107,11 +107,11 @@ export function overpassQuery(x,y){const bb=tileBBox(x,y);return '[out:json][tim
 let polysJob;
 async function polys(){if(!polysJob)polysJob=fetch(DATA+'left-driving.json',{cache:'force-cache'}).then(r=>r.ok?r.json():[]).catch(()=>[]);return polysJob;}
 async function fetchTile(x,y){
- const key=DATA+'cache-v2/'+x+'-'+y+'.json';let store;
- try{store=await caches.open('bp-traffic-furniture-v2');const cached=await store.match(key);if(cached){const j=await cached.json();if(Date.now()-j.at<7*86400000)return j.rows;}}catch(_){}
+ const key=DATA+'cache-v3/'+x+'-'+y+'.json';let store;
+ try{store=await caches.open('bp-traffic-furniture-v3');const cached=await store.match(key);if(cached){const j=await cached.json();if(Date.now()-j.at<7*86400000)return j.rows;}}catch(_){}
  let rows=null;
- try{const r=await fetch(DATA+'tiles-v2/'+x+'-'+y+'.json',{cache:'force-cache'});if(r.ok){const j=await r.json();if(Array.isArray(j.rows))rows=j.rows;}}catch(_){}
- if(!rows){const m=await import('/vendor/bp-traffic-overture-v2.mjs');const result=await m.loadOvertureTile(x,y,await polys());rows=result.rows;}
+ try{const r=await fetch(DATA+'tiles-v3/'+x+'-'+y+'.json',{cache:'force-cache'});if(r.ok){const j=await r.json();if(Array.isArray(j.rows))rows=j.rows;}}catch(_){}
+ if(!rows){const m=await import('/vendor/bp-traffic-overture-v3.mjs');const result=await m.loadOvertureTile(x,y,await polys());rows=result.rows;}
  if(store)try{await store.put(key,new Response(JSON.stringify({at:Date.now(),rows}),{headers:{'Content-Type':'application/json'}}));const keys=await store.keys();for(const k of keys.slice(0,Math.max(0,keys.length-80)))await store.delete(k);}catch(_){}
  return rows;
 }
@@ -122,7 +122,7 @@ const signIndices={stop:0,yield:1,parking:2,oneway:3,warning:4};
 const nodeNames=(a,b)=>Array.from({length:(b-a)/2+1},(_,i)=>'Object_'+(a+i*2));
 export function attachTrafficFurniture(map,{provider}={}){
  if(!map||map.__BP_TRAFFIC_FURNITURE_V1__)return;
- const st=map.__BP_TRAFFIC_FURNITURE_V1__={status:'standby',objects:0,frames:0,drawCalls:0,triangleCount:0,source:'Overture worldwide infrastructure and road tiles',models:'Original CC-BY Sketchfab meshes',signalState:'illustrative simulation, not live',minRenderZoom:14,sourceCoverage:'mapped locations; hardware and unmeasured offsets estimated'};window.__BP_TRAFFIC_FURNITURE_V1__=st;
+ const st=map.__BP_TRAFFIC_FURNITURE_V1__={status:'standby',objects:0,frames:0,drawCalls:0,triangleCount:0,source:'Overture worldwide infrastructure and road tiles',models:'Original CC-BY Sketchfab meshes',signalState:'illustrative simulation, not live',minRenderZoom:14,sourceCoverage:'mapped locations; road centerline and carriageway clearance placement, unmeasured offsets estimated'};window.__BP_TRAFFIC_FURNITURE_V1__=st;
  const mobile=Math.min(innerWidth,screen.width||innerWidth)<900||matchMedia('(pointer:coarse)').matches,cap=mobile?350:1100,triCap=mobile?420000:1300000;
  let T,loader,scene,camera,renderer,group,anchor,job,worker,gantryJob,helpersModule,prewarmed=false,timer=0,closed=false,dirty=true,busy=0,last='',lastFetch=0,lastCenter='',terrainRetry=0;
  const cache=new Map(),inflight=new Map(),templates=new Map();
@@ -177,12 +177,12 @@ export function attachTrafficFurniture(map,{provider}={}){
  function refresh(){
   if(closed||!scene||!dirty||map.isMoving?.()||map.getZoom()<14)return;dirty=false;
   const rows=select(),key=rows.map(x=>x.id).join('|');if(key===last&&group)return;if(!rows.length){if(group&&wanted().every(t=>cache.get(t.key)?.rows))release();st.status=group?'retaining-loaded-models':'waiting-for-mapped-controls';return;}
-  const c=map.getCenter(),q=[c.lng,c.lat],z=Number(map.queryTerrainElevation?.(q,{exaggerated:true})??0),raw=map.transform?.getMatrixForModel?.(q,z);if(!raw)return;
+  const c=map.getCenter(),q=[c.lng,c.lat],z=Number(map.queryTerrainElevation?.({lng:q[0],lat:q[1]},{exaggerated:true})??0),raw=map.transform?.getMatrixForModel?.(q,z);if(!raw)return;
   const inv=new T.Matrix4().fromArray(raw).invert(),next=new T.Group(),batches=new Map(),types={},claims=[],accepted=[];let triangles=0;
   const add=(name,m,phase=null,axis=0)=>{const k=name+'|'+(phase||'')+'|'+axis;if(!batches.has(k))batches.set(k,{name,phase,axis,matrices:[]});batches.get(k).matrices.push(m);};
   const cost=name=>templates.get(name).reduce((n,p)=>n+p.tri,0);
   for(const x of rows){
-   const altitude=map.queryTerrainElevation?.(x.q,{exaggerated:true});if(map.getTerrain?.()&&!Number.isFinite(altitude)){terrainRetry++;continue;}
+   const altitude=map.queryTerrainElevation?.({lng:x.q[0],lat:x.q[1]},{exaggerated:true});if(map.getTerrain?.()&&!Number.isFinite(altitude)){terrainRetry++;continue;}
    const m0=map.transform?.getMatrixForModel?.(x.q,Number.isFinite(altitude)?altitude:0);if(!m0)continue;
    const base=new T.Matrix4().fromArray(m0).premultiply(inv),axis=Math.abs(Math.cos(x.face*rad))<.707?1:0;
    const m=base.clone().multiply(new T.Matrix4().makeRotationY(-x.face*rad));
@@ -203,7 +203,7 @@ export function attachTrafficFurniture(map,{provider}={}){
    const g=new T.Group();g.userData={phase,axis};for(const p of templates.get(name)){const mesh=new T.InstancedMesh(p.g,p.m,matrices.length);mesh.frustumCulled=false;for(let i=0;i<matrices.length;i++)mesh.setMatrixAt(i,matrices[i]);mesh.instanceMatrix.needsUpdate=true;g.add(mesh);}next.add(g);
   }
   if(group){scene.remove(group);group.traverse(o=>{if(o.isInstancedMesh)o.dispose();});}group=next;scene.add(group);anchor={q,z};last=key;
-  Object.assign(st,{status:'ready',objects:accepted.length,counts:types,triangleCount:triangles,triangleBudget:triCap,originalModels:true,localMeterAnchors:true,zoom:map.getZoom(),claimedSignLocations:claims,examples:accepted.slice(0,8).map(({kind,q,face,source,side,estimated})=>({kind,q,face,source,side,estimated}))});
+  Object.assign(st,{status:'ready',objects:accepted.length,counts:types,triangleCount:triangles,triangleBudget:triCap,originalModels:true,localMeterAnchors:true,zoom:map.getZoom(),claimedSignLocations:claims,examples:accepted.slice(0,8).map(({kind,q,face,source,side,estimated,clearance,centerline})=>({kind,q,face,source,side,estimated,clearance,centerline})),roadClearanceVerified:accepted.filter(x=>Number.isFinite(x.clearance)&&x.clearance>=.85).length});
   map.triggerRepaint();
  }
  function schedule(delay=120){if(closed||timer)return;timer=setTimeout(()=>{timer=0;void pump();},delay);}
