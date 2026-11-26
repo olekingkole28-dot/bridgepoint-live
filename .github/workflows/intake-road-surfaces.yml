@@ -1,0 +1,44 @@
+name: Import source road surfaces
+on:
+  push:
+    branches: [surface-intake-20261126]
+    paths: ['.github/workflows/intake-road-surfaces.yml']
+permissions:
+  contents: write
+jobs:
+  intake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Verify authorized CC-BY source models
+        env:
+          MODEL_0: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-de6c-81f5-8808-d90e88c64d83/raw?se=2026-11-26T23%3A50%3A15Z&sp=r&sv=2026-06-06&sr=b&scid=3ecac5ef-7c08-52c1-ab0e-107ea9bd096e&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-26T14%3A05%3A52Z&ske=2026-11-27T14%3A05%3A52Z&sks=b&skv=2026-06-06&sig=O5OyOjXjQlAOLNeIpk7abC5z1mszOt7/AOopy9cmXek%3D"
+          MODEL_1: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-50d0-81f5-a782-9329120e5691/raw?se=2026-11-26T23%3A50%3A16Z&sp=r&sv=2026-06-06&sr=b&scid=b8058150-3d74-577e-bc66-d32d35c5b8f1&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-26T12%3A33%3A14Z&ske=2026-11-27T12%3A33%3A14Z&sks=b&skv=2026-06-06&sig=rSbd4iQrICfhV3np51OkMLvBhYvqWZtoB7TxcB9Np1w%3D"
+          MODEL_2: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-7b60-81f5-a3f4-ec440ac8ad7c/raw?se=2026-11-26T23%3A50%3A16Z&sp=r&sv=2026-06-06&sr=b&scid=31cd2df7-a4fd-572e-b457-c914f4935290&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-26T14%3A16%3A07Z&ske=2026-11-27T14%3A16%3A07Z&sks=b&skv=2026-06-06&sig=Eib5wbUvD9keY/jczqCjWykQ5HYXE0EGkdemgkaWw8A%3D"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/surfaces"
+          echo "::add-mask::$MODEL_0"
+          curl -fsSL --max-time 60 "$MODEL_0" -o "$RUNNER_TEMP/surfaces/asphalt_texture_3d_scan.glb"
+          echo "97a3c6ce38354dfdf68e0e4a41d7308271be491c24c68f005302e9a9f3617510  $RUNNER_TEMP/surfaces/asphalt_texture_3d_scan.glb" | sha256sum -c -
+          echo "::add-mask::$MODEL_1"
+          curl -fsSL --max-time 60 "$MODEL_1" -o "$RUNNER_TEMP/surfaces/old_street_pack.glb"
+          echo "670606d70332127a56606a38b0ea90f135ca616fc0f94ef7b9611b7f573e6042  $RUNNER_TEMP/surfaces/old_street_pack.glb" | sha256sum -c -
+          echo "::add-mask::$MODEL_2"
+          curl -fsSL --max-time 60 "$MODEL_2" -o "$RUNNER_TEMP/surfaces/pack_de_ruas_lw3d_v2.glb"
+          echo "a8643d1f00a65a4b25af10da360cad86cb0b552bd293647d6e4d6ac57b41ff66  $RUNNER_TEMP/surfaces/pack_de_ruas_lw3d_v2.glb" | sha256sum -c -
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Store original source models only
+        run: |
+          set -euo pipefail
+          mkdir -p street-detail-v1/surface-source
+          cp "$RUNNER_TEMP/surfaces/"*.glb street-detail-v1/surface-source/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add street-detail-v1/surface-source
+          if ! git diff --cached --quiet; then
+            git commit -m 'Import verified CC-BY asphalt and street surface sources'
+            git push origin HEAD:main
+          fi
