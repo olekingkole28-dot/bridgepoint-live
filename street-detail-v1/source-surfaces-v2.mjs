@@ -25,10 +25,11 @@ export function roadFootprints(features,center,radius=600,limit=500){
  try{merged=clipping.intersection(merged,window);}catch(_){}
  return merged.map(p=>p.map(r=>r.map(ll)));
 }
+if(typeof WorkerGlobalScope!=='undefined'&&self instanceof WorkerGlobalScope)self.onmessage=e=>{try{const {features,center,radius,limit,seq}=e.data;self.postMessage({seq,polys:roadFootprints(features,center,radius,limit)});}catch(e){self.postMessage({seq:e.data.seq,error:String(e)});}};
 export async function attachSourceSurfaces(map){
  if(!map||map.__BP_SOURCE_SURFACES_V2__)return;
  const d=map.__BP_SOURCE_SURFACES_V2__={status:'loading',roadPolygons:0,source:'Sketchfab asphalt scan and street material packs, mapped road centerlines'};window.__BP_SOURCE_SURFACES_V2__=d;
- let dead=false,timer=0,dirty=true,signature='',loaded=false,running=false;
+ let dead=false,timer=0,dirty=true,signature='',loaded=false,running=false,worker=null,seq=0;
  const images={'bp-scan-asphalt-v2':'asphalt.png','bp-street-concrete-v2':'concrete.png','bp-old-curb-v2':'curb.png','bp-street-asphalt-v2':'old-asphalt.png'};
  const imageData={};
  await Promise.all(Object.entries(images).map(async([id,file])=>{const r=await fetch(base+file,{cache:'force-cache'});if(!r.ok)throw Error(file);const b=await createImageBitmap(await r.blob());const c=document.createElement('canvas');c.width=b.width;c.height=b.height;c.getContext('2d').drawImage(b,0,0);imageData[id]=c.getContext('2d').getImageData(0,0,c.width,c.height);b.close();}));
@@ -52,15 +53,15 @@ export async function attachSourceSurfaces(map){
  }
  loaded=true;d.assets=Object.keys(imageData);return true;}
  function source(id,sl){try{return map.getSource(id)?map.querySourceFeatures(id,sl?{sourceLayer:sl}:{}):[]}catch(_){return []}}
- function update(){if(dead||running||map.isMoving?.()||map.getZoom()<13.8)return;if(!install())return;
+ async function update(){if(dead||running||map.isMoving?.()||map.getZoom()<13.8)return;if(!install())return;
   const c=map.getCenter(),z=map.getZoom(),p=[c.lng,c.lat],f=source('ofm','transportation'),supp=source('bpLivingWorld').filter(x=>width(x.properties||{})),fs=[...f,...supp],key=[c.lng.toFixed(4),c.lat.toFixed(4),Math.floor(z),fs.length].join(':');if(key===signature&&!dirty)return;dirty=false;running=true;
-  try{const radius=z<16?850:z<18?600:350,limit=innerWidth<900?420:900,polys=roadFootprints(fs,p,radius,limit);if(!polys.length){d.status='waiting-for-mapped-roads';return;}
+  try{const radius=z<16?850:z<18?600:350,limit=innerWidth<900?420:900;const version=++seq;worker ||= new Worker(import.meta.url,{type:'module'});const polys=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('surface worker timeout')),12000);worker.onmessage=e=>{if(e.data.seq!==version)return;clearTimeout(t);e.data.error?reject(Error(e.data.error)):resolve(e.data.polys)};worker.onerror=e=>{clearTimeout(t);reject(Error(e.message||'surface worker failed'))};worker.postMessage({seq:version,features:fs.map(f=>({geometry:f.geometry,properties:f.properties})),center:p,radius,limit});});if(dead||map.isMoving?.()){dirty=true;return;}if(!polys.length){d.status='waiting-for-mapped-roads';return;}
    const data={type:'FeatureCollection',features:polys.map((coordinates,i)=>({type:'Feature',id:i,geometry:{type:'Polygon',coordinates},properties:{kind:'asphalt'}}))};
    map.getSource(SRC)?.setData(data);map.__BP_SOURCE_ROAD_MASK_V2__={polys,center:p,radius};map.fire('bpsurfacemaskready');signature=key;d.status='ready';d.roadPolygons=polys.length;d.roadFeatures=fs.length;d.zoom=z;map.triggerRepaint();
-  }catch(e){d.error=String(e).slice(0,200);dirty=true;}finally{running=false;}}
+  }catch(e){d.error=String(e).slice(0,200);dirty=true;}finally{running=false;if(dirty)schedule();}}
  function schedule(){if(dead||timer||map.isMoving?.())return;timer=setTimeout(()=>{timer=0;update()},300);}
  function changed(e){if(['ofm','bpLivingWorld','bpSidewalk3D'].includes(e.sourceId)&&e.isSourceLoaded){dirty=true;schedule();}}
  function moved(){dirty=true;schedule();}
  function style(){signature='';dirty=true;loaded=false;schedule();}
- map.on('moveend',moved);map.on('zoomend',moved);map.on('sourcedata',changed);map.on('style.load',style);map.once('remove',()=>{dead=true;clearTimeout(timer);map.off('moveend',moved);map.off('zoomend',moved);map.off('sourcedata',changed);map.off('style.load',style);});schedule();return d;
+ map.on('moveend',moved);map.on('zoomend',moved);map.on('sourcedata',changed);map.on('style.load',style);map.once('remove',()=>{dead=true;clearTimeout(timer);worker?.terminate();map.off('moveend',moved);map.off('zoomend',moved);map.off('sourcedata',changed);map.off('style.load',style);});schedule();return d;
 }
