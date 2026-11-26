@@ -73,20 +73,64 @@ jobs:
               // while their explicit UI is open; never leave the Earth camera locked.
               const bpNormalGlobeInput=()=>{
                 const neo=document.getElementById('bpNeoSpaceRootV2'),sp=window.__BP_APP_SPACE_EXPLORER_V1__;
-                if((neo&&!neo.hidden&&getComputedStyle(neo).display!=='none')||sp?.state?.open||window.__BP_UNDERWATER_DIVE_ACTIVE__)return;
+                if((neo&&!neo.hidden&&getComputedStyle(neo).display!=='none')||(sp?.state?.open&&!sp?.publicOverview&&!sp?.state?.publicOverview)||window.__BP_UNDERWATER_DIVE_ACTIVE__)return;
                 try{
                   const min=map.getMinZoom(),max=map.getMaxZoom();
                   if(max<22)map.setMaxZoom(22);
                   if(min>initialMinZoom)map.setMinZoom(initialMinZoom);
                   for(const k of ['dragPan','touchZoomRotate','touchPitch','dragRotate','scrollZoom','doubleClickZoom','keyboard','boxZoom']){
-                    const h=map[k];if(h&&h.isEnabled?.()===false)h.enable();
+                    const h=map[k];if(h&&h.isEnabled?.()===false&&!(k==='touchZoomRotate'&&bpPinch?.fallback))h.enable();
                   }
                   const c=map.getCanvas(),cc=map.getCanvasContainer();
                   for(const e of [c,cc])if(e){e.style.setProperty('touch-action','none','important');e.style.setProperty('pointer-events','auto','important')}
                   window.__BP_NORMAL_GLOBE_INPUT_V8__={min:map.getMinZoom(),max:map.getMaxZoom(),pinch:map.touchZoomRotate?.isEnabled?.(),drag:map.dragPan?.isEnabled?.(),updatedAt:Date.now()};
                 }catch(e){console.warn('Normal globe input',e)}
               };
+              // The public celestial backdrop must never receive touches intended for Earth.
+              const bpTouchStyle=document.createElement('style');
+              bpTouchStyle.textContent='#bpWelcomeGateV1.bp-public-earth-overview, #bpWelcomeGateV1.bp-public-earth-overview *{pointer-events:none!important} #bpWelcomeGateV1.bp-public-earth-overview .bpw-space-controls, #bpWelcomeGateV1.bp-public-earth-overview .bpw-space-controls *{pointer-events:auto!important}';
+              document.head.appendChild(bpTouchStyle);
               const bpGlobeCanvasContainer=map.getCanvasContainer();
+              let bpPinch=null,bpPinchFrame=0,bpPinchTarget=null;
+              const bpEarthInputAllowed=()=>{
+                const neo=document.getElementById('bpNeoSpaceRootV2'),sp=window.__BP_APP_SPACE_EXPLORER_V1__;
+                return !(neo&&!neo.hidden&&getComputedStyle(neo).display!=='none')&&(!sp?.state?.open||sp?.publicOverview===true||sp?.state?.publicOverview===true)&&!window.__BP_UNDERWATER_DIVE_ACTIVE__;
+              };
+              const bpTouchPair=e=>{const a=e.touches[0],b=e.touches[1];return {distance:Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY),angle:Math.atan2(b.clientY-a.clientY,b.clientX-a.clientX)*180/Math.PI,y:(a.clientY+b.clientY)/2}};
+              const bpTouchStart=e=>{
+                if(!bpEarthInputAllowed()||e.touches.length!==2||!bpGlobeCanvasContainer.contains(e.target))return;
+                const t=bpTouchPair(e);if(t.distance<8)return;
+                if(window.__BP_PUBLIC_IDLE_SPIN_V5__||window.__BP_PUBLIC_GLOBE_V4__?.rotating)window.__BP_PUBLIC_GLOBE_V4__?.pause?.();
+                bpPinch={...t,zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch(),fallback:false};
+              };
+              const bpTouchMove=e=>{
+                if(!bpPinch||!bpEarthInputAllowed()||e.touches.length!==2)return;
+                const t=bpTouchPair(e),delta=Math.log2(Math.max(1,t.distance)/bpPinch.distance);
+                if(!bpPinch.fallback){
+                  // Let the native MapLibre gesture lead unless it remains stuck.
+                  if(Math.abs(delta)<.14)return;
+                  if(Math.abs(map.getZoom()-bpPinch.zoom)>.025)return;
+                  bpPinch.fallback=true;
+                  map.touchZoomRotate?.disable();
+                }
+                if(e.cancelable)e.preventDefault();e.stopImmediatePropagation();
+                const angle=((t.angle-bpPinch.angle+540)%360)-180;
+                bpPinchTarget={zoom:Math.max(map.getMinZoom(),Math.min(map.getMaxZoom(),bpPinch.zoom+delta)),bearing:bpPinch.bearing-angle};
+                if(!bpPinchFrame)bpPinchFrame=requestAnimationFrame(()=>{bpPinchFrame=0;if(bpPinchTarget){map.jumpTo(bpPinchTarget);bpPinchTarget=null;}});
+              };
+              const bpTouchEnd=e=>{
+                if(!bpPinch||e.touches.length>=2)return;
+                if(bpPinchFrame){cancelAnimationFrame(bpPinchFrame);bpPinchFrame=0;}
+                if(bpPinchTarget){map.jumpTo(bpPinchTarget);bpPinchTarget=null;}
+                if(bpPinch.fallback)map.touchZoomRotate?.enable();
+                bpPinch=null;
+              };
+              const bpTouchContainer=map.getContainer();
+              bpTouchContainer.addEventListener('touchstart',bpTouchStart,{capture:true,passive:true});
+              bpTouchContainer.addEventListener('touchmove',bpTouchMove,{capture:true,passive:false});
+              bpTouchContainer.addEventListener('touchend',bpTouchEnd,true);
+              bpTouchContainer.addEventListener('touchcancel',bpTouchEnd,true);
+              map.once('remove',()=>{bpTouchStyle.remove();if(bpPinchFrame)cancelAnimationFrame(bpPinchFrame);for(const [k,fn] of [['touchstart',bpTouchStart],['touchmove',bpTouchMove],['touchend',bpTouchEnd],['touchcancel',bpTouchEnd]])bpTouchContainer.removeEventListener(k,fn,true);});
               const bpNormalGlobeStart=e=>{
                 if(!bpGlobeCanvasContainer.contains(e.target))return;
                 bpNormalGlobeInput();
@@ -105,7 +149,7 @@ jobs:
               for name in ('index.html','landing.js','app.js'):
                   p=base/name
                   if not p.exists():continue
-                  s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261126-normal-globe-camera-v8',s)
+                  s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261126-normal-globe-touch-v9',s)
                   if n!=s:p.write_text(n);allowed.add(str(p.relative_to(site)))
           after=hashes();assert before.keys()==after.keys();assert {p for p in before if before[p]!=after[p]}==allowed
           print('NORMAL_GLOBE_CAMERA_ONLY_SCOPE_PASS',sorted(allowed))
@@ -122,7 +166,7 @@ jobs:
           from pathlib import Path
           s=Path('street-detail-v1/verify.mjs').read_text()
           a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
-          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GLOBE_PAGE_ERROR',e.message));await p.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:90000});await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()&&window.__BP_NORMAL_GLOBE_INPUT_V8__?.max===22},null,{timeout:120000});const get=()=>p.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const r=m.getCanvas().getBoundingClientRect();return {zoom:m.getZoom(),lng:m.getCenter().lng,lat:m.getCenter().lat,min:m.getMinZoom(),max:m.getMaxZoom(),pinch:m.touchZoomRotate.isEnabled(),drag:m.dragPan.isEnabled(),x:r.x+r.width/2,y:r.y+r.height/2}});const initial=await get();console.log('GLOBE_BEFORE_INPUT',initial);assert(initial.max===22&&initial.pinch&&initial.drag);const button=p.locator('.maplibregl-ctrl-zoom-in').first();await button.click({timeout:20000});await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.5},initial.zoom,{timeout:20000});const plus=await get();const cdp=await p.context().newCDPSession(p);const send=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y],id)=>({x,y,id}))});const x=plus.x,y=plus.y;await send('touchStart',[[x-26,y],[x+26,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x-26-i*7,y],[x+26+i*7,y]]);await p.waitForTimeout(45)}await send('touchEnd',[]);await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.3},plus.zoom,{timeout:20000});const pinch=await get();console.log('GLOBE_PLUS_AND_PINCH_PASS',initial,plus,pinch);await send('touchStart',[[x,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x+i*10,y+i*3]]);await p.waitForTimeout(35)}await send('touchEnd',[]);await p.waitForFunction(v=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return Math.abs(c.lng-v.lng)+Math.abs(c.lat-v.lat)>.1},pinch,{timeout:20000});console.log('GLOBE_REAL_TOUCH_DRAG_PASS',await get());await p.close();
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GLOBE_PAGE_ERROR',e.message));await p.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:90000});await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()&&window.__BP_NORMAL_GLOBE_INPUT_V8__?.max===22},null,{timeout:120000});const get=()=>p.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const r=m.getCanvas().getBoundingClientRect();return {zoom:m.getZoom(),lng:m.getCenter().lng,lat:m.getCenter().lat,min:m.getMinZoom(),max:m.getMaxZoom(),pinch:m.touchZoomRotate.isEnabled(),drag:m.dragPan.isEnabled(),x:r.x+r.width/2,y:r.y+r.height/2}});const initial=await get();console.log('GLOBE_BEFORE_INPUT',initial);assert(initial.max===22&&initial.pinch&&initial.drag);const button=p.locator('.maplibregl-ctrl-zoom-in').first();await button.click({timeout:20000});await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.5},initial.zoom,{timeout:20000});const plus=await get();console.log('GLOBE_BUTTON_ZOOM_PASS',plus);await p.waitForFunction(()=>!(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map.isMoving(),null,{timeout:20000});const cdp=await p.context().newCDPSession(p);const send=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y],id)=>({x,y,id}))});const x=plus.x,y=plus.y;console.log('GLOBE_PINCH_HIT_TARGET',await p.evaluate(([x,y])=>{const e=document.elementFromPoint(x,y);return {tag:e?.tagName,id:e?.id,className:String(e?.className),space:window.__BP_APP_SPACE_EXPLORER_V1__?.state}},[x,y]));await send('touchStart',[[x-26,y],[x+26,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x-26-i*7,y],[x+26+i*7,y]]);await p.waitForTimeout(45)}await send('touchEnd',[]);console.log('GLOBE_AFTER_RAW_PINCH',await get());await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.3},plus.zoom,{timeout:20000});const pinch=await get();console.log('GLOBE_PLUS_AND_PINCH_PASS',initial,plus,pinch);await send('touchStart',[[x,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x+i*10,y+i*3]]);await p.waitForTimeout(35)}await send('touchEnd',[]);await p.waitForFunction(v=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return Math.abs(c.lng-v.lng)+Math.abs(c.lat-v.lat)>.1},pinch,{timeout:20000});console.log('GLOBE_REAL_TOUCH_DRAG_PASS',await get());await p.close();
           """+s[b:]
           Path('street-detail-v1/verify-normal-globe-generated.mjs').write_text(s)
           PY
