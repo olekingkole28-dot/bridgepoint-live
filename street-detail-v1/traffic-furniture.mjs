@@ -107,15 +107,11 @@ export function overpassQuery(x,y){const bb=tileBBox(x,y);return '[out:json][tim
 let polysJob;
 async function polys(){if(!polysJob)polysJob=fetch(DATA+'left-driving.json',{cache:'force-cache'}).then(r=>r.ok?r.json():[]).catch(()=>[]);return polysJob;}
 async function fetchTile(x,y){
- const key=DATA+'cache/'+x+'-'+y+'.json';let store;
- try{store=await caches.open('bp-traffic-furniture-v1');const cached=await store.match(key);if(cached){const j=await cached.json();if(Date.now()-j.at<7*86400000)return j.rows;}}catch(_){}
- const query=overpassQuery(x,y);let source=null;
- try{const r=await fetch(DATA+'tiles/'+x+'-'+y+'.json',{cache:'force-cache'});if(r.ok){const j=await r.json();if(Array.isArray(j.elements))source=j;}}catch(_){}
- if(!source)for(const endpoint of ['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter']){
-   try{const r=await fetch(endpoint+'?data='+encodeURIComponent(query),{signal:AbortSignal.timeout(27000)});if(!r.ok)continue;const j=await r.json();if(Array.isArray(j.elements)&&!j.remark){source=j;break;}}catch(_){}
- }
- if(!source)throw Error('MAPPED_TRAFFIC_TILE_UNAVAILABLE');
- const rows=layout(source.elements,await polys());
+ const key=DATA+'cache-v2/'+x+'-'+y+'.json';let store;
+ try{store=await caches.open('bp-traffic-furniture-v2');const cached=await store.match(key);if(cached){const j=await cached.json();if(Date.now()-j.at<7*86400000)return j.rows;}}catch(_){}
+ let rows=null;
+ try{const r=await fetch(DATA+'tiles-v2/'+x+'-'+y+'.json',{cache:'force-cache'});if(r.ok){const j=await r.json();if(Array.isArray(j.rows))rows=j.rows;}}catch(_){}
+ if(!rows){const m=await import('/vendor/bp-traffic-overture-v2.mjs');const result=await m.loadOvertureTile(x,y,await polys());rows=result.rows;}
  if(store)try{await store.put(key,new Response(JSON.stringify({at:Date.now(),rows}),{headers:{'Content-Type':'application/json'}}));const keys=await store.keys();for(const k of keys.slice(0,Math.max(0,keys.length-80)))await store.delete(k);}catch(_){}
  return rows;
 }
@@ -126,11 +122,11 @@ const signIndices={stop:0,yield:1,parking:2,oneway:3,warning:4};
 const nodeNames=(a,b)=>Array.from({length:(b-a)/2+1},(_,i)=>'Object_'+(a+i*2));
 export function attachTrafficFurniture(map,{provider}={}){
  if(!map||map.__BP_TRAFFIC_FURNITURE_V1__)return;
- const st=map.__BP_TRAFFIC_FURNITURE_V1__={status:'standby',objects:0,frames:0,drawCalls:0,triangleCount:0,source:'OpenStreetMap control nodes',models:'Original CC-BY Sketchfab meshes',signalState:'illustrative simulation, not live',minRenderZoom:14,sourceCoverage:'mapped locations; hardware and unmeasured offsets estimated'};window.__BP_TRAFFIC_FURNITURE_V1__=st;
- const mobile=Math.min(innerWidth,screen.width||innerWidth)<900||matchMedia('(pointer:coarse)').matches,cap=mobile?110:300,triCap=mobile?260000:750000;
- let T,loader,scene,camera,renderer,group,anchor,job,worker,gantryJob,helpersModule,prewarmed=false,timer=0,closed=false,dirty=true,busy=false,last='',lastFetch=0;
+ const st=map.__BP_TRAFFIC_FURNITURE_V1__={status:'standby',objects:0,frames:0,drawCalls:0,triangleCount:0,source:'Overture worldwide infrastructure and road tiles',models:'Original CC-BY Sketchfab meshes',signalState:'illustrative simulation, not live',minRenderZoom:14,sourceCoverage:'mapped locations; hardware and unmeasured offsets estimated'};window.__BP_TRAFFIC_FURNITURE_V1__=st;
+ const mobile=Math.min(innerWidth,screen.width||innerWidth)<900||matchMedia('(pointer:coarse)').matches,cap=mobile?350:1100,triCap=mobile?420000:1300000;
+ let T,loader,scene,camera,renderer,group,anchor,job,worker,gantryJob,helpersModule,prewarmed=false,timer=0,closed=false,dirty=true,busy=0,last='',lastFetch=0,lastCenter='',terrainRetry=0;
  const cache=new Map(),inflight=new Map(),templates=new Map();
- const getTile=(x,y)=>{const key=x+'-'+y;if(provider)return Promise.resolve(provider({x,y})).then(j=>Array.isArray(j)?layout(j):layout(j.elements||[]));if(!worker){worker=new Worker(import.meta.url,{type:'module'});worker.onmessage=e=>{const p=inflight.get(e.data.id);if(!p)return;inflight.delete(e.data.id);e.data.error?p.reject(Error(e.data.error)):p.resolve(e.data.rows);};}return new Promise((resolve,reject)=>{inflight.set(key,{resolve,reject});worker.postMessage({x,y,id:key});});};
+ const getTile=(x,y)=>{const key=x+'-'+y;if(provider)return Promise.resolve(provider({x,y})).then(j=>Array.isArray(j)?layout(j):layout(j.elements||[]));if(!worker){worker=new Worker(import.meta.url,{type:'module'});worker.onmessage=e=>{const p=inflight.get(e.data.id);if(!p)return;inflight.delete(e.data.id);clearTimeout(p.timeout);e.data.error?p.reject(Error(e.data.error)):p.resolve(e.data.rows);};worker.onerror=e=>{for(const p of inflight.values()){clearTimeout(p.timeout);p.reject(Error(e.message||'TRAFFIC_WORKER_ERROR'));}inflight.clear();worker.terminate();worker=null;};}return new Promise((resolve,reject)=>{const timeout=setTimeout(()=>{inflight.delete(key);reject(Error('TRAFFIC_TILE_TIMEOUT'));},45000);inflight.set(key,{resolve,reject,timeout});worker.postMessage({x,y,id:key});});};
  function wanted(){
   const c=map.getCenter(),[x,y]=tile(c),b=map.getBounds(),[west,north]=tile({lng:b.getWest(),lat:b.getNorth()}),[east,south]=tile({lng:b.getEast(),lat:b.getSouth()}),arr=[];
   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const tx=(x+dx+N)%N,ty=y+dy;if(ty<0||ty>=N)continue;arr.push({x:tx,y:ty,key:tx+'-'+ty,priority:Math.abs(dx)+Math.abs(dy),visible:ty>=north&&ty<=south&&(west<=east?tx>=west&&tx<=east:tx>=west||tx<=east)});}
@@ -180,13 +176,13 @@ export function attachTrafficFurniture(map,{provider}={}){
  }
  function refresh(){
   if(closed||!scene||!dirty||map.isMoving?.()||map.getZoom()<14)return;dirty=false;
-  const rows=select(),key=rows.map(x=>x.id).join('|');if(key===last&&group)return;if(!rows.length){if(group)release();st.status='waiting-for-mapped-controls';return;}
+  const rows=select(),key=rows.map(x=>x.id).join('|');if(key===last&&group)return;if(!rows.length){if(group&&wanted().every(t=>cache.get(t.key)?.rows))release();st.status=group?'retaining-loaded-models':'waiting-for-mapped-controls';return;}
   const c=map.getCenter(),q=[c.lng,c.lat],z=Number(map.queryTerrainElevation?.(q,{exaggerated:true})??0),raw=map.transform?.getMatrixForModel?.(q,z);if(!raw)return;
   const inv=new T.Matrix4().fromArray(raw).invert(),next=new T.Group(),batches=new Map(),types={},claims=[],accepted=[];let triangles=0;
   const add=(name,m,phase=null,axis=0)=>{const k=name+'|'+(phase||'')+'|'+axis;if(!batches.has(k))batches.set(k,{name,phase,axis,matrices:[]});batches.get(k).matrices.push(m);};
   const cost=name=>templates.get(name).reduce((n,p)=>n+p.tri,0);
   for(const x of rows){
-   const altitude=map.queryTerrainElevation?.(x.q,{exaggerated:true});if(map.getTerrain?.()&&!Number.isFinite(altitude))continue;
+   const altitude=map.queryTerrainElevation?.(x.q,{exaggerated:true});if(map.getTerrain?.()&&!Number.isFinite(altitude)){terrainRetry++;continue;}
    const m0=map.transform?.getMatrixForModel?.(x.q,Number.isFinite(altitude)?altitude:0);if(!m0)continue;
    const base=new T.Matrix4().fromArray(m0).premultiply(inv),axis=Math.abs(Math.cos(x.face*rad))<.707?1:0;
    const m=base.clone().multiply(new T.Matrix4().makeRotationY(-x.face*rad));
@@ -202,7 +198,7 @@ export function attachTrafficFurniture(map,{provider}={}){
    }
    triangles+=need;types[x.kind]=(types[x.kind]||0)+1;accepted.push(x);
   }
-  if(!accepted.length)return;
+  if(!accepted.length){dirty=true;schedule(500);return;}
   for(const {name,phase,axis,matrices} of batches.values()){
    const g=new T.Group();g.userData={phase,axis};for(const p of templates.get(name)){const mesh=new T.InstancedMesh(p.g,p.m,matrices.length);mesh.frustumCulled=false;for(let i=0;i<matrices.length;i++)mesh.setMatrixAt(i,matrices[i]);mesh.instanceMatrix.needsUpdate=true;g.add(mesh);}next.add(g);
   }
@@ -210,22 +206,23 @@ export function attachTrafficFurniture(map,{provider}={}){
   Object.assign(st,{status:'ready',objects:accepted.length,counts:types,triangleCount:triangles,triangleBudget:triCap,originalModels:true,localMeterAnchors:true,zoom:map.getZoom(),claimedSignLocations:claims,examples:accepted.slice(0,8).map(({kind,q,face,source,side,estimated})=>({kind,q,face,source,side,estimated}))});
   map.triggerRepaint();
  }
- function schedule(delay=450){if(closed||timer||map.isMoving?.())return;timer=setTimeout(()=>{timer=0;void pump();},delay);}
- async function pump(){
-  if(closed||map.isMoving?.()||map.getZoom()<12.7)return;
-  void init();if(map.getZoom()>=14)refresh();
-  if(busy)return;
-  const wantedTiles=wanted(),t=wantedTiles.find(x=>!cache.has(x.key)||Date.now()-cache.get(x.key).at>(cache.get(x.key).rows?86400000:60000));
-  if(!t)return;if(Date.now()-lastFetch<4000)return schedule(4200);busy=true;lastFetch=Date.now();st.status=group?'ready':'fetching-mapped-controls';
-  try{const rows=await getTile(t.x,t.y);cache.set(t.key,{rows,at:Date.now()});while(cache.size>45)cache.delete(cache.keys().next().value);st.cachedTiles=cache.size;dirty=true;}
-  catch(e){cache.set(t.key,{rows:null,at:Date.now()});st.sourceError=String(e).slice(0,140);}
-  finally{busy=false;if(!closed&&!map.isMoving?.())schedule(200);}
+ function schedule(delay=120){if(closed||timer)return;timer=setTimeout(()=>{timer=0;void pump();},delay);}
+ function pump(){
+  if(closed||map.getZoom()<11.6)return;
+  void init();
+  if(!map.isMoving?.()&&map.getZoom()>=14)refresh();
+  const pending=wanted().filter(t=>!inflight.has(t.key)&&(!cache.has(t.key)||Date.now()-cache.get(t.key).at>(cache.get(t.key).rows?86400000:20000)));
+  for(const t of pending.slice(0,Math.max(0,3-busy))){
+   // One shared archive cache serves three concurrent tile requests, rather than one Overpass query every four seconds.
+   busy++;cache.set(t.key,{rows:null,at:Date.now()});st.status=group?'ready':'fetching-mapped-controls';
+   void getTile(t.x,t.y).then(rows=>{cache.set(t.key,{rows,at:Date.now()});while(cache.size>65)cache.delete(cache.keys().next().value);st.cachedTiles=[...cache.values()].filter(v=>Array.isArray(v.rows)).length;st.cachedModels=[...cache.values()].reduce((n,v)=>n+(v.rows?.length||0),0);dirty=true;}).catch(e=>{cache.set(t.key,{rows:null,at:Date.now()});st.sourceError=String(e).slice(0,140);}).finally(()=>{busy--;schedule(80);});
+  }
  }
- function moved(){dirty=true;schedule(250);}
- function started(){clearTimeout(timer);timer=0;}
- function prewarm(){if(closed||prewarmed||map.getZoom()<12.1)return;prewarmed=true;for(const file of ['retro-traffic-signals.glb.gz','signs.glb.gz'])void fetch(BASE+file,{cache:'force-cache'}).then(r=>r.ok?r.arrayBuffer():null).catch(()=>null);if(map.getZoom()>=12.7&&!busy){const [x,y]=tile(map.getCenter()),key=x+'-'+y;busy=true;lastFetch=Date.now();void getTile(x,y).then(rows=>{cache.set(key,{rows,at:Date.now()});st.cachedTiles=cache.size;dirty=true;}).catch(e=>{st.sourceError=String(e).slice(0,140);cache.set(key,{rows:null,at:Date.now()});}).finally(()=>{busy=false;schedule(150)});}}
- for(const ev of ['moveend','zoomend'])map.on(ev,moved);map.on('movestart',started);map.on('zoom',prewarm);prewarm();
+ function moved(){dirty=true;schedule(80);}
+ function prewarm(){if(closed||map.getZoom()<11.6)return;const [x,y]=tile(map.getCenter()),key=x+'-'+y;if(!prewarmed||lastCenter!==key){prewarmed=true;lastCenter=key;schedule(0);}}
+ function terrainReady(e){if(terrainRetry&&!map.isMoving?.()){terrainRetry=0;dirty=true;last='';schedule(120);}}
+ for(const ev of ['moveend','zoomend'])map.on(ev,moved);map.on('move',prewarm);map.on('sourcedata',terrainReady);prewarm();
  const phases=setInterval(()=>{if(group&&map.getZoom()>=14&&!map.isMoving?.())map.triggerRepaint();},1000);
- map.once('remove',()=>{closed=true;clearInterval(phases);clearTimeout(timer);worker?.terminate();for(const ev of ['moveend','zoomend'])map.off(ev,moved);map.off('movestart',started);map.off('zoom',prewarm);release();});
+ map.once('remove',()=>{closed=true;clearInterval(phases);clearTimeout(timer);worker?.terminate();for(const ev of ['moveend','zoomend'])map.off(ev,moved);map.off('move',prewarm);map.off('sourcedata',terrainReady);release();});
  schedule(100);return st;
 }
