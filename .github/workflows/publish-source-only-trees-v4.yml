@@ -1,0 +1,202 @@
+name: BridgePoint source-only persistent tree meshes V4
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-source-only-trees-v4.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js assets/street-detail-v1/pavers.png; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <(head -15 "$RUNNER_TEMP/candidates")
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Patch tree meshes only, preserve all unrelated files
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib,json
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          def hashes():
+              return {str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          before=hashes()
+          allowed=set()
+          def write(p,s):
+              if p.read_text()!=s:
+                  p.write_text(s);allowed.add(str(p.relative_to(site)))
+          def rep(s,a,b):
+              assert s.count(a)==1,(a[:150],s.count(a))
+              return s.replace(a,b)
+          for base in (site,site/'app'):
+              p=base/'world-v2300-tree-instanced.js';s=p.read_text()
+              assert 'chooseDetailedTreeAsset' in s and 'sourceFile = null' in s,'Requires the current source-tree V2/V3 renderer'
+              # All trees use their same source variant at every zoom, not the native/procedural mesh.
+              s,n=re.subn(r"const source=map\.getZoom\(\)>=1[67](?:\.5)?&&near\.has\(tree\.id\)\?chooseDetailedTreeAsset\(tree,pickManifestModel\(manifest,tree\.modelId\)\):null;", "const source=chooseDetailedTreeAsset(tree,pickManifestModel(manifest,tree.modelId));",s)
+              assert n==1,'source model selector'
+              s,n=re.subn(r"const key=source\?source\.pack\+'\|'\+source\.index:'native\|'\+tree\.modelId;", "if(!source)continue;const key=source.pack+'|'+source.index;",s)
+              assert n==1
+              s=rep(s,"if(sourceFile)return loadModel(modelId,lodKey,null);","// Source-only: retry source models; never substitute a procedural mesh.")
+              s=rep(s,"async function loadModel(modelId, lodKey, sourceFile = null) {","async function loadModel(modelId, lodKey, sourceFile = null) {\n    if(!sourceFile)throw Error('SOURCE_TREE_MODEL_REQUIRED');")
+              # Constant geometry selection prevents a zoom-only rebuild and close-range swap.
+              s=rep(s,"const lodKey = chooseTreeLod(map.getZoom(), activeTrees.length, mobile);","const lodKey = 'lod0';")
+              s=rep(s,"const nextLod = chooseTreeLod(map.getZoom(), nextTrees.length, mobile);","const nextLod = 'lod0';")
+              s,n=re.subn(r"\+':'\+\(map\.getZoom\(\)>=1[67](?:\.5)?\?'source':'native'\)"," + ':source-only'",s);assert n==1
+              # The GPU budget remains bounded even in dense canopy; no old mesh fills gaps.
+              s=rep(s,"const maxInstances = options.maxInstances ?? treeInstanceBudget({ mobile, lowMemory, highTier });","const maxInstances = Math.min(options.maxInstances ?? treeInstanceBudget({ mobile, lowMemory, highTier }), lowMemory ? 220 : mobile ? 500 : highTier ? 1600 : 1000);")
+              a=s.index("    const near=new Set(");b=s.index("    for(const tree of activeTrees)",a)
+              s=s[:a]+s[b:]
+              # Explicitly disable legacy trunk/crown layers before the first async model request.
+              a=s.index('  function restoreLegacyVisibility() {');b=s.index('\n  async function loadManifest()',a)
+              s=s[:a]+"""  function restoreLegacyVisibility() {
+                setLegacyVisibility(map,'none');
+              }
+              // Legacy trees must stay hidden while tiles, models or terrain are pending.
+              const suppressLegacyTrees=()=>{for(const id of LEGACY_LAYER_IDS){if(map.getLayer?.(id)&&map.getLayoutProperty(id,'visibility')!=='none')try{map.setLayoutProperty(id,'visibility','none')}catch(_){} }};
+              suppressLegacyTrees();
+              map.on('styledata',suppressLegacyTrees);
+              map.on('idle',suppressLegacyTrees);
+              map.once('remove',()=>{map.off('styledata',suppressLegacyTrees);map.off('idle',suppressLegacyTrees);});
+          """+s[b:]
+              s=re.sub(r'legacyRetained:\s*true','legacyRetained: false',s)
+              s=re.sub(r'legacyLayersHidden:\s*false','legacyLayersHidden: true',s)
+              s=re.sub(r'state\.legacyRetained\s*=\s*true','state.legacyRetained = false',s)
+              s=re.sub(r'state\.legacyLayersHidden\s*=\s*false','state.legacyLayersHidden = true',s)
+              # Prewarm shared GLTF pack cache before the viewport reaches street level.
+              s=rep(s,"    loader = new modules.GLTFLoader();","""    loader = new modules.GLTFLoader();
+              void (async()=>{for(const packs of [['oak','rally'],['maple','pine'],['fir','palm'],['city','deadfir']]){
+                if(destroyed)return;
+                await Promise.allSettled(packs.map(pack=>loadStreetGLTF(loader,{url:'/assets/street-detail-v1/'+pack+'.glb.gz'})));
+              }})();""")
+              # Keep the current solid scene if all newly requested groups fail. Retry on idle.
+              a=s.index('      if (!results.length) {');b=s.index('        restoreLegacyVisibility();',a)
+              s=s[:a]+"""      if (!results.length) {
+                activeSignature='';
+                state.instanceCount=activeMeshes.length?state.sourceStreetTreeCount||0:0;
+          """+s[b:]
+              # Budget the actual imported mesh triangle cost by distance, without substituting geometry.
+              a=s.index('      const nextMeshes = [];');s=s[:a]+"""      const sourceTriangleBudget=lowMemory?900000:mobile?2200000:highTier?8000000:4500000;
+                const center=map.getCenter(),dist=t=>Math.hypot((t.coordinates[0]-center.lng)*Math.cos(center.lat*Math.PI/180),t.coordinates[1]-center.lat);
+                const candidates=results.flatMap(r=>{const cost=Math.max(1,r.loaded.meshes.reduce((n,p)=>n+(p.geometry.index?.count||p.geometry.attributes.position.count)/3,0));return r.trees.map(t=>({id:t.id,d:dist(t),cost}));}).sort((a,b)=>a.d-b.d);
+                const keep=new Set();let used=0;for(const c of candidates){if(used+c.cost>sourceTriangleBudget)continue;keep.add(c.id);used+=c.cost;}
+                for(const r of results)r.trees=r.trees.filter(t=>keep.has(t.id));
+                for(let i=results.length-1;i>=0;i--)if(!results[i].trees.length)results.splice(i,1);
+                state.sourceTriangleBudget=sourceTriangleBudget;state.sourceTrianglesSelected=used;
+          """+s[a:]
+              # Avoid clearing a previously loaded scene when the next tile or its terrain is still pending.
+              s=s.replace("if (activeMeshes.length && !authoritative) {","if (activeMeshes.length && (!authoritative || terrainPending)) {")
+              # Permit later retry for any failing source group.
+              s=rep(s,"      map.triggerRepaint?.();\n    }).catch(error => {","      if(failedGroups.length)activeSignature='';\n      map.triggerRepaint?.();\n    }).catch(error => {\n      activeSignature='';")
+              write(p,s)
+              p=base/'world-v2300-map.js';s=p.read_text()
+              # Keep existing early tile streaming and move event; update only tree cache token.
+              s,n=re.subn(r'world-v2300-tree-instanced\.js\?v=[^\'"\s<>]+','world-v2300-tree-instanced.js?v=20261126-source-only-trees-v4',s);assert n>=1
+              # Attach from high view even if the data cache has not arrived yet (V2 or V3 baseline).
+              s,n=re.subn(r'if\(bpTreeRendererAttachStarted\|\|map\.getZoom\(\)<(?:treeStartZoom|11\.5)\)return;','if(bpTreeRendererAttachStarted||map.getZoom()<11.5)return;',s);assert n==1
+              s=s.replace("if((!Array.isArray(treeCache)||treeCache.length===0)&&map.getZoom()<14)return;","")
+              if "map.on('move',bpAttachTreeRendererFromViewport);" not in s:
+                  s=rep(s,"map.on('zoomend',bpAttachTreeRendererFromViewport);","map.on('zoomend',bpAttachTreeRendererFromViewport);map.on('move',bpAttachTreeRendererFromViewport);")
+              write(p,s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261126-source-only-trees-v4',s)
+                      write(p,n)
+          after=hashes()
+          assert before.keys()==after.keys()
+          assert {p for p in before if before[p]!=after[p]}==allowed
+          print('SOURCE_ONLY_TREE_SCOPED_HASH_PASS',sorted(allowed))
+          PY
+          for f in world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Browser test same source meshes high to street zoom
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace("import * as T from","import {attachTreeInstancedRenderer} from '/world-v2300-tree-instanced.js';\nimport * as T from")
+          s=s.replace("zoom:18.5,pitch:50","zoom:13.5,pitch:35")
+          s=s.replace("{id:'source-probe',type:'circle',source:'bpLivingWorld'","{id:'gta-bp-tree3d-canopy',type:'circle',source:'bpLivingWorld',paint:{'circle-radius':20,'circle-color':'red'}},{id:'source-probe',type:'circle',source:'bpLivingWorld'")
+          s=s.replace("window.testMap=map;map.once('load',()=>attachStreetDetail(map));","""window.testMap=map;map.once('load',async()=>{map.queryTerrainElevation=()=>28;map.__BP_LIVING_TILE_CACHE_V6017__={trees:Array.from({length:8},(_,i)=>({type:'Feature',id:'test-tree-'+i,geometry:{type:'Point',coordinates:[center[0]+(i-4)*0.000012,center[1]+(i%2)*0.000012]},properties:{source_key:'META_WRI_DIRECT_CANOPY_V2',source_record_id:'test-tree-'+i,layer_key:'TREE_OBJECTS_3D',height_m:12,position_truth:'ESTIMATED_CANOPY_CROWN_CENTER',height_truth:'MODELED_CANOPY_HEIGHT'}}))};await attachTreeInstancedRenderer(map,{mobile:true,lowMemory:false,maxInstances:100});});""")
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('TREE_BROWSER_ERROR',e.message));await p.route('https://data.source.coop/**',r=>r.abort());await p.route('https://dataforgood-fb-data.s3.amazonaws.com/**',r=>r.abort());await p.goto(origin+'/__street_fixture');let expected=null;for(const [zoom,pitch,bearing] of [[13.5,35,12],[16,55,100],[18.5,65,180],[21,75,270]]){await p.evaluate(v=>window.testMap.jumpTo({zoom:v[0],pitch:v[1],bearing:v[2]}),[zoom,pitch,bearing]);await p.waitForFunction(()=>{const d=window.__BP_TREE_INSTANCE_RENDERER_V1__;return d?.instanceCount>0&&d.sourceStreetTreeCount===d.instanceCount&&d.gpuDrawCalls>0&&d.localMeterAnchors&&window.testMap.getLayoutProperty('gta-bp-tree3d-canopy','visibility')==='none'},null,{timeout:90000});const d=await p.evaluate(()=>{const d=window.__BP_TREE_INSTANCE_RENDERER_V1__;return {count:d.instanceCount,variants:[...d.sourceStreetVariants].sort(),triangles:d.gpuTriangles,legacy:d.legacyLayersHidden}});assert(d.legacy&&d.count>0&&d.triangles>0);if(expected===null)expected=d.variants;else assert.deepEqual(d.variants,expected);console.log('SOURCE_ONLY_TREE_ZOOM_PASS',zoom,d);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'tree-source-'+zoom+'.png')});}await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-source-only-tree-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-source-only-tree-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated ground materials
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live tree assets and untouched map dependencies
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js index.html app/index.html world-v2300-water.js app/world-v2300-water.js vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?tree=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo SOURCE_ONLY_TREES_V4_LIVE_BYTES_PASS
