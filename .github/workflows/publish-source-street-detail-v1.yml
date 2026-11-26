@@ -1,0 +1,122 @@
+name: BridgePoint source-model street details V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-source-street-detail-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <(head -15 "$RUNNER_TEMP/candidates")
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install source asset variants without changing unrelated release files
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          python3 - <<'PY'
+          import os,json,hashlib
+          from pathlib import Path
+          p=Path(os.environ['SITE']);m={x.relative_to(p).as_posix():hashlib.sha256(x.read_bytes()).hexdigest() for x in p.rglob('*') if x.is_file()}
+          Path(os.environ['RUNNER_TEMP'],'before-street.json').write_text(json.dumps(m))
+          PY
+          python3 street-detail-v1/install.py "$SITE"
+          for f in world-v2300-map.js world-v2300-tree-instanced.js bridgepoint-streetlights-3d-v1.js app/world-v2300-map.js app/world-v2300-tree-instanced.js app/bridgepoint-streetlights-3d-v1.js vendor/bp-street-detail-v1.mjs; do node --input-type=module --check < "$SITE/$f"; done
+          python3 - <<'PY'
+          import os,json,hashlib
+          from pathlib import Path
+          site=Path(os.environ['SITE']);before=json.loads(Path(os.environ['RUNNER_TEMP'],'before-street.json').read_text());after={x.relative_to(site).as_posix():hashlib.sha256(x.read_bytes()).hexdigest() for x in site.rglob('*') if x.is_file()}
+          allow={pre+f for pre in ('','app/') for f in ('world-v2300-map.js','world-v2300-tree-instanced.js','bridgepoint-streetlights-3d-v1.js','index.html','landing.js','app.js')}
+          assert all(k in after for k in before),'Existing files removed'
+          assert all(after[k]==v or k in allow for k,v in before.items()),'Unrelated file changed'
+          assert all(k in before or k.startswith('assets/street-detail-v1/') or k=='vendor/bp-street-detail-v1.mjs' for k in after),'Unexpected addition'
+          print('STREET_SCOPE_BYTE_PRESERVATION_PASS',len(before),len(after))
+          PY
+          size=$(du -sb "$SITE" | cut -f1); echo "Release bytes: $size"; test "$size" -lt 1000000000
+      - name: Browser-test real optimized GLB meshes and map startup
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          node street-detail-v1/verify.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-street-render-evidence
+          path: ${{ runner.temp }}/street-detail-source-render.png
+          if-no-files-found: ignore
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated street assets only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify deployed asset hashes and unchanged water
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          cd "$SITE"
+          for p in assets/street-detail-v1/* vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js bridgepoint-streetlights-3d-v1.js app/bridgepoint-streetlights-3d-v1.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?street=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo STREET_SOURCE_LIVE_BYTES_PASS
