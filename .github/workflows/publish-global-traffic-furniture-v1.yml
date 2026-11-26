@@ -1,0 +1,181 @@
+name: BridgePoint source-backed global traffic furniture V1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-global-traffic-furniture-v1.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            # A deployment can succeed even if its subsequent live smoke test fails.
+            # Accept such a snapshot only when the deploy step succeeded AND every live file matches.
+            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')"
+            if [ "$conclusion" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '[.jobs[].steps[] | select(.conclusion=="success" and (.name|test("^(Publish the preserved production snapshot|Publish validated|Publish the close-zoom|Deploy to GitHub Pages)")))] | length')"
+              if [ "$deployed" = 0 ]; then continue; fi
+            fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-viewport-forest-v5.mjs bridgepoint-app-space-explorer-v1.js; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then echo "Baseline mismatch $run $p"; same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <( { grep -E "^45886874781[[:space:]]" "$RUNNER_TEMP/candidates" || true; head -15 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install only the original traffic models and isolated street layer
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST" "$SITE/data/bp-traffic-furniture-v1/tiles"
+          npm install --prefix "$BP_TEST" playwright world-atlas@2.0.2 topojson-client@3.1.0
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib,gzip,json
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          def hashes():return {str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          before=hashes();allowed=set()
+          models={'retro-traffic-signals.glb':'915636e00929c85002132641db6f6c94f25393843ba569c2cdbca02d65a53bab','road-traffic-sign.glb':'ba85977f1cadea1c3dde807e6159b19241616eb190e4e1a59a5fc01e1c9224a3'}
+          for f,h in models.items():
+              raw=(Path('street-detail-v1/traffic-source')/f).read_bytes();assert hashlib.sha256(raw).hexdigest()==h and raw[:4]==b'glTF'
+              rel='assets/street-detail-v1/'+f+'.gz';(site/rel).write_bytes(gzip.compress(raw,compresslevel=6,mtime=0));allowed.add(rel)
+          rel='vendor/bp-traffic-furniture-v1.mjs';(site/rel).write_bytes(Path('street-detail-v1/traffic-furniture.mjs').read_bytes());allowed.add(rel)
+          rel='assets/street-detail-v1/traffic-credits.html'
+          (site/rel).write_text('<!DOCTYPE html><meta charset="utf-8"><title>Traffic model credits</title><h1>Traffic furniture model credits</h1><p><a href="https://sketchfab.com/3d-models/low-poly-retro-san-diego-traffic-light-set-0a477f61c1fe4ec0bbedcb631e25c596">Low Poly / Retro San Diego Traffic Light Set</a> by YourLocalJavaCarDealer, CC BY 4.0.</p><p><a href="https://sketchfab.com/3d-models/road-traffic-sign-13eeb2da01c046a1a0fc8ce8a7e262ab">Road Traffic Sign</a> by Solarliu, CC BY 4.0.</p><p>Road Signs Pack [Revamped] by Paul Cheeseburger, CC BY 4.0; see existing street asset credits. Adapted by BridgePoint: selected source meshes, resized mounting structures, geospatial instances and simulated light cycles. <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0 license</a>.</p><p>Road and traffic control data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>. Hardware, unmeasured offsets and signal phases are illustrative, not live or surveyed.</p>');allowed.add(rel)
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+              p=site/rel;s=p.read_text()
+              marker="map.once('load',ensureMapGestures);"
+              assert s.count(marker)==1,rel
+              s=s.replace(marker,marker+"""
+              let bpTrafficFurnitureAttached=false;
+              const bpAttachTrafficFurniture=()=>{if(bpTrafficFurnitureAttached||map.getZoom()<12.1)return;bpTrafficFurnitureAttached=true;import('/vendor/bp-traffic-furniture-v1.mjs?v=20261126-traffic-v1').then(m=>{m.attachTrafficFurniture(map);const a=document.createElement('a');a.href='/assets/street-detail-v1/traffic-credits.html';a.textContent='Traffic models';a.target='_blank';a.rel='noopener';const c=map.getContainer().querySelector('.maplibregl-ctrl-attrib-inner');if(c&&!c.querySelector('[href="/assets/street-detail-v1/traffic-credits.html"]')){c.append(' · ',a);}}).catch(e=>{bpTrafficFurnitureAttached=false;console.warn('Traffic furniture:',e)});};
+              map.on('zoom',bpAttachTrafficFurniture);map.on('moveend',bpAttachTrafficFurniture);map.once('load',bpAttachTrafficFurniture);
+              """)
+              p.write_text(s);allowed.add(rel)
+          # Keep nontraffic furniture intact; the new layer owns stop/yield signs.
+          rel='vendor/bp-street-detail-v1.mjs';p=site/rel;s=p.read_text()
+          if s.count('if(!kind)continue;')==1:
+              p.write_text(s.replace('if(!kind)continue;',"if(!kind||kind==='stop'||kind==='yield')continue;"));allowed.add(rel)
+          else:
+              print('Existing street renderer unchanged; no matching duplicate-filter marker')
+          for rel in ('index.html','app/index.html','landing.js','app.js'):
+              p=site/rel;s=p.read_text()
+              n=re.sub(r'(world-v2300-map\.js)(?:\?[^\'"\s<>]*)?',r'\1?v=20261126-traffic-v1',s)
+              if rel.endswith('.html'):n=re.sub(r'(?<![A-Za-z0-9_-])(landing|app)\.js\?[^\'"\s<>]+',r'\1.js?v=20261126-traffic-v1',n)
+              if n!=s:p.write_text(n);allowed.add(rel)
+          after=hashes();assert before.keys()<=after.keys();assert {p for p in after if before.get(p)!=after[p]}==allowed
+          print('TRAFFIC_ONLY_SCOPE_PASS',sorted(allowed))
+          PY
+          node --check "$SITE/vendor/bp-traffic-furniture-v1.mjs"
+          for f in world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+          node --input-type=module <<'JS'
+          import {createRequire} from 'node:module';import {writeFileSync} from 'node:fs';
+          const require=createRequire(process.env.BP_TEST+'/package.json'),world=require('world-atlas/countries-50m.json'),{feature}=require('topojson-client');
+          const codes=new Set('028 036 044 050 052 060 064 072 092 096 136 162 166 184 212 238 242 254 308 328 344 356 360 372 388 392 404 296 426 446 454 458 462 480 500 508 516 524 554 570 574 586 598 612 654 659 662 670 690 702 090 710 144 740 748 834 764 776 780 796 798 800 826 092 850 882 894 716'.split(' '));
+          const polygons=feature(world,world.objects.countries).features.filter(f=>codes.has(String(f.id).padStart(3,'0'))).flatMap(f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.type==='MultiPolygon'?f.geometry.coordinates:[]);if(polygons.length<20)throw Error('LEFT_DRIVING_BOUNDARIES_MISSING');writeFileSync(process.env.SITE+'/data/bp-traffic-furniture-v1/left-driving.json',JSON.stringify(polygons));console.log('DRIVING_SIDE_POLYGONS',polygons.length);
+          JS
+      - name: Cache real mapped traffic controls for initial city coverage
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          node --input-type=module <<'JS'
+          import {layout,overpassQuery} from './street-detail-v1/traffic-furniture.mjs';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const root=process.env.SITE+'/data/bp-traffic-furniture-v1/',polys=JSON.parse(readFileSync(root+'left-driving.json'));
+          const cities=[['New York',-73.9857,40.7484],['London',-.1276,51.5072],['Tokyo',139.7006,35.6895],['Sydney',151.2093,-33.8688]];
+          let seeded=0;
+          for(const [city,lng,lat] of cities){
+            const N=2**14,x=Math.floor((lng+180)/360*N),y=Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*N);
+            let result=null;
+            for(const endpoint of ['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter']){
+              try{const r=await fetch(endpoint+'?data='+encodeURIComponent(overpassQuery(x,y)),{signal:AbortSignal.timeout(27000)});if(!r.ok)continue;const j=await r.json();if(Array.isArray(j.elements)&&!j.remark&&layout(j.elements,polys).some(x=>x.kind==='vehicle')){result=j;break;}}catch(e){console.log(city,String(e).slice(0,100));}
+            }
+            if(result){writeFileSync(root+'tiles/'+x+'-'+y+'.json',JSON.stringify(result));seeded++;console.log('REAL_MAPPED_TRAFFIC_TILE',city,layout(result.elements,polys).length);}
+          }
+          console.log('REAL_TRAFFIC_SEEDS',seeded,'global on-demand OSM tile requests remain available');
+          JS
+      - name: Verify traffic sources and close zoom rendering
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          node street-detail-v1/verify-traffic-furniture.mjs
+      - name: Verify real homepage camera and touch navigation
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GLOBE_PAGE_ERROR',e.message));await p.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:90000});await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()&&w.map.getMaxZoom()===22},null,{timeout:120000});const get=()=>p.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const r=m.getCanvas().getBoundingClientRect();return {zoom:m.getZoom(),lng:m.getCenter().lng,lat:m.getCenter().lat,min:m.getMinZoom(),max:m.getMaxZoom(),pinch:m.touchZoomRotate.isEnabled(),drag:m.dragPan.isEnabled(),x:r.x+r.width/2,y:r.y+r.height/2}});await p.waitForFunction(()=>typeof window.__BP_APP_SPACE_EXPLORER_V1__?.showPublicOverview==='function',null,{timeout:90000});const initial=await get();console.log('GLOBE_BEFORE_INPUT',initial);assert(initial.max===22&&initial.pinch&&initial.drag);const button=p.locator('.maplibregl-ctrl-zoom-in').first();await button.click({timeout:20000});await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.5},initial.zoom,{timeout:20000});const plus=await get();console.log('GLOBE_BUTTON_ZOOM_PASS',plus);await p.waitForFunction(()=>!(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map.isMoving(),null,{timeout:20000});const cdp=await p.context().newCDPSession(p);const send=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y],id)=>({x,y,id}))});const x=plus.x,y=plus.y;console.log('GLOBE_PINCH_HIT_TARGET',await p.evaluate(([x,y])=>{const e=document.elementFromPoint(x,y);return {tag:e?.tagName,id:e?.id,className:String(e?.className),space:window.__BP_APP_SPACE_EXPLORER_V1__?.state}},[x,y]));await send('touchStart',[[x-26,y],[x+26,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x-26-i*7,y],[x+26+i*7,y]]);await p.waitForTimeout(45)}await send('touchEnd',[]);console.log('GLOBE_AFTER_RAW_PINCH',await get());await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.3},plus.zoom,{timeout:20000});const pinch=await get();console.log('GLOBE_PLUS_AND_PINCH_PASS',initial,plus,pinch);await send('touchStart',[[x,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x+i*10,y+i*3]]);await p.waitForTimeout(35)}await send('touchEnd',[]);await p.waitForFunction(v=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return Math.abs(c.lng-v.lng)+Math.abs(c.lat-v.lat)>.1},pinch,{timeout:20000});console.log('GLOBE_REAL_TOUCH_DRAG_PASS',await get());await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-normal-globe-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-normal-globe-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated traffic furniture
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live traffic assets and preserved navigation/renderers
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-traffic-furniture-v1.mjs assets/street-detail-v1/retro-traffic-signals.glb.gz assets/street-detail-v1/road-traffic-sign.glb.gz assets/street-detail-v1/traffic-credits.html data/bp-traffic-furniture-v1/left-driving.json assets/street-detail-v1/signs.glb.gz vendor/bp-street-detail-v1.mjs landing.js app.js bridgepoint-app-space-explorer-v1.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-viewport-forest-v5.mjs world-v2300-water.js app/world-v2300-water.js; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?camera=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo TRAFFIC_FURNITURE_V1_LIVE_PASS
