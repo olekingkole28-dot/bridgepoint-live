@@ -169,6 +169,17 @@ export function attachTrafficFurniture(map,{provider}={}){
  }
  function ensureGantry(){if(gantryJob||!helpersModule)return;gantryJob=helpersModule.loadStreetGLTF(loader,{url:BASE+'road-traffic-sign.glb.gz'}).then(gltf=>{const r=gltf.scene;r.updateMatrixWorld(true);templates.set('gantry',[part(r,'hang_04__0',[0,0,-102.24],[1/254.72,6.6/155.42,.042])]);dirty=true;last='';schedule(120);}).catch(e=>{st.gantryError=String(e).slice(0,140)});}
  function release(){if(group){scene?.remove(group);group.traverse(o=>{if(o.isInstancedMesh)o.dispose();});group=null;}anchor=null;st.objects=0;st.drawCalls=0;last='';}
+ function alignRenderedRoad(row){
+  const mask=map.__BP_SOURCE_ROAD_MASK_V2__;if(!mask?.polys?.length||dist(mask.center,row.q)>mask.radius-25)return row;
+  const inside=(ring,p)=>{let yes=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])yes=!yes;}return yes;};
+  const inRoad=p=>mask.polys.some(r=>inside(r[0],p)&&!r.slice(1).some(h=>inside(h,p)));
+  const heading=row.kind==='pedestrian'?wrap(row.face+180):wrap(row.face-90*row.side);
+  // Ensure a full pole-base margin outside the same polygons used to draw asphalt.
+  const clear=p=>!inRoad(p)&&[0,90,180,270].every(a=>!inRoad(offset(p,a,.8)));
+  if(clear(row.q))return row;
+  for(let m=.5;m<=18;m+=.5){const q=offset(row.q,heading,m);if(clear(q)){return {...row,q,arm:row.kind==='vehicle'?row.arm+m:row.arm,alignedToRenderedRoad:true};}}
+  return null;
+ }
  function select(){
   const c=map.getCenter(),p=[c.lng,c.lat],canvas=map.getCanvas(),seen=new Set(),rows=[];
   for(const t of wanted()){const cached=cache.get(t.key);if(!cached?.rows)continue;for(const x of cached.rows){if(seen.has(x.id))continue;seen.add(x.id);const v=map.project(x.q);if(v.x< -120||v.y< -120||v.x>canvas.clientWidth+120||v.y>canvas.clientHeight+120)continue;rows.push({...x,d:dist(p,x.q)});}}
@@ -181,7 +192,8 @@ export function attachTrafficFurniture(map,{provider}={}){
   const inv=new T.Matrix4().fromArray(raw).invert(),next=new T.Group(),batches=new Map(),types={},claims=[],accepted=[];let triangles=0;
   const add=(name,m,phase=null,axis=0)=>{const k=name+'|'+(phase||'')+'|'+axis;if(!batches.has(k))batches.set(k,{name,phase,axis,matrices:[]});batches.get(k).matrices.push(m);};
   const cost=name=>templates.get(name).reduce((n,p)=>n+p.tri,0);
-  for(const x of rows){
+  for(const original of rows){
+   const x=alignRenderedRoad(original);if(!x)continue;
    const altitude=map.queryTerrainElevation?.({lng:x.q[0],lat:x.q[1]},{exaggerated:true});if(map.getTerrain?.()&&!Number.isFinite(altitude)){terrainRetry++;continue;}
    const m0=map.transform?.getMatrixForModel?.(x.q,Number.isFinite(altitude)?altitude:0);if(!m0)continue;
    const base=new T.Matrix4().fromArray(m0).premultiply(inv),axis=Math.abs(Math.cos(x.face*rad))<.707?1:0;
@@ -220,9 +232,10 @@ export function attachTrafficFurniture(map,{provider}={}){
  }
  function moved(){dirty=true;schedule(80);}
  function prewarm(){if(closed||map.getZoom()<11.6)return;const [x,y]=tile(map.getCenter()),key=x+'-'+y;if(!prewarmed||lastCenter!==key){prewarmed=true;lastCenter=key;schedule(0);}}
+ function surfaceReady(){dirty=true;last='';schedule(120);}
  function terrainReady(e){if(terrainRetry&&!map.isMoving?.()){terrainRetry=0;dirty=true;last='';schedule(120);}}
- for(const ev of ['moveend','zoomend'])map.on(ev,moved);map.on('move',prewarm);map.on('sourcedata',terrainReady);prewarm();
+ for(const ev of ['moveend','zoomend'])map.on(ev,moved);map.on('move',prewarm);map.on('sourcedata',terrainReady);map.on('bpsurfacemaskready',surfaceReady);prewarm();
  const phases=setInterval(()=>{if(group&&map.getZoom()>=14&&!map.isMoving?.())map.triggerRepaint();},1000);
- map.once('remove',()=>{closed=true;clearInterval(phases);clearTimeout(timer);worker?.terminate();for(const ev of ['moveend','zoomend'])map.off(ev,moved);map.off('move',prewarm);map.off('sourcedata',terrainReady);release();});
+ map.once('remove',()=>{closed=true;clearInterval(phases);clearTimeout(timer);worker?.terminate();for(const ev of ['moveend','zoomend'])map.off(ev,moved);map.off('move',prewarm);map.off('sourcedata',terrainReady);map.off('bpsurfacemaskready',surfaceReady);release();});
  schedule(100);return st;
 }
