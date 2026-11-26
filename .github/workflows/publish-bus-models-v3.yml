@@ -1,0 +1,164 @@
+name: BridgePoint Bus Stops ground anchor and global icons V3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-bus-models-v3.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v2.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <(head -15 "$RUNNER_TEMP/candidates")
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install Bus Stops toggle and source GLTF models
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,json
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          def rep(s,a,b):
+              assert s.count(a)==1,(a,s.count(a))
+              return s.replace(a,b)
+          p=site/'vendor/bp-nyc-bus-v1.mjs';s=p.read_text()
+          s=rep(s,"import {attachBusModels} from '/vendor/bp-bus-models-v2.mjs';","import {attachBusModels} from '/vendor/bp-bus-models-v3.mjs';")
+          s=rep(s,"if(!map.__bpNYCBusEnabled||!near()||pending)return;","if(!map.__bpNYCBusEnabled||pending)return;")
+          s=rep(s,"if(data){if(!map.getSource(ids[0]))install();return}","if(data){if(!map.getSource(ids[0])||!map.getLayer('bp-bus-global-icon-v3'))install();return}")
+          a=s.index(' // Prefer surveyed shelter locations;');b=s.index(' ready=true;',a)
+          s=s[:a]+""" // DOT surveyed locations only. GTFS points remain icons, not invented shelters.
+           const models=data[1].features.filter(f=>f.geometry?.type==='Point'&&f.geometry.coordinates.slice(0,2).every(Number.isFinite));
+           map.__bpBusModelFeaturesV3=models;
+           if(!map.getSource('bpBusModelsV2'))map.addSource('bpBusModelsV2',{type:'geojson',data:{type:'FeatureCollection',features:models},maxzoom:18});
+           if(!map.getLayer('bpBusModelsV2-probe'))map.addLayer({id:'bpBusModelsV2-probe',type:'circle',source:'bpBusModelsV2',minzoom:17.5,paint:{'circle-opacity':0,'circle-radius':1}});
+           if(!map.getLayer('bp-bus-global-icon-v3'))map.addLayer({id:'bp-bus-global-icon-v3',type:'symbol',source:ids[0],maxzoom:12,layout:{'icon-image':icon,'icon-size':['interpolate',['linear'],['zoom'],0,.85,10,.65,12,.48],'icon-allow-overlap':false,'icon-ignore-placement':false,'icon-anchor':'bottom'},paint:{'icon-opacity':1}});
+           map.fire('bpbuschange');
+          """+s[b:]
+          s=rep(s,"'bpBusModelsV2-probe','bp-nyc-bus-poles'","'bpBusModelsV2-probe','bp-bus-global-icon-v3','bp-nyc-bus-poles'")
+          s=rep(s,"for(const id of ids){map.on('click',id+'-icon',e=>","let popup=null;map.on('bpbuschange',()=>{if(!map.__bpNYCBusEnabled){popup?.remove();popup=null;}});for(const layer of [...ids.map(id=>id+'-icon'),'bp-bus-global-icon-v3']){map.on('click',layer,e=>")
+          s=rep(s,"const el=document.createElement('div');el.textContent=(f.properties.name||'Bus stop')+(f.properties.stop_id?' · MTA stop '+f.properties.stop_id:' · NYC DOT');new maplibregl.Popup().setLngLat(f.geometry.coordinates).setDOMContent(el).addTo(map);","""popup?.remove();const el=document.createElement('div');el.style.cssText='color:#ecf8ff;background:#102333;padding:12px 15px;border-radius:10px;min-width:150px;line-height:1.4;';const title=document.createElement('strong');title.style.cssText='display:block;color:#fff;font-size:15px;font-weight:800;';title.textContent=f.properties.name||'Bus stop';const sub=document.createElement('div');sub.style.cssText='color:#c8e9fc;font-size:13px;margin-top:4px;';sub.textContent=f.properties.stop_id?'MTA stop '+f.properties.stop_id:'NYC DOT mapped shelter';el.append(title,sub);popup=new maplibregl.Popup({className:'bp-bus-popup-v3',maxWidth:'280px'}).setLngLat(f.geometry.coordinates).setDOMContent(el).addTo(map);""")
+          s=rep(s,"const observer=new MutationObserver(mount);","const css=document.createElement('style');css.textContent='.bp-bus-popup-v3 .maplibregl-popup-content{background:#102333!important;color:#fff!important;padding:6px!important;border:1px solid #4f8fb7;border-radius:12px}.bp-bus-popup-v3 .maplibregl-popup-close-button{color:#fff!important;background:#18384b!important;z-index:2;font-size:18px}.bp-bus-popup-v3 .maplibregl-popup-tip{border-top-color:#102333}';document.head.append(css);const observer=new MutationObserver(mount);")
+          p.write_text(s)
+          p=site/'vendor/bp-bus-models-v2.mjs';s=p.read_text()
+          s=rep(s,"let fs=[];try{fs=map.querySourceFeatures(id,sl?{sourceLayer:sl}:{})}catch(_){}","let fs=map.__bpBusModelFeaturesV3||[];")
+          s=rep(s,"fs.slice(0,6000)","fs")
+          s=rep(s,"const id2=kind+':'+q[0].toFixed(6)+':'+q[1].toFixed(6)","const id2=kind+':'+q[0].toFixed(8)+':'+q[1].toFixed(8)")
+          s=rep(s,"const templates=new Map(),groups=[];","const templates=new Map(),groups=[];let anchor=null;const placements=new Map();")
+          s=rep(s,"function clear(){for(const g","function clear(){anchor=null;placements.clear();for(const g")
+          s=rep(s,"if(!parts.length||triangles>180000)","if(!parts.length||triangles>2000000)")
+          # Keep every mesh, original material and texture. Camera gets the double-precision origin product
+          # before conversion to GPU float. Instance matrices are expressed in local meters, not globe coordinates.
+          s=rep(s,"camera.projectionMatrix.fromArray(m);renderer.resetState();","""if(!anchor)return;const origin=map.transform?.getMatrixForModel?.(anchor.q,anchor.z);if(!origin)return;const frame=new T.Matrix4().fromArray(origin),inverse=frame.clone().invert();camera.projectionMatrix.fromArray(m).multiply(frame);for(const mesh of groups){const xs=placements.get(mesh);if(!xs)continue;for(let i=0;i<xs.length;i++){const x=xs[i],raw=map.transform?.getMatrixForModel?.(x.q,x.z);if(!raw)continue;const local=inverse.clone().multiply(new T.Matrix4().fromArray(raw)).multiply(new T.Matrix4().makeRotationY(x.yaw)).multiply(new T.Matrix4().makeScale(x.scale,x.scale,x.scale));mesh.setMatrixAt(i,local);}mesh.instanceMatrix.needsUpdate=true;}d.anchor=anchor.q.slice();d.localCoordinates=true;renderer.resetState();""")
+          s=rep(s,"const next=[];let count=0,triangleBudget=mobile?160000:480000;","const next=[],nextPlacement=new Map();let count=0,triangleBudget=mobile?700000:1800000;")
+          s=rep(s,"if(t.triangles>triangleBudget)break;","if(use.length&&t.triangles>triangleBudget)break;")
+          s=rep(s,"use.push(new T.Matrix4().fromArray(ma).multiply(new T.Matrix4().makeRotationY(x.yaw)).multiply(new T.Matrix4().makeScale(scale,scale,scale)));","use.push({...x,scale});")
+          s=rep(s,"for(let i=0;i<use.length;i++)mesh.setMatrixAt(i,use[i]);mesh.instanceMatrix.needsUpdate=true;next.push(mesh);","nextPlacement.set(mesh,use);next.push(mesh);")
+          s=rep(s,"clear();for(const mesh of next){groups.push(mesh);scene.add(mesh)}","clear();anchor=nextPlacement.values().next().value?.[0]||null;for(const mesh of next){groups.push(mesh);placements.set(mesh,nextPlacement.get(mesh));scene.add(mesh)}")
+          s=rep(s,"candidates.map(x=>x.key).join('|')","candidates.map(x=>x.key+':'+x.z.toFixed(2)).join('|')")
+          s=rep(s,"const g=o.geometry.clone().applyMatrix4(o.matrixWorld);","const materials=Array.isArray(o.material)?o.material:[o.material];for(const mat of materials){for(const k of ['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','alphaMap'])if(mat?.[k]){mat[k].anisotropy=Math.min(8,renderer?.capabilities?.getMaxAnisotropy?.()||1);mat[k].needsUpdate=true;}}const g=o.geometry.clone().applyMatrix4(o.matrixWorld);")
+          (site/'vendor/bp-bus-models-v3.mjs').write_text(s)
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text();s=rep(s,'/vendor/bp-nyc-bus-v1.mjs?v=bus2','/vendor/bp-nyc-bus-v1.mjs?v=bus3');p.write_text(s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():p.write_text(p.read_text().replace('world-v2300-map.js?v=20261126-bus2','world-v2300-map.js?v=20261126-bus3'))
+          print('BUS_V3_SOURCE_AND_ANCHOR_PATCH_PASS')
+          PY
+          node --input-type=module --check < "$SITE/vendor/bp-bus-models-v3.mjs"
+          node --input-type=module --check < "$SITE/vendor/bp-nyc-bus-v1.mjs"
+          node --input-type=module --check < "$SITE/vendor/bp-street-detail-v1.mjs"
+          for f in world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify existing street renderer and globe startup
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          node street-detail-v1/verify.mjs
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace('<div id="map"></div>','<div id="map"></div><div id="bpv-dock-actions"></div>')
+          s=s.replace("import * as T from", "import {attachNYCBusStops} from '/vendor/bp-nyc-bus-v1.mjs';\nimport * as T from")
+          s=s.replace("const center=[-72.6502,41.56]","const center=[-73.9857,40.7484]").replace("zoom:18.5,pitch:50","zoom:2,pitch:0")
+          s=s.replace("map.once('load',()=>attachStreetDetail(map))","map.once('load',()=>attachNYCBusStops(map))")
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:840,height:780}});await p.route('**/data/bp-nyc-bus-v1/*.geojson',async route=>{const isShelter=route.request().url().includes('shelters');await route.fulfill({json:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Point',coordinates:isShelter?[-73.9857,40.7484]:[-73.9856,40.7484]},properties:{class:isShelter?'bus_shelter':'bus_stop',name:'Test stop'}}]}})});await p.goto(origin+'/__street_fixture');const btn=p.locator('#bp-bus-stops-v2');await btn.waitFor();await btn.evaluate(b=>b.click());await p.waitForFunction(()=>!!window.testMap.getLayer('bp-bus-global-icon-v3'));assert.equal(await p.evaluate(()=>window.testMap.getLayer('bp-bus-global-icon-v3').maxzoom),12);await p.evaluate(()=>window.testMap.jumpTo({center:[-73.9857,40.7484],zoom:19,pitch:50}));await p.waitForFunction(()=>window.__BP_BUS_MODELS_V2__?.objects===1&&window.__BP_BUS_MODELS_V2__?.drawCalls>0&&window.__BP_BUS_MODELS_V2__?.localCoordinates,null,{timeout:60000});const anchor=await p.evaluate(()=>window.__BP_BUS_MODELS_V2__.anchor);assert.deepEqual(anchor,[-73.9857,40.7484]);await p.evaluate(()=>window.testMap.jumpTo({center:[-73.98568,40.74841],zoom:20,bearing:90,pitch:65}));await p.waitForTimeout(1200);assert.deepEqual(await p.evaluate(()=>window.__BP_BUS_MODELS_V2__.anchor),anchor);assert.equal(await p.evaluate(()=>window.testMap.__bpBusModelFeaturesV3.length),1);await btn.evaluate(b=>b.click());await p.waitForFunction(()=>!window.testMap.getLayer('bp-bus-global-icon-v3')&&window.__BP_BUS_MODELS_V2__?.objects===0);console.log('BUS_V3_GLOBAL_TOGGLE_VERIFIED_LOCATION_LOCAL_ANCHOR_PASS');await p.close();\n"""+s[b:]
+          Path('street-detail-v1/verify-bus-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-bus-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated NYC bus stops
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify deployed asset hashes and unchanged water
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          cd "$SITE"
+          for p in data/bp-nyc-bus-v1/* assets/street-detail-v1/busshelter.glb.gz vendor/bp-bus-models-v3.mjs bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?street=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo BUS_MODELS_V3_LIVE_BYTES_PASS
