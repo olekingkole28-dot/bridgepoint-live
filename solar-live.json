@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "provider": "NASA Solar Dynamics Observatory near-real-time browse products",
   "providerPublishedCadenceMinutes": 15,
-  "downloadedAtUtc": "2026-11-25T23:48:02.020352Z",
+  "downloadedAtUtc": "2026-11-26T07:34:22.547359Z",
   "sourceDirectory": "https://sdo.gsfc.nasa.gov/assets/img/latest/",
   "refreshBranch": "solar-live-assets",
   "observationTimeNote": "NASA's image watermark carries the acquisition time; HTTP Last-Modified is recorded separately as the source-file publication timestamp.",
@@ -10,44 +10,44 @@
     "photosphereDisk": {
       "file": "latest_1024_HMIIC.jpg",
       "source": "NASA SDO/HMI intensitygram continuum",
-      "sourceFileLastModifiedHeader": "Wed, 25 Nov 2026 23:40:05 GMT",
-      "sourceFileLastModifiedAtUtc": "2026-11-25T23:40:05Z",
-      "sizeBytes": 207186
+      "sourceFileLastModifiedHeader": "Thu, 26 Nov 2026 07:30:06 GMT",
+      "sourceFileLastModifiedAtUtc": "2026-11-26T07:30:06Z",
+      "sizeBytes": 202855
     },
     "magnetic": {
       "file": "latest_1024_HMIBC.jpg",
       "source": "NASA SDO/HMI colorized line-of-sight magnetogram",
-      "sourceFileLastModifiedHeader": "Wed, 25 Nov 2026 23:40:19 GMT",
-      "sourceFileLastModifiedAtUtc": "2026-11-25T23:40:19Z",
-      "sizeBytes": 514231
+      "sourceFileLastModifiedHeader": "Thu, 26 Nov 2026 07:30:20 GMT",
+      "sourceFileLastModifiedAtUtc": "2026-11-26T07:30:20Z",
+      "sizeBytes": 506824
     },
     "aia131": {
       "file": "latest_1024_0131.jpg",
       "source": "NASA SDO/AIA 131 angstrom full-disk image",
-      "sourceFileLastModifiedHeader": "Wed, 25 Nov 2026 23:41:06 GMT",
-      "sourceFileLastModifiedAtUtc": "2026-11-25T23:41:06Z",
-      "sizeBytes": 229156
+      "sourceFileLastModifiedHeader": "Thu, 26 Nov 2026 07:31:06 GMT",
+      "sourceFileLastModifiedAtUtc": "2026-11-26T07:31:06Z",
+      "sizeBytes": 228830
     },
     "aia171": {
       "file": "latest_1024_0171.jpg",
       "source": "NASA SDO/AIA 171 angstrom full-disk image",
-      "sourceFileLastModifiedHeader": "Wed, 25 Nov 2026 23:42:06 GMT",
-      "sourceFileLastModifiedAtUtc": "2026-11-25T23:42:06Z",
-      "sizeBytes": 180073
+      "sourceFileLastModifiedHeader": "Thu, 26 Nov 2026 07:32:06 GMT",
+      "sourceFileLastModifiedAtUtc": "2026-11-26T07:32:06Z",
+      "sizeBytes": 179467
     },
     "aia193": {
       "file": "latest_1024_0193.jpg",
       "source": "NASA SDO/AIA 193 angstrom full-disk image",
-      "sourceFileLastModifiedHeader": "Wed, 25 Nov 2026 23:43:06 GMT",
-      "sourceFileLastModifiedAtUtc": "2026-11-25T23:43:06Z",
-      "sizeBytes": 135477
+      "sourceFileLastModifiedHeader": "Thu, 26 Nov 2026 07:23:06 GMT",
+      "sourceFileLastModifiedAtUtc": "2026-11-26T07:23:06Z",
+      "sizeBytes": 136105
     },
     "aia304": {
       "file": "latest_1024_0304.jpg",
       "source": "NASA SDO/AIA 304 angstrom full-disk image",
-      "sourceFileLastModifiedHeader": "Wed, 25 Nov 2026 23:44:05 GMT",
-      "sourceFileLastModifiedAtUtc": "2026-11-25T23:44:05Z",
-      "sizeBytes": 204650
+      "sourceFileLastModifiedHeader": "Thu, 26 Nov 2026 07:24:06 GMT",
+      "sourceFileLastModifiedAtUtc": "2026-11-26T07:24:06Z",
+      "sizeBytes": 204495
     }
   }
 }
