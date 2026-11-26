@@ -129,11 +129,11 @@ jobs:
             }
             throw Error('SOURCE_FOREST_LOD_EMPTY');
           }
-          export function attachViewportForest(map){
+          export function attachViewportForest(map,options={}){
             if(map.__BP_VIEWPORT_FOREST_V5__)return map.__BP_VIEWPORT_FOREST_V5__;
             const state=map.__BP_VIEWPORT_FOREST_V5__={status:'waiting',source:'OPENFREEMAP_FOREST_WOOD_POLYGONS',representation:'SOURCE_MESH_CANOPY_AGGREGATES_NOT_TREE_INVENTORY',instances:0,representedTreeEquivalent:0};
             window.__BP_VIEWPORT_FOREST_V5__=state;
-            const mobile=innerWidth<=900||Number(navigator.deviceMemory||4)<=4,budget=mobile?8500:22000;
+            const mobile=options.mobile??(Math.min(innerWidth,screen.width||innerWidth)<=900||matchMedia('(pointer: coarse)').matches||Number(navigator.deviceMemory||4)<=4),budget=mobile?8500:22000,triangleBudget=mobile?2200000:6500000;state.mobile=mobile;state.triangleBudget=triangleBudget;
             let T,geometry,material,scene,camera,renderer,mesh,anchor,dead=false,loading=false,timer=0,last='',lastAttempt=0;
             const detailed=()=>{const d=window.__BP_TREE_INSTANCE_RENDERER_V1__;return d?.sourceStreetTreeCount>0&&d?.gpuDrawCalls>0;};
             const read=()=>{let out=[];try{const src=map.getSource('ofm');if(src)out=map.querySourceFeatures('ofm',src.type==='geojson'?{}:{sourceLayer:'landcover'})||[]}catch(_){}return out;};
@@ -146,10 +146,10 @@ jobs:
               if(!features.length){state.status=mesh?'retaining-previous-forest':'waiting-for-forest-tiles';return;}
               const grid=forestGrid(features,{west:b.getWest(),east:b.getEast(),south:b.getSouth(),north:b.getNorth(),center:c.lng},z,budget);
               if(!grid.cells.length){if(mesh)release();state.status='no-mapped-forest';return;}
-              const tri=geometry.index.count/3,limit=Math.min(budget,Math.floor((mobile?2200000:6500000)/tri));
+              const tri=geometry.index.count/3,limit=Math.max(1,Math.min(budget,Math.floor(triangleBudget/tri)));
               // Spatial stride rather than nearest-center truncation keeps every quadrant covered.
               const stride=Math.max(1,Math.ceil(grid.cells.length/limit));
-              const cells=grid.cells.filter((p,i)=>i%stride===0);
+              const cells=grid.cells.filter((p,i)=>i%stride===0).slice(0,limit);
               const sig=[Math.floor(z*4),grid.step,cells.length,cells[0]?.x,cells[0]?.y,cells.at(-1)?.x,cells.at(-1)?.y].join('|');
               if(sig===last&&mesh)return;
               const centerHeight=Number(map.queryTerrainElevation?.([c.lng,c.lat],{exaggerated:true})??0),center=[c.lng,c.lat];
@@ -227,6 +227,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace('<meta charset="utf-8">','<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">')
           a=s.index("import {attachStreetDetail");b=s.index("</script>",a)
           s=s[:a]+"""import {attachViewportForest,forestGrid} from '/vendor/bp-viewport-forest-v5.mjs';
           const center=[-60,-3],ring=(x,y,w,h)=>[[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]],feature={type:'Feature',properties:{class:'forest'},geometry:{type:'Polygon',coordinates:[ring(-62,-5,4,4),ring(-60.4,-3.4,.8,.8)]}};
@@ -234,7 +235,7 @@ jobs:
           const style={version:8,sources:{ofm:{type:'geojson',data:{type:'FeatureCollection',features:[feature]}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#314d43'}},{id:'forest-probe',type:'fill',source:'ofm',paint:{'fill-opacity':.001}}]};const map=new maplibregl.Map({container:'map',style,center:[-60.8,-3],zoom:9,pitch:30,bearing:12,projection:'globe',antialias:false});window.testMap=map;map.once('load',()=>attachViewportForest(map));
           """+s[b:]
           a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
-          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('FOREST_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>typeof window.gridProbe==='function');const grid=await p.evaluate(()=>window.gridProbe());assert(grid.count>1000&&!grid.hole&&grid.west&&grid.east&&grid.north&&grid.south);console.log('FOREST_GRID_FULL_VIEW_AND_HOLES_PASS',grid);for(const [zoom,pitch,bearing] of [[9,30,12],[12,45,100],[15,55,190]]){await p.evaluate(v=>window.testMap.jumpTo({zoom:v[0],pitch:v[1],bearing:v[2]}),[zoom,pitch,bearing]);await p.waitForFunction(z=>{const d=window.__BP_VIEWPORT_FOREST_V5__;return d?.status==='ready'&&d.zoom===z&&d.instances>100&&d.drawCalls>0&&d.coveredRows>8&&d.coveredColumns>8},zoom,{timeout:60000});const d=await p.evaluate(()=>window.__BP_VIEWPORT_FOREST_V5__);assert(d.triangleCount<=2200000&&d.localMeterAnchors);console.log('FOREST_SOURCE_MESH_RENDER_PASS',zoom,d);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'forest-v5-'+zoom+'.png')});}await p.close();
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('FOREST_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>typeof window.gridProbe==='function');const grid=await p.evaluate(()=>window.gridProbe());assert(grid.count>1000&&!grid.hole&&grid.west&&grid.east&&grid.north&&grid.south);console.log('FOREST_GRID_FULL_VIEW_AND_HOLES_PASS',grid);for(const [zoom,pitch,bearing] of [[9,30,12],[12,45,100],[15,55,190]]){await p.evaluate(v=>window.testMap.jumpTo({zoom:v[0],pitch:v[1],bearing:v[2]}),[zoom,pitch,bearing]);await p.waitForFunction(z=>{const d=window.__BP_VIEWPORT_FOREST_V5__;return d?.status==='ready'&&d.zoom===z&&d.instances>100&&d.drawCalls>0&&d.coveredRows>8&&d.coveredColumns>8},zoom,{timeout:60000});const d=await p.evaluate(()=>window.__BP_VIEWPORT_FOREST_V5__);console.log('FOREST_GPU_BUDGET_DIAGNOSTIC',zoom,d);assert(d.mobile===true&&d.triangleBudget===2200000&&d.triangleCount<=d.triangleBudget&&d.localMeterAnchors);console.log('FOREST_SOURCE_MESH_RENDER_PASS',zoom,d);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'forest-v5-'+zoom+'.png')});}await p.close();
           """+s[b:]
           Path('street-detail-v1/verify-forest-v5-generated.mjs').write_text(s)
           PY
