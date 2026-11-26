@@ -1,4 +1,4 @@
-name: Manhattan V10 early landmark and architectural glass
+name: Manhattan V10 early landmark glass and unobstructed close validation
 on:
   workflow_dispatch:
   push:
@@ -76,7 +76,7 @@ jobs:
           }
           export function beforeOneWTCSync(map){const s=states.get(map);if(!s)return;const band=map.getZoom()<15.6?'early':'surveyed';if(s.d.masked&&s.d.band!==band)restore(s);}
           export function probeOneWTC(map,hidden){const s=states.get(map);if(!s)return;s.d.probeHidden=!!hidden;map.triggerRepaint();}''')
-          one("s.enabled=!!on&&near(map);","s.enabled=!!on&&near(map);if(s.enabled&&map.getLayer(ID)){map.triggerRepaint();}")
+          one("s.enabled=!!on&&near(map);","const wasEnabled=s.enabled;s.enabled=!!on&&near(map);if(s.enabled!==wasEnabled&&map.getLayer(ID))map.triggerRepaint();")
           # Use the same continuous eight-face shell at all zooms. Analytic reflections
           # are continuous across a face; panel details are filtered at subpixel scale.
           a=s.index("              'void main(){vec3 N=") if "              'void main(){vec3 N=" in s else s.index("'void main(){vec3 N=")
@@ -281,10 +281,16 @@ jobs:
            await cameraAt(16.35,48,25);await probe('middle',1000,'surveyed');
            await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const f=m.getFilter('bp-manhattan-native-roof-v5');if(!JSON.stringify(f).includes('40674'))throw Error('Native duplicate not masked');m.setBearing(112);m.triggerRepaint()});
            await capture('one-wtc-rotated');
-           await cameraAt(17.3,55,112);await probe('close',1000,'surveyed');
+           // At bearing 112/pitch 55 the previous diagnostic screenshots show an adjacent
+           // tower completely blocking One WTC. Use the same unobstructed approach
+           // as the successful medium view, then frame the upper facade separately.
+           await cameraAt(17.3,25,25);await probe('close',1000,'surveyed');
+           // Return to the wider view before rotating, rather than putting the
+           // camera inside the neighboring tower at street scale.
+           await cameraAt(15.9,38,112);await probe('alternate-bearing',200,'surveyed');
           }finally{await browser.close()}
           JS
-          timeout 520s node "$TEST/test.mjs"
+          timeout 780s node "$TEST/test.mjs"
       - name: Upload landmark diagnostic screenshots
         if: always()
         uses: actions/upload-artifact@v4
