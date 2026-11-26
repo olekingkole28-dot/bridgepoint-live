@@ -59,24 +59,26 @@ for base in (site,site/'app'):
  const bpInstallSourceStreet=()=>{if(bpSourceStreetAttached||map.getZoom()<17.5)return;bpSourceStreetAttached=true;import('/vendor/bp-street-detail-v1.mjs').then(m=>m.attachStreetDetail(map)).catch(()=>{bpSourceStreetAttached=false;});};
  map.on('moveend',bpInstallSourceStreet);map.on('zoomend',bpInstallSourceStreet);map.on('idle',bpInstallSourceStreet);''');p.write_text(s)
  # The existing streetlight batches retain their geographic anchors and night lighting.
- p=base/'bridgepoint-streetlights-3d-v1.js';s=p.read_text();s="import {loadStreetGLTF,normalizedBounds} from '/vendor/bp-street-detail-v1.mjs';\n"+s
- anchor='  function makeCollection(parent, entries) {'
- s=once(s,anchor,'''  let bpStreetLightParts=null,bpStreetLightPending=false,bpStreetLightEnabled=false;
-  function bpLoadStreetLights(){if(bpStreetLightParts||bpStreetLightPending)return;bpStreetLightPending=true;import('/vendor/GLTFLoader.bundle.js?v=169-local').then(async m=>{
-    const gltf=await loadStreetGLTF(new m.GLTFLoader(),{url:'/assets/street-detail-v1/lights.glb.gz'});
-    bpStreetLightParts=gltf.scenes.slice(0,8).map(root=>{const b=normalizedBounds(THREE,root),parts=[];root.traverse(o=>{if(o.isMesh&&o.geometry){const g=o.geometry.clone().applyMatrix4(o.matrixWorld);g.translate(-b.base.x,-b.box.min.y,-b.base.z);g.scale(1/b.size.y,1/b.size.y,1/b.size.y);parts.push({geometry:g,material:o.material});}});return parts;});
-    if(bpStreetLightParts.length!==8||bpStreetLightParts.some(x=>!x.length))throw Error('STREET_LIGHT_EMPTY');lastSignature='';scheduleRefresh();
-  }).catch(e=>{bpStreetLightParts=null;state.sourceModelError=String(e).slice(0,180)}).finally(()=>{bpStreetLightPending=false});}
-'''+anchor)
- s=once(s,'    for (const [key, geometry, material] of definitions) {','''    if(bpStreetLightEnabled&&bpStreetLightParts){
-      const batches=Array.from({length:bpStreetLightParts.length},()=>[]);for(const entry of entries){let h=0;for(const c of String(entry.key))h=(Math.imul(h,31)+c.charCodeAt(0))>>>0;batches[h%batches.length].push(entry);}
-      for(let k=0;k<batches.length;k++){const batch=batches[k];if(!batch.length)continue;for(const [j,part] of bpStreetLightParts[k].entries()){const mesh=createInstanced(parent,part.geometry,part.material,batch.length,THREE);for(let i=0;i<batch.length;i++){const e=batch[i];mesh.setMatrixAt(i,e.baseMatrix.clone().multiply(new THREE.Matrix4().makeRotationY(e.yaw)).multiply(new THREE.Matrix4().makeScale(e.height,e.height,e.height)));}mesh.instanceMatrix.needsUpdate=true;staticMeshes['source-'+k+'-'+j]=mesh;}}
-    } else for (const [key, geometry, material] of definitions) {''')
- s=once(s,'    const precisionMode = zoom >= PRECISE_MIN_ZOOM;','''    const precisionMode = zoom >= PRECISE_MIN_ZOOM;
-    const requestedSource=zoom>=17.5&&records.length<=(window.innerWidth<=700?100:220);
-    if(requestedSource)bpLoadStreetLights();
-    const nextSource=requestedSource&&!!bpStreetLightParts;if(nextSource!==bpStreetLightEnabled){bpStreetLightEnabled=nextSource;lastSignature='';}state.sourceModelActive=bpStreetLightEnabled;''')
- p.write_text(s)
+ # Optional legacy module; otherwise the source street layer supplies mapped lights.
+ if (base/'bridgepoint-streetlights-3d-v1.js').is_file():
+  p=base/'bridgepoint-streetlights-3d-v1.js';s=p.read_text();s="import {loadStreetGLTF,normalizedBounds} from '/vendor/bp-street-detail-v1.mjs';\n"+s
+  anchor='  function makeCollection(parent, entries) {'
+  s=once(s,anchor,'''  let bpStreetLightParts=null,bpStreetLightPending=false,bpStreetLightEnabled=false;
+   function bpLoadStreetLights(){if(bpStreetLightParts||bpStreetLightPending)return;bpStreetLightPending=true;import('/vendor/GLTFLoader.bundle.js?v=169-local').then(async m=>{
+     const gltf=await loadStreetGLTF(new m.GLTFLoader(),{url:'/assets/street-detail-v1/lights.glb.gz'});
+     bpStreetLightParts=gltf.scenes.slice(0,8).map(root=>{const b=normalizedBounds(THREE,root),parts=[];root.traverse(o=>{if(o.isMesh&&o.geometry){const g=o.geometry.clone().applyMatrix4(o.matrixWorld);g.translate(-b.base.x,-b.box.min.y,-b.base.z);g.scale(1/b.size.y,1/b.size.y,1/b.size.y);parts.push({geometry:g,material:o.material});}});return parts;});
+     if(bpStreetLightParts.length!==8||bpStreetLightParts.some(x=>!x.length))throw Error('STREET_LIGHT_EMPTY');lastSignature='';scheduleRefresh();
+   }).catch(e=>{bpStreetLightParts=null;state.sourceModelError=String(e).slice(0,180)}).finally(()=>{bpStreetLightPending=false});}
+ '''+anchor)
+  s=once(s,'    for (const [key, geometry, material] of definitions) {','''    if(bpStreetLightEnabled&&bpStreetLightParts){
+       const batches=Array.from({length:bpStreetLightParts.length},()=>[]);for(const entry of entries){let h=0;for(const c of String(entry.key))h=(Math.imul(h,31)+c.charCodeAt(0))>>>0;batches[h%batches.length].push(entry);}
+       for(let k=0;k<batches.length;k++){const batch=batches[k];if(!batch.length)continue;for(const [j,part] of bpStreetLightParts[k].entries()){const mesh=createInstanced(parent,part.geometry,part.material,batch.length,THREE);for(let i=0;i<batch.length;i++){const e=batch[i];mesh.setMatrixAt(i,e.baseMatrix.clone().multiply(new THREE.Matrix4().makeRotationY(e.yaw)).multiply(new THREE.Matrix4().makeScale(e.height,e.height,e.height)));}mesh.instanceMatrix.needsUpdate=true;staticMeshes['source-'+k+'-'+j]=mesh;}}
+     } else for (const [key, geometry, material] of definitions) {''')
+  s=once(s,'    const precisionMode = zoom >= PRECISE_MIN_ZOOM;','''    const precisionMode = zoom >= PRECISE_MIN_ZOOM;
+     const requestedSource=zoom>=17.5&&records.length<=(window.innerWidth<=700?100:220);
+     if(requestedSource)bpLoadStreetLights();
+     const nextSource=requestedSource&&!!bpStreetLightParts;if(nextSource!==bpStreetLightEnabled){bpStreetLightEnabled=nextSource;lastSignature='';}state.sourceModelActive=bpStreetLightEnabled;''')
+  p.write_text(s)
  # Use distinct module cache keys for the existing loader path wherever it is referenced.
  for filename in ('index.html','landing.js','app.js'):
   pp=base/filename

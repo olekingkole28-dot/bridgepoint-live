@@ -59,7 +59,7 @@ jobs:
           Path(os.environ['RUNNER_TEMP'],'before-street.json').write_text(json.dumps(m))
           PY
           python3 street-detail-v1/install.py "$SITE"
-          for f in world-v2300-map.js world-v2300-tree-instanced.js bridgepoint-streetlights-3d-v1.js app/world-v2300-map.js app/world-v2300-tree-instanced.js app/bridgepoint-streetlights-3d-v1.js vendor/bp-street-detail-v1.mjs; do node --input-type=module --check < "$SITE/$f"; done
+          for f in world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-map.js app/world-v2300-tree-instanced.js vendor/bp-street-detail-v1.mjs; do node --input-type=module --check < "$SITE/$f"; done
           python3 - <<'PY'
           import os,json,hashlib
           from pathlib import Path
@@ -112,7 +112,7 @@ jobs:
           set -euo pipefail
           SITE="$RUNNER_TEMP/horizon-site"
           cd "$SITE"
-          for p in assets/street-detail-v1/* vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js bridgepoint-streetlights-3d-v1.js app/bridgepoint-streetlights-3d-v1.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+          for p in assets/street-detail-v1/* vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
             for i in 1 2 3 4 5 6; do
               if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?street=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
               if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
