@@ -19,14 +19,38 @@ async function read(archive,z,x,y){
  }return cache.get(key);
 }
 const rank=c=>({motorway:7,trunk:6,primary:5,secondary:4,tertiary:3,residential:2,unclassified:2,service:1,living_street:1})[String(c).replace('_link','')]||2;
-const roadWidth=p=>{const n=Number(p.width),lanes=Number(p.lanes);return n>=3&&n<=40?n:Math.max(3.2,Math.min(24,(lanes|| (rank(p.class)>=4?3:2))*3.2));};
+const roadWidth=p=>{const n=parseFloat(p.width??p.width_m??p['width:carriageway']),lanes=parseInt(p.lanes??p.num_lanes??p.lane_count),one=['yes','1','true','-1'].includes(String(p.oneway))||p.is_oneway===true;return n>=2.6&&n<=45?n:Math.max(3.6,Math.min(32,(lanes||(one?2:rank(p.class)>=5?4:rank(p.class)>=3?3:2))*3.25));};
 function tags(p){let t=p.source_tags;try{if(typeof t==='string')t=JSON.parse(t)}catch(_){t={}}return {...p,...(t&&typeof t==='object'?t:{})};}
 function left(p,polys){const inside=r=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;};return polys.some(r=>inside(r[0])&&!r.slice(1).some(inside));}
 function directions(p,segments,index){
  const [gx,gy]=tile(p,18),found=new Set(),hits=[];
  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)for(const s of index.get((gx+dx)+','+(gy+dy))||[]){if(found.has(s))continue;found.add(s);const {a,b,t}=s,u=xy(p,a),v=xy(a,b),den=v[0]**2+v[1]**2;if(den<.4)continue;const f=Math.max(0,Math.min(1,-(u[0]*v[0]+u[1]*v[1])/den)),d=Math.hypot(u[0]+v[0]*f,u[1]+v[1]*f);if(d>28)continue;const q=[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f],w=roadWidth(t);
- if(distance(q,a)>1.2)hits.push({face:bearing(q,a),d,width:w,rank:rank(t.class),q,t,dir:'forward'});if(distance(q,b)>1.2)hits.push({face:bearing(q,b),d,width:w,rank:rank(t.class),q,t,dir:'backward'});
+ const one=['yes','1','true'].includes(String(t.oneway))||t.is_oneway===true,rev=String(t.oneway)==='-1';if(!rev&&distance(q,a)>1.2)hits.push({face:bearing(q,a),d,width:w,rank:rank(t.class),q,t,dir:'forward'});if(!one&&distance(q,b)>1.2)hits.push({face:bearing(q,b),d,width:w,rank:rank(t.class),q,t,dir:'backward'});
  }hits.sort((a,b)=>a.d-b.d);const max=Math.min(24,(hits[0]?.d||0)+8);return hits.filter(x=>x.d<=max).filter((x,i,a)=>a.findIndex(y=>delta(y.face,x.face)<24)===i).slice(0,6);
+}
+// A control node usually describes a stop line or crossing, not the physical pole.
+function clearance(p,index){
+ const [gx,gy]=tile(p,18),found=new Set();let gap=Infinity;
+ for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const s of index.get((gx+dx)+','+(gy+dy))||[]){
+  if(found.has(s))continue;found.add(s);const u=xy(p,s.a),v=xy(s.a,s.b),den=v[0]**2+v[1]**2;if(den<.01)continue;
+  const f=Math.max(0,Math.min(1,-(u[0]*v[0]+u[1]*v[1])/den)),d=Math.hypot(u[0]+v[0]*f,u[1]+v[1]*f);gap=Math.min(gap,d-roadWidth(s.t)/2);
+ }return gap;
+}
+function roadside(x,index,side,kind,intersection=false){
+ const half=x.width/2,away=wrap(x.face-90*side);
+ // Snap to the centerline first, then search along the approach for the curb corner.
+ const steps=kind==='vehicle'?(intersection?[-half-3,-half-5,-half-8,-half-11,half+3,half+6,half+10]:[-2,-4,-6,2,4,6,9]):[1.7,3.5,5.5,8,11,14,-2,-5];
+ for(const shift of steps)for(const margin of [1.15,1.8,2.6,3.6]){
+  const axis=offset(x.q,x.face,shift),q=offset(axis,away,half+margin),gap=clearance(q,index);
+  if(gap>=.85&&Number.isFinite(gap))return {q,arm:half+margin,clearance:gap,centerline:axis};
+ }return null;
+}
+function crossingSide(x,index,side){
+ const half=x.width/2,away=wrap(x.face+90*side);
+ for(const longitudinal of [2.8,-2.8,4.6,-4.6,6.5,-6.5,9,-9,12,-12])for(const margin of [1.25,2,3.2]){
+  const axis=offset(x.q,x.face,longitudinal),q=offset(axis,away,half+margin),gap=clearance(q,index);
+  if(gap>=.85&&Number.isFinite(gap))return {q,face:wrap(away+180),clearance:gap,centerline:axis};
+ }return null;
 }
 export function buildRows(points,roadFeatures,polys=[]){
  const index=new Map(),segments=[];
@@ -37,16 +61,21 @@ export function buildRows(points,roadFeatures,polys=[]){
  const explicit=t['traffic_signals:direction']??t['stop:direction']??t['traffic_sign:direction']??t.direction,number=explicit!==undefined&&explicit!==''&&Number.isFinite(Number(explicit))?wrap(Number(explicit)+180):null;
  let chosen=number!==null?[a.slice().sort((x,y)=>delta(x.face,number)-delta(y.face,number))[0]]:a.filter(x=>!['forward','backward'].includes(explicit)||x.dir===explicit);if(!chosen.length)chosen=a.slice(0,1);
  if(c==='traffic_signals'&&!['pedestrian','pedestrian_signals'].includes(t.traffic_signals)){
-  for(const [i,x] of chosen.slice(0,4).entries()){const half=x.width/2, q=offset(offset(p,wrap(x.face+180),chosen.length>2?half+1:1.8),wrap(x.face-90*side),half+1);out.push({id:id+'-v-'+i,kind:'vehicle',q,face:x.face,side,arm:half+1.7,source:p,estimated:true});}
+  const intersection=a.some(y=>delta(y.face,a[0].face)>35&&delta(y.face,a[0].face)<145);
+  for(const [i,x] of chosen.slice(0,4).entries()){const mount=roadside(x,index,side,'vehicle',intersection);if(!mount)continue;out.push({id:id+'-v-'+i,kind:'vehicle',...mount,face:x.face,side,source:p,estimated:true});}
  }
  if(['stop','give_way'].includes(c)&&t.subtype!=='transit'){
   const signs=t.stop==='all'?chosen.slice(0,4):t.stop==='minor'?chosen.filter(x=>x.rank===Math.min(...chosen.map(y=>y.rank))).slice(0,2):chosen.slice(0,1);
-  for(const [i,x] of signs.entries()){const q=offset(offset(p,x.face,.6),wrap(x.face-90*side),x.width/2+.9);out.push({id:id+'-s-'+i,kind:c==='stop'?'stop':'yield',q,face:x.face,side,height:2.6,source:p,estimated:true});}
+  for(const [i,x] of signs.entries()){const mount=roadside(x,index,side,'sign');if(!mount)continue;out.push({id:id+'-s-'+i,kind:c==='stop'?'stop':'yield',...mount,face:x.face,side,height:2.6,source:p,estimated:true});}
  }
  const pedestrian=t.crossing==='traffic_signals'||t['crossing:signals']==='yes'||['pedestrian','pedestrian_crossing','pedestrian_signals'].includes(t.traffic_signals)||(['pedestrian_crossing','crossing'].includes(c)&&signals.some(q=>distance(p,q)<24));
- if(pedestrian){const x=a[0];for(const [i,face] of [wrap(x.face+90),wrap(x.face-90)].entries()){const q=offset(p,face,x.width/2+1);out.push({id:id+'-p-'+i,kind:'pedestrian',q,face:wrap(face+180),side,height:2.8,source:p,estimated:true});}}
+ if(pedestrian){const x=a[0];for(const [i,s] of [-1,1].entries()){const mount=crossingSide(x,index,s);if(!mount)continue;out.push({id:id+'-p-'+i,kind:'pedestrian',...mount,side,height:2.8,source:p,estimated:true});}}
+
  }
- return out;
+ // Merge repeated nearby fixtures representing the same physical approach.
+ const unique=[],bins=new Map();
+ for(const row of out){const [gx,gy]=tile(row.q,22);let duplicate=false;for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const old of bins.get((gx+dx)+','+(gy+dy))||[]){if(old.kind===row.kind&&distance(old.q,row.q)<2.3&&delta(old.face,row.face)<25)duplicate=true;}if(duplicate)continue;const key=gx+','+gy;if(!bins.has(key))bins.set(key,[]);bins.get(key).push(row);unique.push(row);}
+ return unique;
 }
 export async function loadOvertureTile(x,y,polys=[]){
  const [b,r]=await Promise.all([read(base,Z,x,y),read(roads,Z,x,y)]);
