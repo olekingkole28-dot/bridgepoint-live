@@ -1,0 +1,252 @@
+name: BridgePoint Global Tree source models and stable anchors V2
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-global-tree-source-v2.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <(head -15 "$RUNNER_TEMP/candidates")
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Upgrade only automatic tree renderer and source fallback
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,json,hashlib
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          def rep(s,a,b):
+              assert s.count(a)==1,(a[:160],s.count(a))
+              return s.replace(a,b)
+          manifest=json.loads((site/'assets/street-detail-v1/manifest.json').read_text())
+          packs={p['id']:p for p in manifest['packs']}
+          for key in ['oak','rally','city','maple','pine','fir','palm','deadfir']:
+              assert key in packs,key
+          print('TREE_SOURCE_PACKS',[(k,packs[k]['scenes']) for k in ['oak','rally','city','maple','pine','fir','palm','deadfir']])
+          for base in (site,site/'app'):
+              p=base/'world-v2300-tree-instanced.js';s=p.read_text()
+              s=rep(s,"import {selectTreeAsset,loadStreetGLTF,normalizedBounds} from '/vendor/bp-street-detail-v1.mjs';","import {selectTreeAsset,loadStreetGLTF,normalizedBounds} from '/vendor/bp-street-detail-v1.mjs';\nimport {attachCanopySource} from '/vendor/bp-tree-canopy-source-v2.mjs';")
+              # Stable identity per tree, not one asset per archetype. Use the existing verified scene indices.
+              pos=s.index('function stableNumber(seed)')
+              s=s[:pos]+"""export function chooseDetailedTreeAsset(tree,model){
+                const lat=tree.coordinates[1],h=stableNumber(tree.id+'|source-mesh'),form=tree.morphology?.form||'',genus=tree.identity?.genus||'';
+                const explicit=genus||tree.identity?.family||form!=='unclassified_tree';
+                if(explicit){const picked=selectTreeAsset(model,tree.modelId+'|'+genus+'|'+tree.id,lat);if(picked)return picked;}
+                let pack,index;
+                const a=Math.abs(lat),month=new Date().getUTCMonth()+1,effective=lat<0?(month+5)%12+1:month;
+                if(a>55){pack=h<.7?'fir':'pine';index=Math.floor(h*1000)%4;}
+                else if(a<25&&h<.16){pack='palm';index=Math.floor(h*1000)%4;}
+                else if(a>35&&h<.20){pack='pine';index=Math.floor(h*1000)%4;}
+                else if(a>25&&h<.46){pack='maple';index=Math.floor(h*1000)%4;}
+                else if(h<.73){pack='oak';index=Math.floor(h*1000)%4;}
+                else{pack='rally';index=(a>25&&effective>=9&&effective<=11?14:a>25&&effective>=3&&effective<=5?0:7)+Math.floor(h*1000)%7;}
+                return {pack,index,url:'/assets/street-detail-v1/'+pack+'.glb.gz',level:'lod0',streetScene:index};
+              }
+              """+s[pos:]
+              s=rep(s,"async function loadModel(modelId, lodKey, streetFallback = false) {","async function loadModel(modelId, lodKey, sourceFile = null) {")
+              s=rep(s,"    const sourceFile = !streetFallback && lodKey === 'lod0' && map.getZoom() >= 17.5 && activeTrees.length <= (mobile ? 65 : 140) ? selectTreeAsset(model, modelId, map.getCenter().lat) : null;\n","")
+              s=rep(s,"if(sourceFile && sourceTriangles>10000)throw Error('STREET_TREE_TRIANGLE_LIMIT');","if(sourceFile && sourceTriangles>2000000)throw Error('STREET_TREE_CORRUPT_MESH_LIMIT');")
+              s=rep(s,"if(sourceFile)return loadModel(modelId,lodKey,true);","if(sourceFile)return loadModel(modelId,lodKey,null);")
+              s=rep(s,"          installWindShader(material, uniforms);","          if(!sourceFile)installWindShader(material, uniforms);else for(const key of ['map','normalMap','roughnessMap','metalnessMap','alphaMap','aoMap'])if(material[key]){material[key].anisotropy=Math.min(8,renderer?.capabilities?.getMaxAnisotropy?.()||1);material[key].needsUpdate=true;}")
+              s=rep(s,"  let activeMeshes = [];","  let activeMeshes = [];\n  let activeAnchor=null, matrixFrameKey='';")
+              s=rep(s,"    for (const tree of activeTrees) {\n      if (!groups.has(tree.modelId)) groups.set(tree.modelId, []);\n      groups.get(tree.modelId).push(tree);\n    }","""    const center=map.getCenter(),dist=t=>Math.hypot((t.coordinates[0]-center.lng)*111195*Math.cos(center.lat*Math.PI/180),(t.coordinates[1]-center.lat)*111195);
+              const near=new Set([...activeTrees].sort((a,b)=>dist(a)-dist(b)).filter(t=>dist(t)<(mobile?190:350)).slice(0,mobile?100:240).map(t=>t.id));
+              for(const tree of activeTrees){
+                const source=map.getZoom()>=17&&near.has(tree.id)?chooseDetailedTreeAsset(tree,pickManifestModel(manifest,tree.modelId)):null;
+                const key=source?source.pack+'|'+source.index:'native|'+tree.modelId;
+                if(!groups.has(key))groups.set(key,{modelId:tree.modelId,source,trees:[]});
+                groups.get(key).trees.push(tree);
+              }""")
+              s=rep(s,"Promise.allSettled([...groups.entries()].map(([modelId, trees]) =>\n      loadModel(modelId, lodKey).then(loaded => ({ loaded, trees, modelId }))","Promise.allSettled([...groups.values()].map(({modelId,source,trees}) =>\n      loadModel(modelId, lodKey,source).then(loaded => ({ loaded, trees, modelId }))")
+              s=rep(s,"      const nextMeshes = [];","      const nextMeshes = [];\n      const nextAnchor=results[0]?.trees[0]||null;")
+              s=rep(s,"      for (const result of results) {","""      const origin=nextAnchor&&map.transform?.getMatrixForModel?.(nextAnchor.coordinates,nextAnchor.groundElevationMeters);
+                if(!origin)return;
+                const invOrigin=new THREE.Matrix4().fromArray(origin).invert();
+                for (const result of results) {""")
+              s=rep(s,"          mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);","          mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);\n          mesh.userData.bpTreePlacements=[];")
+              s=rep(s,"            rotation.multiply(lean);\n            matrix.multiply(rotation);\n            mesh.setMatrixAt(i, matrix);","""            if(loaded.file.streetScene===undefined)rotation.multiply(lean);
+                      mesh.userData.bpTreePlacements.push({tree,rotation:rotation.clone()});
+                      matrix.premultiply(invOrigin).multiply(rotation);
+                      mesh.setMatrixAt(i, matrix);""")
+              s=rep(s,"      activeMeshes = nextMeshes;","      activeAnchor=nextAnchor;matrixFrameKey='';activeMeshes = nextMeshes;")
+              s=rep(s,"      state.sourceStreetTreeCount=results.filter(x=>x.loaded.file.streetScene!==undefined).reduce((sum,x)=>sum+x.trees.length,0);","      state.sourceStreetTreeCount=results.filter(x=>x.loaded.file.streetScene!==undefined).reduce((sum,x)=>sum+x.trees.length,0);state.sourceStreetVariants=[...new Set(results.filter(x=>x.loaded.file.streetScene!==undefined).map(x=>x.loaded.file.url+'#'+x.loaded.file.streetScene))];")
+              s=rep(s,"    const all = getSourceTrees(map).filter(feature => {","    const all = getSourceTrees(map).filter(feature => {")
+              # Source fallback is kept separate from the server cache; use only if it has no points in view.
+              s=rep(s,"  if (Array.isArray(cached)) return cached;","  if (Array.isArray(cached)&&cached.some(f=>pointInsideBounds(map,{coordinates:f.geometry?.coordinates||[999,999]}))) return cached;\n  const direct=map.__BP_DIRECT_CANOPY_V2__;if(Array.isArray(direct)&&direct.some(f=>pointInsideBounds(map,{coordinates:f.geometry.coordinates})))return direct;\n  if(Array.isArray(cached))return cached;")
+              s=rep(s,"    if (signature === activeSignature) return;","    if (signature === activeSignature) return;")
+              s=rep(s,"    ).join('|') + ':' + normalized.unsupported + ':' + normalized.truncated + ':' + nextLod;","    ).join('|') + ':' + normalized.unsupported + ':' + normalized.truncated + ':' + nextLod+':'+(map.getZoom()>=17?'source':'native');")
+              s=rep(s,"        camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix);","""        camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix);
+                  if(activeMeshes.length&&activeAnchor){
+                    const raw=map.transform?.getMatrixForModel?.(activeAnchor.coordinates,activeAnchor.groundElevationMeters);
+                    if(!raw)return;
+                    const frame=new THREE.Matrix4().fromArray(raw);camera.projectionMatrix.multiply(frame);
+                    const frameKey=Array.from(raw).map(x=>x.toPrecision(12)).join('|')+':'+map.getZoom().toFixed(4);
+                    if(frameKey!==matrixFrameKey){
+                      const inv=frame.clone().invert(),local=new THREE.Matrix4();
+                      for(const mesh of activeMeshes){const placements=mesh.userData.bpTreePlacements||[];for(let i=0;i<placements.length;i++){const {tree,rotation}=placements[i],m=map.transform.getMatrixForModel(tree.coordinates,tree.groundElevationMeters);if(m)mesh.setMatrixAt(i,local.fromArray(m).premultiply(inv).multiply(rotation));}mesh.instanceMatrix.needsUpdate=true;}
+                      matrixFrameKey=frameKey;
+                    }
+                    state.localMeterAnchors=true;state.anchor=activeAnchor.coordinates.slice();
+                  }""")
+              s=rep(s,"    installLayer();\n    map.on('moveend', scheduleEventRefresh);","    installLayer();\n    attachCanopySource(map,()=>refreshInstances({authoritative:true}));\n    map.on('moveend', scheduleEventRefresh);")
+              # No fake zero altitude when terrain is enabled; a flat map has ground at zero.
+              s=rep(s,"        } else {\n          groundElevationFallbackCount++;\n        }\n      } catch (_) {","        } else if(!map.getTerrain?.()){groundElevationMeters=0;groundElevationSampledCount++;}else {\n          groundElevationFallbackCount++;\n        }\n      } catch (_) {")
+              p.write_text(s)
+              p=base/'world-v2300-map.js';s=p.read_text()
+              s,n=re.subn(r'world-v2300-tree-instanced\.js\?v=[^\'"\s]+','world-v2300-tree-instanced.js?v=20261126-global-tree-source-v2',s);assert n>=1
+              # A disabled old data service must not prevent automatic renderer startup.
+              s=rep(s,"if(!Array.isArray(treeCache)||treeCache.length===0)return;","if((!Array.isArray(treeCache)||treeCache.length===0)&&map.getZoom()<14)return;")
+              s=s.replace('sourceCount:treeCache.length','sourceCount:treeCache?.length||0').replace('current.sourceCount||treeCache.length','current.sourceCount||treeCache?.length||0')
+              p.write_text(s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261126-global-tree-source-v2',s)
+                      if n!=s:p.write_text(n)
+          print('TREE_V2_MODEL_AND_LOCAL_ANCHOR_PATCH_PASS')
+          PY
+          mkdir -p "$RUNNER_TEMP/tree-worker"
+          cp supabase/functions/bridgepoint-global-tree-viewport-v1101/tree-canopy-peaks.mjs "$RUNNER_TEMP/tree-worker/"
+          cat > "$RUNNER_TEMP/tree-worker/worker.mjs" <<'JS'
+          import {fromUrl} from 'geotiff';
+          import {detectCanopyPeaks} from './tree-canopy-peaks.mjs';
+          const R=6378137,z=16,N=2**z,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+          const mx=x=>R*x*Math.PI/180,my=y=>R*Math.asinh(Math.tan(clamp(y,-85.05112878,85.05112878)*Math.PI/180));
+          const lon=x=>x/N*360-180,lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/N)))*180/Math.PI;
+          function quad(x,y){let q='';for(let i=9;i>=0;i--)q+=((x>>i)&1)+2*((y>>i)&1);return q}
+          const images=new Map();
+          async function readCell(x,y){
+           const q=quad(x>>6,y>>6),url='https://dataforgood-fb-data.s3.amazonaws.com/forests/v2/global/dinov3_global_chm_v2_ml3/chm/'+q+'.tif';
+           if(!images.has(q)){images.set(q,fromUrl(url,{allowFullFile:false}).then(t=>t.getImage()).catch(e=>{images.delete(q);throw e}));if(images.size>6)images.delete(images.keys().next().value);}
+           const img=await images.get(q),bb=img.getBoundingBox(),W=img.getWidth(),H=img.getHeight(),dx=(bb[2]-bb[0])/W,dy=(bb[3]-bb[1])/H;
+           const stride=Math.max(1,Math.ceil(Math.max(W,H)/8192)),pad=6*stride;
+           const x0=clamp(Math.floor((mx(lon(x))-bb[0])/dx/stride)*stride-pad,0,W-1),x1=clamp(Math.ceil((mx(lon(x+1))-bb[0])/dx/stride)*stride+pad,x0+1,W);
+           const y0=clamp(Math.floor((bb[3]-my(lat(y)))/dy/stride)*stride-pad,0,H-1),y1=clamp(Math.ceil((bb[3]-my(lat(y+1)))/dy/stride)*stride+pad,y0+1,H);
+           const width=Math.ceil((x1-x0)/stride),height=Math.ceil((y1-y0)/stride);if(width*height>1100000)throw Error('TREE_RASTER_WINDOW_LIMIT');
+           const values=await img.readRasters({window:[x0,y0,x1,y1],width,height,resampleMethod:'nearest',interleave:true,samples:[0]});
+           const scale=Math.cos(lat(y+.5)*Math.PI/180);
+           const peaks=detectCanopyPeaks(values,width,height,{spacingMetersX:dx*(x1-x0)/width*scale,spacingMetersY:dy*(y1-y0)/height*scale,maxInstances:3000,seed:q+':'+x+':'+y});
+           return peaks.flatMap(p=>{const px=x0+(p.x+.5)*(x1-x0)/width,py=y0+(p.y+.5)*(y1-y0)/height,a=(bb[0]+px*dx)/R*180/Math.PI,b=Math.atan(Math.sinh((bb[3]-py*dy)/R))*180/Math.PI;if(a<lon(x)||a>=lon(x+1)||b>lat(y)||b<=lat(y+1))return[];const id=q+':'+Math.round(px)+':'+Math.round(py),h=p.height;return [{type:'Feature',id,geometry:{type:'Point',coordinates:[a,b]},properties:{source_key:'META_WRI_DIRECT_CANOPY_V2',source_record_id:id,layer_key:'TREE_OBJECTS_3D',height_m:h,position_truth:'ESTIMATED_CANOPY_CROWN_CENTER',height_truth:'MODELED_CANOPY_HEIGHT'}}]});
+          }
+          self.onmessage=async e=>{const {id,x,y}=e.data;try{self.postMessage({id,features:await readCell(x,y)})}catch(error){self.postMessage({id,error:String(error).slice(0,200)})}};
+          JS
+          cat > "$SITE/vendor/bp-tree-canopy-source-v2.mjs" <<'JS'
+          // Independent viewport-only source fallback: no Supabase dependency, no invented forest points.
+          export function attachCanopySource(map,refresh){
+           if(map.__BP_DIRECT_CANOPY_CONTROL_V2__)return;
+           const state=map.__BP_DIRECT_CANOPY_CONTROL_V2__={status:'standby',source:'META_WRI_CHMV2_CROWN_ESTIMATES'},N=65536,cache=new Map(),pending=new Map();
+           let worker=null,timer=0,seq=0,dead=false,failedUntil=0,last='';
+           const tile=(lng,lat)=>[Math.max(0,Math.min(N-1,Math.floor((lng+180)/360*N))),Math.max(0,Math.min(N-1,Math.floor((1-Math.asinh(Math.tan(Math.max(-85,Math.min(85,lat))*Math.PI/180))/Math.PI)/2*N)))];
+           function ask(x,y){const id=x+':'+y;if(cache.has(id))return Promise.resolve(cache.get(id));if(pending.has(id))return pending.get(id).promise;
+            if(!worker){worker=new Worker('/vendor/bp-tree-canopy-worker-v2.mjs',{type:'module'});worker.onmessage=e=>{const p=pending.get(e.data.id);if(!p)return;pending.delete(e.data.id);clearTimeout(p.timeout);if(e.data.error)p.reject(Error(e.data.error));else{cache.set(e.data.id,e.data.features);if(cache.size>24)cache.delete(cache.keys().next().value);p.resolve(e.data.features)}};worker.onerror=()=>{for(const p of pending.values()){clearTimeout(p.timeout);p.reject(Error('CANOPY_WORKER_ERROR'))}pending.clear();worker?.terminate();worker=null}}
+            let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b}),timeout=setTimeout(()=>{pending.delete(id);reject(Error('CANOPY_RANGE_TIMEOUT'));},20000);pending.set(id,{promise,resolve,reject,timeout});worker.postMessage({id,x,y});return promise;}
+           function run(){if(dead||map.getZoom()<14||map.isMoving?.())return;const bounds=map.getBounds(),c=map.getCenter();
+            if((map.__BP_LIVING_TILE_CACHE_V6017__?.trees||[]).some(f=>bounds.contains(f.geometry.coordinates))){state.status='primary-source';return;}
+            const [cx,cy]=tile(c.lng,c.lat),[w,n]=tile(bounds.getWest(),bounds.getNorth()),[e,s]=tile(bounds.getEast(),bounds.getSouth());
+            const cells=[];for(let y=Math.max(n,cy-2);y<=Math.min(s,cy+2);y++)for(let x=Math.max(w,cx-2);x<=Math.min(e,cx+2);x++)cells.push([x,y]);cells.sort((a,b)=>Math.hypot(a[0]-cx,a[1]-cy)-Math.hypot(b[0]-cx,b[1]-cy));const chosen=cells.slice(0,map.getZoom()>=17?6:4),key=chosen.map(q=>q.join(':')).join('|');if(!key||key===last||Date.now()<failedUntil)return;last=key;const token=++seq;state.status='loading';
+            (async()=>{let all=[],ok=0;for(const batch of Array.from({length:Math.ceil(chosen.length/2)},(_,i)=>chosen.slice(i*2,i*2+2))){const r=await Promise.allSettled(batch.map(q=>ask(...q)));if(dead||token!==seq)return;for(const item of r)if(item.status==='fulfilled'){ok++;all.push(...item.value)}
+              if(ok){map.__BP_DIRECT_CANOPY_V2__=all;state.count=all.length;state.status='ready';refresh();}}
+              if(!ok){state.status='source-unavailable';failedUntil=Date.now()+30000;last='';}
+            })().catch(e=>{state.status='source-unavailable';state.error=String(e);last='';failedUntil=Date.now()+30000});
+           }
+           function schedule(){clearTimeout(timer);timer=setTimeout(run,700);}
+           map.on('moveend',schedule);map.on('zoomend',schedule);map.on('idle',schedule);map.on('remove',()=>{dead=true;clearTimeout(timer);worker?.terminate();for(const p of pending.values())clearTimeout(p.timeout);pending.clear()});schedule();
+          }
+          JS
+          npm install --prefix "$RUNNER_TEMP/tree-worker" geotiff@2.1.3 esbuild@0.25.12
+          "$RUNNER_TEMP/tree-worker/node_modules/.bin/esbuild" "$RUNNER_TEMP/tree-worker/worker.mjs" --bundle --format=esm --platform=browser --outfile="$SITE/vendor/bp-tree-canopy-worker-v2.mjs"
+          for f in world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v2.mjs vendor/bp-tree-canopy-worker-v2.mjs; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify existing street renderer and globe startup
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          node street-detail-v1/verify.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace("import * as T from", "import {attachTreeInstancedRenderer,chooseDetailedTreeAsset} from '/world-v2300-tree-instanced.js';\nimport * as T from")
+          s=s.replace("window.testMap=map;map.once('load',()=>attachStreetDetail(map));","""window.testMap=map;map.once('load',async()=>{map.queryTerrainElevation=()=>24.5;map.__BP_LIVING_TILE_CACHE_V6017__={trees:[['Quercus robur',-.00002,.00001],['Abies alba',.00002,.00001],['Acer rubrum',.00001,-.00002]].map(([species,x,y],i)=>({type:'Feature',geometry:{type:'Point',coordinates:[center[0]+x,center[1]+y]},properties:{source_key:'fixture',source_record_id:'tree'+i,species,height_m:9}}))};await attachTreeInstancedRenderer(map,{mobile:true,lowMemory:false,maxInstances:100});});""")
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('TREE_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>{const d=window.__BP_TREE_INSTANCE_RENDERER_V1__;return d?.sourceStreetTreeCount===3&&d.sourceStreetVariants?.length>=2&&d.localMeterAnchors&&d.gpuDrawCalls>0},null,{timeout:90000});const first=await p.evaluate(()=>({...window.__BP_TREE_INSTANCE_RENDERER_V1__}));assert(first.gpuTriangles>0);await p.evaluate(()=>window.testMap.jumpTo({zoom:19.5,bearing:90,pitch:60}));await p.waitForFunction(()=>window.__BP_TREE_INSTANCE_RENDERER_V1__?.sourceStreetTreeCount===3&&window.__BP_TREE_INSTANCE_RENDERER_V1__?.gpuDrawCalls>0,null,{timeout:60000});const second=await p.evaluate(()=>({...window.__BP_TREE_INSTANCE_RENDERER_V1__}));assert.deepEqual(second.anchor,first.anchor);assert.deepEqual(second.sourceStreetVariants,first.sourceStreetVariants);console.log('TREE_SOURCE_VARIANTS_GROUND_ANCHOR_PASS',JSON.stringify(second));await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'tree-source-anchored.png')});await p.close();\n"""+s[b:]
+          Path('street-detail-v1/verify-tree-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-tree-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated global tree upgrade
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify deployed asset hashes and unchanged water
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          cd "$SITE"
+          for p in vendor/bp-tree-canopy-source-v2.mjs vendor/bp-tree-canopy-worker-v2.mjs data/bp-nyc-bus-v1/* assets/street-detail-v1/busshelter.glb.gz vendor/bp-bus-models-v3.mjs bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?street=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo GLOBAL_TREE_SOURCE_V2_LIVE_BYTES_PASS
