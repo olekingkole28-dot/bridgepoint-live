@@ -1,0 +1,406 @@
+name: Global architecture V12 physical facade relief
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-global-architecture-v12.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact live successful release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/45731699820 --jq '.conclusion')" = success
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          for i in 1 2 3; do
+            if timeout 240s gh run download 45731699820 --repo "$GITHUB_REPOSITORY" --name bridgepoint-v5000-1 --dir "$RUNNER_TEMP/baseline" && test -s "$RUNNER_TEMP/baseline/artifact.tar"; then break; fi
+            sleep 5
+          done
+          tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+          for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js; do
+            curl --retry 4 --retry-all-errors --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current"
+            cmp "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"
+          done
+      - name: Add bounded physical facade geometry to existing building footprints
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site"
+          python3 - <<'PY'
+          import os,hashlib,json
+          from pathlib import Path
+          site=Path(os.environ['SITE'])
+          allowed={'world-v2300-map.js','app/world-v2300-map.js','landing.js','app.js','index.html','app/index.html','vendor/bp-public-globe-v4.mjs','data/bp-global-architecture-v12.json'}
+          def snap():return {p.relative_to(site).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snap()
+          code=r'''
+          // V12: bounded, physical exterior relief. The source remains authoritative
+          // for footprint and height. All added architectural details are illustrative.
+          function bpArchReliefV12(features,center,limit=1400){
+            const out=[],seen=new Set(),latM=111195,lonM=Math.max(1000,latM*Math.cos(center.lat*Math.PI/180));
+            const num=(p,keys)=>{for(const k of keys){const v=Number(p[k]);if(p[k]!=null&&p[k]!==''&&Number.isFinite(v))return v}return null};
+            const distance=(a,b)=>Math.hypot((a[0]-center.lng)*lonM,(a[1]-center.lat)*latM);
+            const candidates=[];
+            for(const f of features){
+              const p=f.properties||{},g=f.geometry;if(!g||!['Polygon','MultiPolygon'].includes(g.type))continue;
+              const h=num(p,['h','render_height_m','render_height','height_m','height'])??((num(p,['levels','building:levels','building_levels','num_floors','floor_count'])??0)*3);
+              const b=num(p,['render_min_height','min_height','base_height_m'])??0;
+              if(!(h-b>=4&&h<650)||String(p.host)==='40674'||String(p.name||'').toLowerCase().includes('one world trade'))continue;
+              const rings=g.type==='Polygon'?[g.coordinates[0]]:g.coordinates.map(x=>x[0]);
+              for(const r of rings){if(!r||r.length<4||r.length>120)continue;const c=r.slice(0,-1).reduce((a,v)=>[a[0]+v[0]/(r.length-1),a[1]+v[1]/(r.length-1)],[0,0]);
+                const d=distance(c);if(d>220)continue;const key=c.map(v=>v.toFixed(5)).join(',')+':'+Math.round(h);if(seen.has(key))continue;seen.add(key);candidates.push({p,r,h,b,d});}
+            }
+            candidates.sort((a,b)=>a.d-b.d);
+            let buildings=0;
+            for(const {p,r,h,b} of candidates.slice(0,22)){
+              if(out.length>limit-65)break;
+              const type=String(p.building_type||p.building||p.class||p.type||'').toLowerCase(),mat=String(p.material||p.facade_material||p.building_material||p['building:material']||'').toLowerCase(),year=Number(p.construction_year||p.year_built||0);
+              const house=/house|residential|detached|bungalow|terrace|cabin/.test(type)||h<12,industrial=/warehouse|industrial|factory|hangar|barn/.test(type),glass=/glass|curtain/.test(mat)||(!house&&!industrial&&h>55&&year>=1970),brick=/brick|masonry/.test(mat)||(!glass&&!industrial&&year>0&&year<1950);
+              const trim=glass?'#80939b':brick?'#ad9180':industrial?'#8d9798':'#b9b3a4',dark=glass?'#537987':'#384c54';
+              let area=0;for(let i=0;i<r.length-1;i++)area+=((r[i][0]-center.lng)*lonM)*((r[i+1][1]-center.lat)*latM)-((r[i+1][0]-center.lng)*lonM)*((r[i][1]-center.lat)*latM);
+              if(Math.abs(area)<15)continue;
+              const sign=area>0?1:-1;
+              let edges=[];
+              for(let i=0;i<r.length-1;i++){const a=r[i],c=r[i+1],dx=(c[0]-a[0])*lonM,dy=(c[1]-a[1])*latM,L=Math.hypot(dx,dy);if(L>=3&&L<150)edges.push({a,L,ux:dx/L,uy:dy/L,nx:sign*dy/L,ny:-sign*dx/L,mid:distance([(a[0]+c[0])/2,(a[1]+c[1])/2])});}
+              edges.sort((a,b)=>a.mid-b.mid);
+              if(!edges.length)continue;
+              buildings++;
+              for(const e of edges.slice(0,4)){
+                const pt=(along,normal)=>[e.a[0]+(e.ux*along+e.nx*normal)/lonM,e.a[1]+(e.uy*along+e.ny*normal)/latM];
+                const part=(kind,c,l,r,inside,outside,lo,hi)=>{if(out.length>=limit||hi<=lo||r<=l)return;const ring=[pt(l,inside),pt(r,inside),pt(r,outside),pt(l,outside)];ring.push(ring[0]);out.push({type:'Feature',properties:{kind,c,b:lo,h:hi},geometry:{type:'Polygon',coordinates:[ring]}})};
+                const margin=.35,span=e.L-2*margin;if(span<2)continue;
+                // Physical upper cornice, corner trim and parapet only on flat roofs.
+                part('cornice',trim,margin,e.L-margin,.025,.25,h-.18,h+.035);
+                if(!house&&!/gable|hip|pyramid|dome|cone/.test(String(p.roof_shape||p['roof:shape']||'')))part('parapet',trim,margin,e.L-margin,-.08,.09,h,h+.45);
+                for(const x of [.12,e.L-.24])part('corner',trim,x,x+.12,.018,.13,b,h-.2);
+                const floors=Math.max(1,Math.round((h-b)/(industrial?4.5:3.25))),fh=(h-b)/floors;
+                // Keep the closest viewport work finite even for very tall buildings.
+                const step=Math.max(1,Math.ceil(floors/14));
+                const bays=Math.min(9,Math.max(1,Math.floor(span/(glass?1.65:house?2.7:industrial?5:2.4)))),bw=span/bays;
+                for(let j=0;j<floors;j+=step){
+                  const y=b+j*fh;
+                  if(out.length>limit-10)break;
+                  if(glass){part('floor-trim',trim,margin,e.L-margin,.025,.12,y+fh-.15,y+fh-.08);}
+                  else if(!industrial){part('sill-band',trim,margin,e.L-margin,.025,.16,y+fh*.22,y+fh*.27);}
+                  for(let k=0;k<bays;k++){
+                    const x=margin+k*bw+bw*.5,w=Math.min(bw*.82,glass?1.42:industrial?2.1:1.1),lo=y+fh*(glass?.12:industrial?.55:.30),hi=y+fh*(glass?.91:industrial?.84:.80);
+                    part('glazing',dark,x-w*.5,x+w*.5,.035,.075,lo,hi);
+                    part('sill',trim,x-w*.5-.07,x+w*.5+.07,.025,.24,lo-.08,lo);
+                    if(glass)part('mullion',trim,x-w*.5,x-w*.5+.065,.075,.13,lo,hi);
+                  }
+                }
+              }
+            }
+            return {type:'FeatureCollection',features:out,buildings};
+          }
+          function bpInstallArchReliefV12(map,enabled){
+            const ID='bp-global-physical-facade-v12',empty={type:'FeatureCollection',features:[]};
+            let timer=0,last='',present=false;
+            const d={features:0,buildings:0,status:'standby',approximate:true};window.__BP_GLOBAL_ARCH_RELIEF_V12__=d;
+            function sync(){
+              timer=0;const z=map.getZoom(),c=map.getCenter();
+              if(!enabled()||z<17.8){if(present&&map.getLayer(ID))map.setLayoutProperty(ID,'visibility','none');present=false;last='';d.status='standby';return;}
+              if(map.isMoving?.())return;
+              const key=[c.lng.toFixed(4),c.lat.toFixed(4),Math.floor(z*2)].join('/');
+              if(key===last&&map.getLayer(ID))return;
+              const ids=window.__BP_MANHATTAN_NATIVE_V5__?.visible?['bp-manhattan-surveyed-body-v6']:['gta-bp-buildings','gta-context-buildings','gta-city-buildings','gta-exact-building'];
+              const input=[];
+              for(const id of ids){const layer=map.getLayer(id);if(!layer||map.getLayoutProperty(id,'visibility')==='none')continue;try{const f=map.querySourceFeatures(layer.source,layer.sourceLayer?{sourceLayer:layer.sourceLayer}:{});input.push(...f.slice(0,12000));}catch(_){}}
+              const fc=bpArchReliefV12(input,c);
+              if(!fc.features.length){d.status='waiting-for-source';return;}
+              try{
+                if(!map.getSource(ID))map.addSource(ID,{type:'geojson',data:empty,maxzoom:20});
+                if(!map.getLayer(ID))map.addLayer({id:ID,type:'fill-extrusion',source:ID,minzoom:17.8,paint:{'fill-extrusion-base':['get','b'],'fill-extrusion-height':['get','h'],'fill-extrusion-color':['get','c'],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}},map.getLayer('gta-water-label')?'gta-water-label':undefined);
+                map.getSource(ID).setData({type:'FeatureCollection',features:fc.features});map.setLayoutProperty(ID,'visibility','visible');last=key;present=true;
+                Object.assign(d,{status:'ready',features:fc.features.length,buildings:fc.buildings,zoom:z});
+              }catch(e){d.status='fallback';d.error=String(e);}
+            }
+            function schedule(){clearTimeout(timer);timer=setTimeout(sync,650);}
+            map.on('moveend',schedule);map.on('zoomend',schedule);map.on('style.load',()=>{last='';present=false;schedule()});
+            map.on('idle',()=>{if(d.status==='waiting-for-source'&&!timer&&map.getZoom()>=17.8)schedule()});
+            map.on('remove',()=>clearTimeout(timer));schedule();
+          }
+          '''
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
+            p=site/rel;s=p.read_text()
+            mark="function facadePatternImage("
+            assert s.count(mark)==1
+            s=s.replace(mark,code+'\n'+mark)
+            marker="map.on('moveend',bpNativeManhattanSync);"
+            assert s.count(marker)==1
+            s=s.replace(marker,marker+"\n bpInstallArchReliefV12(map,()=>!!layerState.buildings);")
+            p.write_text(s)
+          changes=0
+          for rel in allowed-{'world-v2300-map.js','app/world-v2300-map.js','data/bp-global-architecture-v12.json'}:
+            p=site/rel;s=p.read_text();n=s.count('manhattanroofdetail=17');changes+=n
+            if n:p.write_text(s.replace('manhattanroofdetail=17','manhattanroofdetail=18'))
+          assert changes>0
+          (site/'data/bp-global-architecture-v12.json').write_text(json.dumps({'version':12,'scope':'globally available close-range physical facade relief','geometry':'source footprint and height, inferred architectural trim/glazing/sills/parapets','cap':1400,'minimumZoom':17.8,'reference':['City NYC Buildings by golukumar, CC BY 4.0','[FREE] London Skyscraper by 99.Miles, CC BY 4.0','Freeman Alley RealityCapture OBJ, license not established'],'assetReuse':False,'limits':'not surveyed exterior details, no true PBR transmission or live reflection, no inferred fire escape locations'}))
+          assert snap()==before
+          PY
+          for p in world-v2300-map.js app/world-v2300-map.js landing.js app.js; do node --input-type=module --check < "$SITE/$p"; done
+          TEST="$RUNNER_TEMP/input-smoke"
+          mkdir -p "$TEST"
+          npm install --prefix "$TEST" --no-audit --no-fund playwright-core@1.56.1 pngjs@7
+          cat > "$TEST/test.mjs" <<'JS'
+          import {chromium} from 'playwright-core';
+          import {PNG} from 'pngjs';
+          import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
+          const root=process.env.SITE,origin='https://bridgepointintelligence.online';
+          const mime={'.js':'application/javascript','.mjs':'application/javascript','.html':'text/html','.css':'text/css','.json':'application/json','.geojson':'application/json','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.wasm':'application/wasm','.glb':'model/gltf-binary','.pbf':'application/x-protobuf','.mvt':'application/vnd.mapbox-vector-tile','.woff2':'font/woff2'};
+          const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+          try{
+           const page=await browser.newPage({serviceWorkers:'block',viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});
+           page.on('requestfailed',r=>{if(/manhattan-roof-detail|manhattan-native-v6|three\.module/.test(r.url()))console.log('ROOF_REQUEST_FAILED',r.url(),r.failure())});
+           page.on('response',r=>{if(/manhattan-roof-detail|three\.module/.test(r.url()))console.log('ROOF_RESPONSE',r.status(),r.url())});
+           const errors=[];page.on('pageerror',e=>{errors.push(String(e));if(errors.length<=20)console.log('PAGE_ERROR',e.stack||String(e))});
+           page.on('console',m=>{if(/BP_STARTUP_TRACE|WebGL context lost|Manhattan|distance|filter|bp-manhattan/.test(m.text()))console.log(m.text().slice(0,500))});
+           // Serve the candidate artifact under the real origin, so absolute paths
+           // and startup behavior are the same. External tile requests remain real.
+           await page.route(origin+'/**',async route=>{
+             const url=new URL(route.request().url());let file=path.resolve(root,'.'+decodeURIComponent(url.pathname));
+             if(!file.startsWith(root+'/')&&file!==root)return route.abort();
+             if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');
+             if(!fs.existsSync(file)||!fs.statSync(file).isFile()){if(/manhattan-roof-detail|three\.module/.test(url.pathname))console.log('ROOF_ROUTE_MISSING',file);return route.continue();}
+             return route.fulfill({path:file,contentType:mime[path.extname(file)]||'application/octet-stream'});
+           });
+           await page.addInitScript(()=>{window.__bpInputSmokeTicks=0;setInterval(()=>window.__bpInputSmokeTicks++,100);});
+           await page.goto(origin+'/?inputsmoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+           const getMap=()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return w?.map;};
+           await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420)?.map;return !!m&&!!m.getCanvas()?.clientWidth&&m.dragPan?.isEnabled?.()&&m.touchZoomRotate?.isEnabled?.()},{timeout:90000});
+           await page.waitForFunction(()=>!!window.__BP_WORLD_CORE_READY__?.ready,{timeout:45000});
+           const before=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,r=m.getCanvas().getBoundingClientRect(),c=m.getCenter();return {x:r.x+r.width*.5,y:r.y+r.height*.48,lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks,dem:m.getStyle().sources.dem.tiles};});
+           assert(before.dem[0].startsWith('https://s3.amazonaws.com/'),'Native DEM is not direct');
+           const cdp=await page.context().newCDPSession(page);
+           const x=Math.round(before.x),y=Math.round(before.y);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
+           for(let i=1;i<=8;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+Math.round(i*8),y:y+Math.round(i*7),id:1}]});await page.waitForTimeout(35);}
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           await page.waitForFunction(lat=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return Math.abs(m.getCenter().lat-lat)>.15},before.lat,{timeout:12000});
+           console.log('REAL_MOBILE_DRAG_PASS');
+           const plus=page.locator('.maplibregl-ctrl-zoom-in:visible').first();
+           const zoomBefore=await page.evaluate(()=>(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map.getZoom());
+           const bounds=await plus.boundingBox({timeout:15000});assert(bounds,'Zoom button missing');
+           const tx=Math.round(bounds.x+bounds.width/2),ty=Math.round(bounds.y+bounds.height/2);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:tx,y:ty,id:1}]});
+           await page.waitForTimeout(80);
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           await page.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.2},zoomBefore,{timeout:20000});
+           const after=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return {lat:c.lat,lng:c.lng,z:m.getZoom(),ticks:window.__bpInputSmokeTicks};});
+           assert(after.ticks>before.ticks,'Main thread heartbeat failed');
+           assert(!errors.some(e=>/lastSubmergeCheck|autoDiveArmed|autoDivePending|Cannot read properties of null \(reading 'disconnect'\)|Attempting to run\(\), but is already running/.test(e)),JSON.stringify(errors.slice(0,10)));
+           console.log('REAL_MOBILE_TOUCH_AND_ZOOM_PASS',JSON.stringify({before,after,errors:errors.slice(0,8)}));
+           // Close oblique Manhattan view: ensure mapped geometry is present and fans advance.
+           // Test-only teleport: old globe DEM tiles cannot be sampled at the distant
+           // target. Temporarily detach terrain, move to Manhattan, then restore the
+           // exact original terrain configuration before checking the 3D view.
+           const terrain=await page.evaluate(()=>{
+            const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;
+            const t=m.getTerrain?.();const config=t?{source:t.source,exaggeration:t.exaggeration??1}:null;
+            m.stop();if(config)m.setTerrain(null);
+            m.jumpTo({center:[-73.9855,40.7485],zoom:18,pitch:0,bearing:25});
+            return config;
+           });
+           await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return Math.abs(m.getCenter().lng+73.9855)<.001&&m.getZoom()>17.9&&!m.isMoving()},{timeout:30000});
+           await page.waitForTimeout(2500);
+           await page.evaluate(t=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;if(t)m.setTerrain(t)},terrain);
+           if(terrain)await page.waitForFunction(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;try{return Number.isFinite(m.queryTerrainElevation(m.getCenter(),{exaggerated:true}))}catch(e){return false}},{timeout:45000});
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setPitch(60)});
+           console.log('MANHATTAN_TERRAIN_RESTORED',JSON.stringify(terrain));
+           await page.waitForFunction(()=>{
+            const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,d=window.__BP_MANHATTAN_NATIVE_V5__;
+            if(!d?.visible||!d.materials||!d.sharedHost||!m.getLayer('bp-manhattan-native-roof-v5')||!m.getLayer('bp-manhattan-surveyed-body-v6'))return false;
+            try{return m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length>0&&m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-cap-v6']}).length>0&&m.querySourceFeatures('bp-manhattan-native-roof-v5',{sourceLayer:'buildings'}).length>0&&m.getPaintProperty('bp-manhattan-surveyed-body-v6','fill-extrusion-opacity')===1&&!!m.getPaintProperty('bp-manhattan-surveyed-body-v6','fill-extrusion-pattern')&&m.queryRenderedFeatures({layers:['gta-bp-buildings','gta-context-buildings']}).length===0}catch(e){return false}
+           },null,{timeout:90000}).catch(async e=>{console.log('ALIGNMENT_BROWSER_DIAGNOSTICS',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const ids=['bp-manhattan-native-roof-v5','bp-manhattan-surveyed-body-v6','bp-manhattan-surveyed-cap-v6','gta-bp-buildings','gta-context-buildings'];return {state:window.__BP_MANHATTAN_NATIVE_V5__,center:m.getCenter(),layers:ids.map(id=>{try{return {id,exists:!!m.getLayer(id),visibility:m.getLayoutProperty(id,'visibility'),opacity:m.getPaintProperty(id,'fill-extrusion-opacity'),rendered:m.queryRenderedFeatures({layers:[id]}).length,filter:JSON.stringify(m.getFilter(id)||null).slice(0,140)}}catch(e){return {id,error:String(e)}}})}})));throw e});
+           console.log('NATIVE_ROOF_TILES_RENDERED',JSON.stringify(await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return {state:window.__BP_MANHATTAN_NATIVE_V5__,features:m.queryRenderedFeatures({layers:['bp-manhattan-native-roof-v5']}).length,customLayer:!!m.getLayer('bp-manhattan-roof-detail-v1')}})));
+           // The query can omit occluded extrusion faces. Test real framebuffer
+           // differences with the same settled camera and actual wall layer.
+           // Filters, unlike visibility, are not reset by the settled-camera handler.
+           const wallProbe=await page.evaluate(()=>{
+             const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;
+             const ids=['bp-manhattan-surveyed-body-v6','bp-manhattan-surveyed-cap-v6','bp-manhattan-native-roof-v5'];
+             const saved=ids.map(id=>[id,m.getFilter(id)||null]);
+             const no=['==',['get','host'],-1];
+             m.setFilter(ids[1],no);m.setFilter(ids[2],no);
+             return {saved,pitch:m.getPitch(),bearing:m.getBearing(),zoom:m.getZoom(),center:m.getCenter()};
+           });
+           async function painted(){
+             await page.evaluate(()=>new Promise(resolve=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.once('render',()=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));m.triggerRepaint()}));
+             await page.waitForTimeout(1400);
+             return PNG.sync.read(await page.screenshot({timeout:30000}));
+           }
+           try{
+             const withWall=await painted();
+             const hits=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.queryRenderedFeatures({layers:['bp-manhattan-surveyed-body-v6']}).length});
+             await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setFilter('bp-manhattan-surveyed-body-v6',['==',['get','host'],-1])});
+             const withoutWall=await painted();
+             await page.evaluate(saved=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.setFilter(saved[0][0],saved[0][1])},wallProbe.saved);
+             const restoredWall=await painted();
+             // Require repeatable visible geometry, not a single transient frame.
+             let changed=0,stable=0;
+             for(let y=160;y<withWall.height-120;y+=2)for(let x=40;x<withWall.width-40;x+=2){
+               const i=(y*withWall.width+x)*4;
+               const diff=(a,b)=>Math.abs(a.data[i]-b.data[i])+Math.abs(a.data[i+1]-b.data[i+1])+Math.abs(a.data[i+2]-b.data[i+2]);
+               if(diff(withWall,withoutWall)>70){changed++;if(diff(withWall,restoredWall)<25&&diff(restoredWall,withoutWall)>70)stable++}
+             }
+             console.log('SURVEYED_WALL_PIXEL_PROBE',JSON.stringify({hits,changed,stable}));
+             assert(stable>100,'Surveyed building wall did not produce repeatable visible pixels');
+           }finally{
+             await page.evaluate(saved=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;for(const [id,f] of saved)m.setFilter(id,f)},wallProbe.saved);
+           }
+           await painted();
+           const close=await page.evaluate(()=>{
+            const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,canvas=m.getCanvas(),r=canvas.getBoundingClientRect(),c=m.getCenter();
+            // Choose an unobstructed real map canvas point; the mobile dock may overlap the center.
+            const candidates=[[.30,.30],[.35,.40],[.45,.30],[.35,.22],[.50,.42],[.25,.48]];
+            const p=candidates.map(([u,v])=>[Math.round(r.x+r.width*u),Math.round(r.y+r.height*v)]).find(([x,y])=>[0,30,60,90].every(dx=>document.elementFromPoint(x+dx,y+Math.round(dx*.25))===canvas));
+            if(!p)throw Error('No unobstructed map touch path');
+            const trace={events:0,moves:0,firstInput:null,firstMove:null,maxDelta:0,initial:{lng:c.lng,lat:c.lat}};
+            window.__bpCloseTouchTrace=trace;
+            canvas.addEventListener('touchmove',()=>{trace.events++;if(trace.firstInput===null)trace.firstInput=performance.now()},{capture:true,passive:true});
+            m.on('move',()=>{if(trace.firstInput===null)return;const p=m.getCenter(),delta=Math.abs(p.lng-c.lng)+Math.abs(p.lat-c.lat);trace.maxDelta=Math.max(trace.maxDelta,delta);if(delta>1e-6){trace.moves++;if(trace.firstMove===null)trace.firstMove=performance.now()}});
+            return {lng:c.lng,lat:c.lat,x:p[0],y:p[1],detail:window.__BP_MANHATTAN_NATIVE_V5__};
+           });
+           assert(close.detail.native&&close.detail.materials&&!close.detail.customRenderer);
+           console.log('MANHATTAN_NATIVE_ARCHITECTURE_RENDER_PASS',JSON.stringify(close.detail));
+           const xx=close.x,yy=close.y;const touchStartWall=Date.now();
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:xx,y:yy,id:1}]});
+           for(let i=1;i<=6;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:xx+i*15,y:yy+Math.round(i*15*.25),id:1}]});await page.waitForTimeout(35)}
+           await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+           const trace=await page.evaluate(()=>window.__bpCloseTouchTrace);
+           console.log('MANHATTAN_CLOSE_TOUCH_TRACE',JSON.stringify({...trace,totalDispatchWallMs:Date.now()-touchStartWall}));
+           assert(trace.events>=1&&trace.moves>=1&&trace.maxDelta>1e-6,'Close angle touch did not pan the actual map');
+           assert(trace.firstMove-trace.firstInput<2500,'Close angle input response exceeded 2.5 seconds');
+           console.log('MANHATTAN_NATIVE_OBLIQUE_TOUCH_PASS',JSON.stringify({detail:close.detail,trace}));
+           // Validate actual close range native detail source and source height bounds.
+           await page.waitForFunction(()=>window.__BP_GLOBAL_ARCH_RELIEF_V12__?.status==='ready',null,{timeout:45000});
+           const relief=await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,id='bp-global-physical-facade-v12';const f=m.querySourceFeatures(id);return {state:window.__BP_GLOBAL_ARCH_RELIEF_V12__,count:f.length,kinds:[...new Set(f.map(x=>x.properties.kind))],valid:f.every(x=>x.properties.h>x.properties.b)}});
+           console.log('GLOBAL_ARCH_PHYSICAL_RELIEF_PROOF',JSON.stringify(relief));
+           assert(relief.count>20&&relief.valid&&relief.state.features<=1400&&relief.kinds.includes('sill')&&relief.kinds.includes('glazing'));
+           const withRelief=await painted();
+           fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'one-wtc-global-physical-relief.png'),PNG.sync.write(withRelief));
+           // Validate new native material generators in the real browser before testing
+           // actual map tiles. The original material functions remain private to the map module.
+           const src=fs.readFileSync(path.join(root,'world-v2300-map.js'),'utf8');
+           const fa=src.indexOf('function facadePatternImage('),fb=src.indexOf('function nightWindowPatternImage(',fa);
+           const ra=src.indexOf('function roofPatternImage('),rb=src.indexOf('function floorLinePatternImage(',ra);
+           const art=await page.evaluate(({f,r})=>{
+             const facade=new Function(f+';return facadePatternImage')(),roof=new Function(r+';return roofPatternImage')();
+             const ids=['bpfacade-res-cream-v1','bpfacade-brick-red-v1','bpfacade-glass-blue-v1','bpfacade-industrial-gray-v1','bpfacade-civic-limestone-v1','bpfacade-office-beige-v1','bpfacade-solid-glass-blue-v1','bproof-roof-tile-red','bproof-roof-metal-silver','bproof-roof-gravel'];
+             const canvas=document.createElement('canvas');canvas.width=ids.length*96;canvas.height=96;const ctx=canvas.getContext('2d');
+             const result=ids.map((id,i)=>{const image=id.startsWith('bproof-')?roof(id):facade(id);ctx.putImageData(image,i*96,0);let checksum=0;const colors=new Set();for(let p=0;p<image.data.length;p+=4){const c=(image.data[p]<<16)|(image.data[p+1]<<8)|image.data[p+2];checksum=(Math.imul(checksum,31)+c)|0;colors.add(c)}return {id,checksum,colors:colors.size,width:image.width,height:image.height}});
+             return {result,png:canvas.toDataURL('image/png').split(',')[1]};
+           },{f:src.slice(fa,fb),r:src.slice(ra,rb)});
+           assert(new Set(art.result.map(x=>x.checksum)).size===art.result.length,'Material classes not distinct');
+           assert(art.result.slice(0,6).every(x=>x.colors>30),'Facade material lacks detail');
+           assert(art.result[6].colors===1,'Far LOD is not a flat low-frequency material');
+           fs.writeFileSync(path.join(process.env.RUNNER_TEMP,'one-wtc-global-material-atlas.png'),Buffer.from(art.png,'base64'));
+           console.log('GLOBAL_ARCHITECTURE_ATLAS_PASS',JSON.stringify(art.result));
+           // Test the actual custom shell in isolation, far and close. No fallback pixels
+           // may satisfy this gate. Save paired screenshots for visual review.
+           async function capture(name){const png=await painted();fs.writeFileSync(path.join(process.env.RUNNER_TEMP,name+'.png'),PNG.sync.write(png));return png;}
+           async function cameraAt(zoom,pitch,bearing){
+             const terrain=await page.evaluate(({zoom,bearing})=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.stop();const t=m.getTerrain?.();const conf=t?{source:t.source,exaggeration:t.exaggeration??1}:null;if(t)m.setTerrain(null);m.jumpTo({center:[-74.0131735879,40.7130090276],zoom,pitch:0,bearing});return conf},{zoom,bearing});
+             await page.waitForTimeout(1600);
+             await page.evaluate(({terrain,pitch})=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;if(terrain)m.setTerrain(terrain);m.setPitch(pitch);m.triggerRepaint()},{terrain,pitch});
+           }
+           async function probe(label,minPixels,band){
+             await page.waitForFunction(b=>{const d=window.__BP_ONE_WTC_V7__;return d?.status==='rendering'&&d.masked&&d.band===b&&d.drawCalls>0},band,{timeout:90000});
+             const shown=await capture('one-wtc-'+label+'-visible');
+             await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;window.__BP_ONE_WTC_V7__.probeHidden=true;m.triggerRepaint()});
+             const hidden=await capture('one-wtc-'+label+'-hidden');
+             await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;window.__BP_ONE_WTC_V7__.probeHidden=false;m.triggerRepaint()});
+             const restored=await capture('one-wtc-'+label+'-restored');
+             let stable=0,changed=0;
+             for(let y=75;y<shown.height-55;y++)for(let x=5;x<shown.width-5;x++){const i=(y*shown.width+x)*4;const diff=(a,b)=>Math.abs(a.data[i]-b.data[i])+Math.abs(a.data[i+1]-b.data[i+1])+Math.abs(a.data[i+2]-b.data[i+2]);if(diff(shown,hidden)>45){changed++;if(diff(shown,restored)<40)stable++;}}
+             console.log('ONE_WTC_V10_PIXEL_PROOF',JSON.stringify({label,stable,changed,state:await page.evaluate(()=>window.__BP_ONE_WTC_V7__)}));
+             assert(stable>minPixels,'Detailed landmark not visibly present at '+label);
+           }
+           await cameraAt(13.5,45,25);await probe('early',15,'early');
+           await cameraAt(16.35,48,25);await probe('middle',1000,'surveyed');
+           await page.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const f=m.getFilter('bp-manhattan-native-roof-v5');if(!JSON.stringify(f).includes('40674'))throw Error('Native duplicate not masked');m.setBearing(112);m.triggerRepaint()});
+           await capture('one-wtc-rotated');
+           // At bearing 112/pitch 55 the previous diagnostic screenshots show an adjacent
+           // tower completely blocking One WTC. Use the same unobstructed approach
+           // as the successful medium view, then frame the upper facade separately.
+           await cameraAt(17.3,25,25);await probe('close',1000,'surveyed');
+           // Return to the wider view before rotating, rather than putting the
+           // camera inside the neighboring tower at street scale.
+           await cameraAt(15.9,38,112);await probe('alternate-bearing',200,'surveyed');
+          }finally{await browser.close()}
+          JS
+          timeout 780s node "$TEST/test.mjs"
+      - name: Upload landmark diagnostic screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-wtc-render-evidence
+          path: ${{ runner.temp }}/one-wtc-*.png
+          if-no-files-found: ignore
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish only the validated landmark
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Retry transient authorization and deployment-creation errors, without altering the tested artifact.
+          # Never retry a deployment which has already received an ID.
+          for attempt in 1 2 3 4 5; do
+            set +e
+            node scripts/deploy-pages-extended.mjs 2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            if [ "$result" -eq 0 ]; then exit 0; fi
+            if grep -q 'Created GitHub Pages deployment' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if ! grep -Eq 'OIDC token request failed with HTTP (5[0-9][0-9]|429)|POST .*pages/deployments returned HTTP 5[0-9][0-9]|HTTP request exceeded [0-9]+ ms: .*actions' "$RUNNER_TEMP/pages-deploy.log"; then exit "$result"; fi
+            if [ "$attempt" -eq 5 ]; then exit "$result"; fi
+            sleep $((attempt * 20))
+          done
+      - name: Verify landmark and preserved live bytes
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in data/bp-global-architecture-v12.json data/bp-global-architecture-v11.json vendor/bp-one-wtc-v7.mjs data/bp-one-wtc-v7.json assets/manhattan-native-v6/manifest.json assets/manhattan-native-v6/boundary.json assets/manhattan-native-v5/manifest.json assets/manhattan-native-v5/brick.png assets/manhattan-native-v5/glass.png assets/manhattan-rooftop-v3/manifest.json assets/manhattan-rooftop-v3/tank.glb assets/manhattan-rooftop-v3/hvac.glb assets/manhattan-rooftop-v3/wall-atlas.jpg vendor/bp-manhattan-roof-detail-v1.mjs data/bp-manhattan-roof-detail-v1.json data/manhattan-architecture-sources-v2.json bridgepoint-device-quality-v1.js world-v2300-water.js app/world-v2300-water.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js bridgepoint-auto-reality-v1.js data/bp-auto-reality-v1.json assets/manhattan-photogrammetry-v1/registration.json assets/manhattan-photogrammetry-v1/source-architecture-v3.json assets/manhattan-photogrammetry-v1/source-architecture-v3.glb data/manhattan-photo-reference-v1.json data/bp-nyc-rooftop-cooling-v2.geojson data/manhattan-photo-reference-v2.json world-v2300-sensor-layers.js app/world-v2300-sensor-layers.js vendor/bp-unified-topobathy-v1.mjs vendor/bp-unified-topobathy-worker-v1.js vendor/bp-ocean-relief-v4.mjs data/bp-nyc-terrain-v1/manifest.json bridgepoint-bottom-card-mobile-v2.js; do
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?recovery=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then ok=1; break; fi
+              sleep 5
+            done
+            test "$ok" = 1 || { echo "LIVE_MISMATCH $p"; exit 1; }
+          done
+          echo GLOBAL_ARCHITECTURE_V12_LIVE_BYTES_PASS
