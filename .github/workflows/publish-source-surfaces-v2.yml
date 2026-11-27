@@ -59,9 +59,9 @@ jobs:
           set -euo pipefail
           export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
           mkdir -p "$BP_TEST" "$SITE/assets/street-detail-v1/surfaces-v2"
-          npm install --prefix "$BP_TEST" playwright esbuild polygon-clipping@0.15.7
+          npm install --prefix "$BP_TEST" playwright esbuild polygon-clipping@0.15.7 earcut@3.0.2
           cp street-detail-v1/source-surfaces-v2.mjs "$BP_TEST/source-surfaces.mjs"
-          "$BP_TEST/node_modules/.bin/esbuild" "$BP_TEST/source-surfaces.mjs" --bundle --format=esm --platform=browser --target=es2022 --outfile="$BP_TEST/bp-source-surfaces-v2.mjs"
+          "$BP_TEST/node_modules/.bin/esbuild" "$BP_TEST/source-surfaces.mjs" --bundle --format=esm --platform=browser --target=es2022 --external:/vendor/* --outfile="$BP_TEST/bp-source-surfaces-v2.mjs"
           python3 -m venv "$RUNNER_TEMP/surface-python"
           "$RUNNER_TEMP/surface-python/bin/python" -m pip install --disable-pip-version-check Pillow==11.3.0
           "$RUNNER_TEMP/surface-python/bin/python" - "$SITE" "$BP_TEST" <<'PY'
