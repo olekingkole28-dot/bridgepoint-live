@@ -118,13 +118,24 @@ jobs:
               if 'const surfaceZoom=map.getZoom()' not in guard:
                   anchor='const underwaterDiveActive=isUnderwaterDiveActive();'
                   assert guard.count(anchor)==1, f'{rel}: underwater state anchor count {guard.count(anchor)}'
-                  inject="const surfaceZoom=map.getZoom(),closeZoomSurfaces=!underwaterDiveActive&&surfaceZoom>=15.8&&!!map.getSource('ofm');\n   base=closeZoomSurfaces?'surface':'satellite';\n   window.__BP_CLOSE_ZOOM_SURFACE_MODE__={enabled:closeZoomSurfaces,zoom:surfaceZoom,ground:'mapped landcover and landuse with 3D road, sidewalk and grass meshes',updatedAt:Date.now()};"
+                  inject="const surfaceZoom=map.getZoom(),closeZoomSurfaces=!underwaterDiveActive&&!blenderWorldEnabled&&surfaceZoom>=15.8&&!!map.getSource('ofm');\n   base=closeZoomSurfaces?'surface':'satellite';\n   window.__BP_CLOSE_ZOOM_SURFACE_MODE__={enabled:closeZoomSurfaces,zoom:surfaceZoom,ground:'mapped landcover and landuse with 3D road, sidewalk and grass meshes',updatedAt:Date.now()};"
                   guard=guard.replace(anchor,anchor+'\n   '+inject)
               if 'const surfaceLandcoverColor=' not in guard:
                   paint_anchor="let oceanFill='unavailable';"
                   assert guard.count(paint_anchor)==1, f'{rel}: surface paint anchor count {guard.count(paint_anchor)}'
                   paint="const savedSurfacePaint=window.__BP_CLOSE_ZOOM_SURFACE_PAINTS__;\n   if(!savedSurfacePaint||savedSurfacePaint.map!==map)window.__BP_CLOSE_ZOOM_SURFACE_PAINTS__={map,landcoverColor:map.getPaintProperty('gta-landcover','fill-color'),landuseColor:map.getPaintProperty('gta-landuse','fill-color'),waterColor:map.getPaintProperty('gta-water','fill-color'),waterOpacity:map.getPaintProperty('gta-water','fill-opacity')};\n   const surfacePaints=window.__BP_CLOSE_ZOOM_SURFACE_PAINTS__;\n   const setSurfacePaint=(id,prop,value)=>{try{if(map.getLayer(id)&&JSON.stringify(map.getPaintProperty(id,prop))!==JSON.stringify(value))map.setPaintProperty(id,prop,value)}catch(_){}};\n   const surfaceLandcoverColor=['match',['downcase',['to-string',['coalesce',['get','class'],'']]],['wood','forest'],'#365d3d',['grass','meadow'],'#79a953','farmland','#7d834b',['wetland','marsh'],'#477a77',['sand','beach'],'#c3af7f',['desert','dune'],'#b3945b',['bare_rock','rock','scree'],'#777b73',['ice','glacier','snow'],'#d9e4df',['scrub','heath'],'#66824a','#6c756b'];\n   const surfaceLanduseColor=['match',['downcase',['to-string',['coalesce',['get','class'],'']]],['park','recreation_ground'],'#648a53','grass','#7ca75b','cemetery','#617653','residential','#737a73','commercial','#83867f','retail','#8b887d','industrial','#7c807e','school','#778c62','hospital','#a99b8d','#717973'];\n   setSurfacePaint('gta-landcover','fill-color',closeZoomSurfaces?surfaceLandcoverColor:surfacePaints.landcoverColor);\n   setSurfacePaint('gta-landcover','fill-opacity',closeZoomSurfaces ? 0.98 : 0);\n   setSurfacePaint('gta-landuse','fill-color',closeZoomSurfaces?surfaceLanduseColor:surfacePaints.landuseColor);\n   setSurfacePaint('gta-landuse','fill-opacity',closeZoomSurfaces ? 0.62 : 0);\n   setSurfacePaint('gta-water','fill-color',closeZoomSurfaces?'#317486':surfacePaints.waterColor);\n   setSurfacePaint('gta-water','fill-opacity',closeZoomSurfaces ? 0.92 : surfacePaints.waterOpacity);\n   setSurfacePaint('gta-landcover-texture','fill-opacity',closeZoomSurfaces ? 0.38 : 0);\n   vis(map,'gta-landcover-texture',closeZoomSurfaces);\n   "
                   guard=guard.replace(paint_anchor,paint+'\n   let oceanFill=\'unavailable\';')
+              effective_line="const effectiveVisibility=blenderWorldEnabled||closeZoomSurfaces?'none':'visible';"
+              if effective_line not in guard:
+                  guard,n=re.subn(r"const effectiveVisibility\\s*=\\s*[^;]+;",effective_line,guard,count=1)
+                  assert n==1, f'{rel}: raster visibility expression count {n}'
+              water_line="if(map.getPaintProperty('gta-water','fill-opacity')!==0)map.setPaintProperty('gta-water','fill-opacity',0);"
+              if water_line in guard:
+                  guard=guard.replace(water_line,"const surfaceWaterOpacity=closeZoomSurfaces?0.92:0;if(map.getPaintProperty('gta-water','fill-opacity')!==surfaceWaterOpacity)map.setPaintProperty('gta-water','fill-opacity',surfaceWaterOpacity);",1)
+              assert "const surfaceWaterOpacity=closeZoomSurfaces?0.92:0;" in guard, f'{rel}: close-zoom water fill missing'
+              if "oceanFill=surfaceWaterOpacity;" not in guard:
+                  assert guard.count("oceanFill=0;")==1, f'{rel}: original water fill state count {guard.count("oceanFill=0;")}'
+                  guard=guard.replace("oceanFill=0;","oceanFill=surfaceWaterOpacity;",1)
               s=s[:guard_start]+guard+s[guard_end:]
               terrain_old="vis(map,'gta-landcover-texture',base!=='satellite'&&z<19.5);"
               if terrain_old in s:
