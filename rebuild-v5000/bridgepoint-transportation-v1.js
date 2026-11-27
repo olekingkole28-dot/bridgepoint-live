@@ -404,7 +404,8 @@
           const key = [feature.id ?? feature.properties?.id ?? '', ...endpoints, clean.length].join(':');
           if (seen.has(key)) continue;
           seen.add(key);
-          const props=feature.properties||{},oneway=props.oneway===true||props.oneway===1||String(props.oneway||'').toLowerCase()==='yes'||props.is_oneway===true;\n          found.push({ coordinates: clean, roadClass: roadClassForFeature(feature), oneway, key: sourceId + ':' + key });
+          const props=feature.properties||{},oneway=props.oneway===true||props.oneway===1||String(props.oneway||'').toLowerCase()==='yes'||props.is_oneway===true;
+          found.push({ coordinates: clean, roadClass: roadClassForFeature(feature), oneway, key: sourceId + ':' + key });
           if (found.length >= MAX_ROAD_FEATURES) return;
         }
       }
