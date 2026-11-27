@@ -47,13 +47,40 @@ export function roadTriangles(polys,center,maxTriangles=44000){
 if(typeof WorkerGlobalScope!=='undefined'&&self instanceof WorkerGlobalScope)self.onmessage=e=>{try{const {features,center,radius,limit,seq}=e.data,polys=roadFootprints(features,center,radius,limit),mesh=roadTriangles(polys,center,limit<=500?36000:70000);self.postMessage({seq,polys,...mesh},[mesh.vertices.buffer]);}catch(e){self.postMessage({seq:e.data.seq,error:String(e)});}};
 export async function attachSourceSurfaces(map){
  if(!map||map.__BP_SOURCE_SURFACES_V2__)return;
- const d=map.__BP_SOURCE_SURFACES_V2__={status:'loading',roadPolygons:0,source:'Sketchfab asphalt scan and street material packs, mapped road centerlines'};window.__BP_SOURCE_SURFACES_V2__=d;
+ const d=map.__BP_SOURCE_SURFACES_V2__={status:'loading',roadPolygons:0,source:'mapped street surfaces, sidewalks, curbs, and source-backed road markings'};window.__BP_SOURCE_SURFACES_V2__=d;
  let dead=false,timer=0,dirty=true,signature='',loaded=false,running=false,worker=null,seq=0;
  const images={'bp-scan-asphalt-v2':'asphalt.png','bp-street-concrete-v2':'concrete.png','bp-old-curb-v2':'curb.png','bp-street-asphalt-v2':'old-asphalt.png'};
  const imageData={};
  const MESH='bp-source-road-mesh-v5';
  let T,renderer,scene,camera,material,texture,roadMesh,meshAnchor,meshVersion=0,lastMeshCenter=null,lastMeshRadius=0,lastBuiltAt=0,lastRoadPolys=[];
  d.meshVisible=true;d.meshDrawCalls=0;d.meshFrames=0;d.meshTriangles=0;d.meshBuilds=0;
+ d.markingsAboveMesh=false;d.markingLayers=[];
+ const streetDetailLayerIds=['gta-road-center-gold-bp','gta-road-center-white-bp','gta-road-major-center-v2300','gta-road-edge-v2300','gta-crosswalk-v2300','gta-service-guide-v2300','gta-service-drive-v2300','gta-pedestrian-casing-v2300','gta-pedestrian-surface-v2300','gta-road-major-marking','gta-road-local-marking'];
+ let streetOrderTimer=0;
+ function keepStreetRenderOrder(){
+  if(dead||!map.getLayer(MESH))return;
+  try{
+   let layers=map.getStyle()?.layers||[],symbol=layers.find(l=>l.type==='symbol')?.id||null;
+   let meshIndex=layers.findIndex(l=>l.id===MESH),symbolIndex=symbol?layers.findIndex(l=>l.id===symbol):-1;
+   if(meshIndex<0)return;
+   if(symbolIndex>=0&&meshIndex>symbolIndex){map.moveLayer(MESH,symbol);layers=map.getStyle()?.layers||[];meshIndex=layers.findIndex(l=>l.id===MESH);}
+   for(const id of streetDetailLayerIds){
+    if(!map.getLayer(id))continue;
+    layers=map.getStyle()?.layers||[];meshIndex=layers.findIndex(l=>l.id===MESH);
+    const index=layers.findIndex(l=>l.id===id),labelIndex=symbol?layers.findIndex(l=>l.id===symbol):-1;
+    if(index>=0&&meshIndex>=0&&(index<meshIndex||(labelIndex>=0&&index>labelIndex))){
+     if(symbol)map.moveLayer(id,symbol);else map.moveLayer(id);
+    }
+   }
+   layers=map.getStyle()?.layers||[];meshIndex=layers.findIndex(l=>l.id===MESH);
+   d.markingLayers=streetDetailLayerIds.filter(id=>map.getLayer(id));
+   d.markingsAboveMesh=d.markingLayers.length>0&&d.markingLayers.every(id=>layers.findIndex(l=>l.id===id)>meshIndex);
+  }catch(e){d.layerOrderError=String(e).slice(0,160);}
+ }
+ function scheduleStreetRenderOrder(){
+  if(dead||streetOrderTimer)return;
+  streetOrderTimer=setTimeout(()=>{streetOrderTimer=0;keepStreetRenderOrder();},120);
+ }
  function centerDistance(a,b){return Math.hypot((a[0]-b[0])*R*D*Math.cos(b[1]*D),(a[1]-b[1])*R*D);}
  function covered(p,z){if(!roadMesh||!lastMeshCenter||!lastRoadPolys.length||z<16.5)return false;const safe=Math.min(120,lastMeshRadius*.22);return centerDistance(p,lastMeshCenter)<safe;}
  function installMesh(){
@@ -111,7 +138,7 @@ export async function attachSourceSurfaces(map){
   // A single geometry owner prevents overlapping/z-fighting sidewalk surfaces.
   if(map.getLayer('gta-bp-sidewalk-slabs-v1'))map.setLayoutProperty('gta-bp-sidewalk-slabs-v1','visibility','none');
  }
- loaded=true;d.assets=Object.keys(imageData);return true;}
+ loaded=true;d.assets=Object.keys(imageData);scheduleStreetRenderOrder();return true;}
  function source(id,sl){try{return map.getSource(id)?map.querySourceFeatures(id,sl?{sourceLayer:sl}:{}):[]}catch(_){return []}}
  async function update(){if(dead||running||map.isMoving?.()||map.getZoom()<13.8)return;if(!install())return;
   const c=map.getCenter(),z=map.getZoom(),p=[c.lng,c.lat];
@@ -126,6 +153,6 @@ export async function attachSourceSurfaces(map){
  function schedule(){if(dead||timer||map.isMoving?.())return;timer=setTimeout(()=>{timer=0;update()},300);}
  function changed(e){if(['ofm','bpLivingWorld'].includes(e.sourceId)&&e.isSourceLoaded){const c=map.getCenter();if(covered([c.lng,c.lat],map.getZoom()))return;dirty=true;schedule();}}
  function moved(){const c=map.getCenter();if(covered([c.lng,c.lat],map.getZoom())){d.meshReused=true;d.status='ready';map.triggerRepaint();return;}dirty=true;schedule();}
- function style(){signature='';dirty=true;loaded=false;lastMeshCenter=null;lastRoadPolys=[];schedule();}
- map.on('moveend',moved);map.on('zoomend',moved);map.on('sourcedata',changed);map.on('style.load',style);map.once('remove',()=>{dead=true;clearTimeout(timer);worker?.terminate();map.off('moveend',moved);map.off('zoomend',moved);map.off('sourcedata',changed);map.off('style.load',style);});schedule();return d;
+ function style(){signature='';dirty=true;loaded=false;lastMeshCenter=null;lastRoadPolys=[];schedule();scheduleStreetRenderOrder();}
+ map.on('moveend',moved);map.on('zoomend',moved);map.on('sourcedata',changed);map.on('style.load',style);map.on('styledata',scheduleStreetRenderOrder);map.once('remove',()=>{dead=true;clearTimeout(timer);clearTimeout(streetOrderTimer);worker?.terminate();map.off('moveend',moved);map.off('zoomend',moved);map.off('sourcedata',changed);map.off('style.load',style);map.off('styledata',scheduleStreetRenderOrder);});schedule();scheduleStreetRenderOrder();return d;
 }
