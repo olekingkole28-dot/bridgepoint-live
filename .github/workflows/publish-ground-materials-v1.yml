@@ -123,8 +123,9 @@ jobs:
           cp street-detail-v1/sketchfab-road-models-v1.mjs "$SITE/vendor/bp-sketchfab-road-models-v1.mjs"
           cp street-detail-v1/road-infrastructure-v1.mjs "$SITE/vendor/bp-road-infrastructure-v1.mjs"
           node --check "$SITE/vendor/bp-road-infrastructure-v1.mjs"
-          git show 4525a825c198a1df7e18ac4f93b1f0afbd941da4:street-detail-v1/sketchfab-road-models-v1.mjs > "$RUNNER_TEMP/last-working-road.mjs"
-          cmp "$RUNNER_TEMP/last-working-road.mjs" "$SITE/vendor/bp-sketchfab-road-models-v1.mjs"
+          # Compare against the exact Git blob of the user-confirmed road renderer; no historical checkout needed.
+          test "$(git hash-object "$SITE/vendor/bp-sketchfab-road-models-v1.mjs")" = "21eee4fb50e85abd9fcd4099d27966fe79dffcd0"
+          echo "EXACT_WORKING_ROAD_BLOB_VERIFIED"
           python3 - "$SITE/assets/street-detail-v1" "$SITE" <<'PY'
           import gzip,json,sys
           from pathlib import Path
