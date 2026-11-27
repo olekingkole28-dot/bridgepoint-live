@@ -1205,13 +1205,13 @@
     const dt=Math.max(0,Math.min(.08,Number(deltaSeconds)||0)),current=interpolatePath(vehicle.path,vehicle.distance);
     if(!current)return null;
     const cruise=Number(vehicle.cruiseSpeed)||Number(vehicle.speed)||8;let target=cruise;
+    const followGap=vehicle.kind==='semi-trailer'||vehicle.kind==='tractor-truck'||vehicle.kind==='box-truck'?22:vehicle.kind==='city-bus'?18:10;
     let leaderGap=Infinity,minimumGap=followGap;
     for(const other of state.vehicles||[]){
       if(other===vehicle||other.path!==vehicle.path||other.direction!==vehicle.direction)continue;
       let gap=(other.distance-vehicle.distance)*vehicle.direction;if(gap<0)gap+=vehicle.path.length;
       if(gap>.1&&gap<leaderGap){leaderGap=gap;const own=SPECS[vehicle.kind]?.length||4.8,lead=SPECS[other.kind]?.length||4.8;minimumGap=Math.max(followGap,(own+lead)*.5+2);}
     }
-    const followGap=vehicle.kind==='semi-trailer'||vehicle.kind==='tractor-truck'||vehicle.kind==='box-truck'?22:vehicle.kind==='city-bus'?18:10;
     if(Number.isFinite(leaderGap))target=Math.min(target,Math.sqrt(2*4.2*Math.max(0,leaderGap-minimumGap)));
     const stop=signalApproach(vehicle,current,now);
     if(stop){
