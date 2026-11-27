@@ -202,17 +202,17 @@ jobs:
                   s,n=re.subn(r"(/vendor/bp-ground-materials-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-sketchfab-environment-v3",s)
                   assert n==1, f"{base}: expected one ground module URL, got {n}"
               road_anchor="map.on('idle',bpAttachGroundMaterials);"
-              road_hook="let bpSketchfabRoadModelsAttached=false;const bpAttachSketchfabRoadModels=()=>{if(bpSketchfabRoadModelsAttached||map.getZoom()<14.25)return;bpSketchfabRoadModelsAttached=true;import('/vendor/bp-sketchfab-road-models-v1.mjs?v=20261127-sketchfab-road-models-v1').then(m=>m.attachSketchfabRoadModels(map)).catch(e=>{bpSketchfabRoadModelsAttached=false;console.error('Sketchfab road meshes',e)});};map.on('moveend',bpAttachSketchfabRoadModels);map.on('zoomend',bpAttachSketchfabRoadModels);map.on('idle',bpAttachSketchfabRoadModels);"
+              road_hook="let bpSketchfabRoadModelsAttached=false;const bpAttachSketchfabRoadModels=()=>{if(bpSketchfabRoadModelsAttached||map.getZoom()<14.25)return;bpSketchfabRoadModelsAttached=true;import('/vendor/bp-sketchfab-road-models-v1.mjs?v=20261127-connected-sketchfab-roads-v2').then(m=>m.attachSketchfabRoadModels(map)).catch(e=>{bpSketchfabRoadModelsAttached=false;console.error('Sketchfab road meshes',e)});};map.on('moveend',bpAttachSketchfabRoadModels);map.on('zoomend',bpAttachSketchfabRoadModels);map.on('idle',bpAttachSketchfabRoadModels);"
               if "bpSketchfabRoadModelsAttached" not in s:
                   assert s.count(road_anchor)==1
                   s=s.replace(road_anchor,road_anchor+" "+road_hook)
               building_anchor="map.on('idle',bpAttachSketchfabRoadModels);"
-              building_hook="let bpSketchfabBuildingsAttached=false;const bpAttachSketchfabBuildings=()=>{if(bpSketchfabBuildingsAttached||map.getZoom()<13.6)return;bpSketchfabBuildingsAttached=true;import('/vendor/bp-sketchfab-buildings-v1.mjs?v=20261127-city-building-variants-v1').then(m=>m.attachSketchfabBuildings(map)).catch(e=>{bpSketchfabBuildingsAttached=false;console.warn('Sketchfab building models',e)});};map.on('moveend',bpAttachSketchfabBuildings);map.on('zoomend',bpAttachSketchfabBuildings);map.on('idle',bpAttachSketchfabBuildings);"
+              building_hook="let bpSketchfabBuildingsAttached=false;const bpAttachSketchfabBuildings=()=>{if(bpSketchfabBuildingsAttached||map.getZoom()<13.6)return;bpSketchfabBuildingsAttached=true;import('/vendor/bp-sketchfab-buildings-v1.mjs?v=20261127-building-legacy-suppression-v2').then(m=>m.attachSketchfabBuildings(map)).catch(e=>{bpSketchfabBuildingsAttached=false;console.warn('Sketchfab building models',e)});};map.on('moveend',bpAttachSketchfabBuildings);map.on('zoomend',bpAttachSketchfabBuildings);map.on('idle',bpAttachSketchfabBuildings);"
               if "bpSketchfabBuildingsAttached" not in s:
                   assert s.count(building_anchor)==1
                   s=s.replace(building_anchor,building_anchor+" "+building_hook)
               else:
-                  s,n=re.subn(r"(/vendor/bp-sketchfab-buildings-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-city-building-variants-v1",s)
+                  s,n=re.subn(r"(/vendor/bp-sketchfab-buildings-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-building-legacy-suppression-v2",s)
                   assert n==1, f"{base}: building model module URL missing"
               p.write_text(s)
               for name in ('index.html','landing.js','app.js'):
