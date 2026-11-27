@@ -78,7 +78,8 @@ jobs:
               p=site/rel;s=p.read_text();n=s.replace('20261126-traffic-v1','20261127-signal-vehicle-sync-v3').replace('20261126-traffic-v2','20261127-signal-vehicle-sync-v3')
               if s!=n:p.write_text(n);allowed.add(rel)
           rel='assets/street-detail-v1/traffic-credits.html';p=site/rel;s=p.read_text()
-          if('Infrastructure and road tiles:' not in s:p.write_text(s+'<p>Infrastructure and road tiles: <a href="https://overturemaps.org/">Overture Maps Foundation</a>, 2026-10-21.0. OSM-derived data licensed ODbL. Approach orientation and roadside pole placement are estimates.</p>')
+          if 'Infrastructure and road tiles:' not in s:
+              p.write_text(s+'<p>Infrastructure and road tiles: <a href="https://overturemaps.org/">Overture Maps Foundation</a>, 2026-10-21.0. OSM-derived data licensed ODbL. Approach orientation and roadside pole placement are estimates.</p>')
           allowed.add(rel)
           after=hashes();assert before.keys()<=after.keys();assert {p for p in after if before.get(p)!=after[p]}==allowed
           print('TRAFFIC_V2_SCOPE_PASS',sorted(allowed))
