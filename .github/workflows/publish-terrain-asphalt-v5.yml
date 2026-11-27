@@ -1,0 +1,147 @@
+name: BridgePoint textured terrain asphalt V5
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-terrain-asphalt-v5.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            # A deployment can succeed even if its subsequent live smoke test fails.
+            # Accept such a snapshot only when the deploy step succeeded AND every live file matches.
+            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')"
+            if [ "$conclusion" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '[.jobs[].steps[] | select(.conclusion=="success" and (.name|test("^(Publish the preserved production snapshot|Publish validated|Publish the close-zoom|Deploy to GitHub Pages)")))] | length')"
+              if [ "$deployed" = 0 ]; then continue; fi
+            fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs vendor/bp-source-surfaces-v2.mjs vendor/bp-traffic-furniture-v1.mjs vendor/bp-traffic-overture-v3.mjs assets/street-detail-v1/retro-traffic-signals.glb.gz assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-viewport-forest-v5.mjs bridgepoint-app-space-explorer-v1.js; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then echo "Baseline mismatch $run $p"; same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <( { grep -E "^45913159460[[:space:]]" "$RUNNER_TEMP/candidates" || true; head -15 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install only the opaque street surface renderer
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright esbuild polygon-clipping@0.15.7 earcut@3.0.2 pngjs@7.0.0
+          cp street-detail-v1/source-surfaces-v2.mjs "$BP_TEST/source-surfaces.mjs"
+          "$BP_TEST/node_modules/.bin/esbuild" "$BP_TEST/source-surfaces.mjs" --bundle --format=esm --platform=browser --target=es2022 --outfile="$BP_TEST/bp-source-surfaces-v2.mjs"
+          python3 - "$SITE" "$BP_TEST" <<'PY'
+          import sys,hashlib
+          from pathlib import Path
+          site=Path(sys.argv[1]);test=Path(sys.argv[2])
+          def hashes():return {str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          before=hashes();allowed={'vendor/bp-source-surfaces-v2.mjs'}
+          (site/'vendor/bp-source-surfaces-v2.mjs').write_bytes((test/'bp-source-surfaces-v2.mjs').read_bytes())
+          for rel in ('world-v2300-map.js','app/world-v2300-map.js','index.html','app/index.html','landing.js','app.js'):
+              p=site/rel;s=p.read_text();n=s.replace('20261126-source-surfaces-v2','20261126-terrain-asphalt-v5')
+              if n!=s:p.write_text(n);allowed.add(rel)
+          after=hashes();assert before.keys()==after.keys();assert {p for p in before if before[p]!=after[p]}==allowed
+          print('ASPHALT_ONLY_SCOPE_PASS',sorted(allowed))
+          PY
+          node --check "$SITE/vendor/bp-source-surfaces-v2.mjs"
+          for f in world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Require asphalt on the actual homepage with real map sources
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          a=s.index('try{const p=await browser.newPage');b=s.index('}finally{await browser.close()',a)
+          s=s[:a]+"try{\n const {PNG}=require('pngjs'),p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});\n p.on('pageerror',e=>console.log('REAL_SURFACE_PAGE_ERROR',e.message));\n await p.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:90000});\n await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()&&typeof window.__BP_APP_SPACE_EXPLORER_V1__?.showPublicOverview==='function'},null,{timeout:120000});\n const probe=()=>p.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter(),d=window.__BP_SOURCE_SURFACES_V2__;return {state:d,zoom:m.getZoom(),center:[c.lng,c.lat],terrain:!!m.getTerrain(),moving:m.isMoving(),layer:!!m.getLayer('bp-source-road-mesh-v5')};});\n const setVisible=async v=>{await p.evaluate(v=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;window.__BP_SOURCE_SURFACES_V2__.meshVisible=v;m.triggerRepaint();},v);await p.waitForTimeout(1500);};\n const capture=async(name)=>PNG.sync.read(await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'actual-asphalt-'+name+'.png'),timeout:30000}));\n const diff=(a,b,c)=>{let pixels=0,stable=0;for(let y=Math.floor(a.height*.30);y<a.height*.85;y++)for(let x=Math.floor(a.width*.14);x<a.width*.88;x++){const i=(y*a.width+x)*4,dist=(u,v)=>Math.abs(u.data[i]-v.data[i])+Math.abs(u.data[i+1]-v.data[i+1])+Math.abs(u.data[i+2]-v.data[i+2]);if(dist(a,c)<=24){stable++;if(dist(a,b)>=45&&dist(c,b)>=45)pixels++;}}return {pixels,stable};};\n let center=[-73.98565,40.75843];\n for(const [zoom,pitch,bearing] of [[17.3,36,0],[20,32,15]]){\n  await p.evaluate(({center,zoom,pitch,bearing})=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;m.jumpTo({center,zoom,pitch,bearing});},{center,zoom,pitch,bearing});\n  await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,d=window.__BP_SOURCE_SURFACES_V2__;return Math.abs(m.getZoom()-z)<.05&&!m.isMoving()&&d?.meshGrounded&&d.meshTriangles>0&&d.meshDrawCalls>0&&Math.abs(d.meshZoom-z)<.05;},zoom,{timeout:150000});\n  const initial=await probe();console.log('ASPHALT_3D_MESH_BEFORE_VISUAL',initial);assert(initial.layer&&initial.terrain&&initial.state.meshRenderedTriangles>0);\n  await setVisible(true);const on=await capture(zoom+'-on');\n  await setVisible(false);const off=await capture(zoom+'-off');\n  await setVisible(true);const restored=await capture(zoom+'-restored');\n  const result=diff(on,off,restored),after=await probe();console.log('ASPHALT_3D_MESH_PIXEL_COMPARISON',zoom,result,after);\n  assert(Math.abs(after.zoom-zoom)<.05&&after.state.meshVisible,'Camera or asphalt visibility changed during test');\n  assert(result.stable>1000&&result.pixels>150,'No reproducible asphalt pixel coverage on the actual globe');\n  assert(Array.isArray(after.state.nearestRoad));center=after.state.nearestRoad;\n }\n console.log('ACTUAL_HOMEPAGE_ASPHALT_CITY_AND_STREET_PIXEL_PASS');await p.close();\n"+s[b:]
+          Path('street-detail-v1/verify-actual-asphalt-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-actual-asphalt-generated.mjs
+      - name: Retain actual asphalt browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asphalt-render-proof-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/actual-asphalt*.png
+          if-no-files-found: warn
+      - name: Verify real homepage camera and touch navigation
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GLOBE_PAGE_ERROR',e.message));await p.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:90000});await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()&&w.map.getMaxZoom()===22},null,{timeout:120000});const get=()=>p.evaluate(()=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;const r=m.getCanvas().getBoundingClientRect();return {zoom:m.getZoom(),lng:m.getCenter().lng,lat:m.getCenter().lat,min:m.getMinZoom(),max:m.getMaxZoom(),pinch:m.touchZoomRotate.isEnabled(),drag:m.dragPan.isEnabled(),x:r.x+r.width/2,y:r.y+r.height/2}});await p.waitForFunction(()=>typeof window.__BP_APP_SPACE_EXPLORER_V1__?.showPublicOverview==='function',null,{timeout:90000});const initial=await get();console.log('GLOBE_BEFORE_INPUT',initial);assert(initial.max===22&&initial.pinch&&initial.drag);const button=p.locator('.maplibregl-ctrl-zoom-in').first();await button.click({timeout:20000});await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.5},initial.zoom,{timeout:20000});const plus=await get();console.log('GLOBE_BUTTON_ZOOM_PASS',plus);await p.waitForFunction(()=>!(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map.isMoving(),null,{timeout:20000});const cdp=await p.context().newCDPSession(p);const send=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y],id)=>({x,y,id}))});const x=plus.x,y=plus.y;console.log('GLOBE_PINCH_HIT_TARGET',await p.evaluate(([x,y])=>{const e=document.elementFromPoint(x,y);return {tag:e?.tagName,id:e?.id,className:String(e?.className),space:window.__BP_APP_SPACE_EXPLORER_V1__?.state}},[x,y]));await send('touchStart',[[x-26,y],[x+26,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x-26-i*7,y],[x+26+i*7,y]]);await p.waitForTimeout(45)}await send('touchEnd',[]);console.log('GLOBE_AFTER_RAW_PINCH',await get());await p.waitForFunction(z=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map;return m.getZoom()>z+.3},plus.zoom,{timeout:20000});const pinch=await get();console.log('GLOBE_PLUS_AND_PINCH_PASS',initial,plus,pinch);await send('touchStart',[[x,y]]);for(let i=1;i<=8;i++){await send('touchMove',[[x+i*10,y+i*3]]);await p.waitForTimeout(35)}await send('touchEnd',[]);await p.waitForFunction(v=>{const m=(window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420).map,c=m.getCenter();return Math.abs(c.lng-v.lng)+Math.abs(c.lat-v.lat)>.1},pinch,{timeout:20000});console.log('GLOBE_REAL_TOUCH_DRAG_PASS',await get());await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-normal-globe-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-normal-globe-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated terrain asphalt V5
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live traffic assets and preserved navigation/renderers
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-source-surfaces-v2.mjs assets/street-detail-v1/surfaces-v2/asphalt.png assets/street-detail-v1/surfaces-v2/concrete.png assets/street-detail-v1/surfaces-v2/curb.png assets/street-detail-v1/surfaces-v2/old-asphalt.png vendor/bp-traffic-overture-v3.mjs data/bp-traffic-furniture-v1/real-seed-v2.json vendor/bp-traffic-furniture-v1.mjs assets/street-detail-v1/retro-traffic-signals.glb.gz assets/street-detail-v1/road-traffic-sign.glb.gz assets/street-detail-v1/traffic-credits.html data/bp-traffic-furniture-v1/left-driving.json assets/street-detail-v1/signs.glb.gz vendor/bp-street-detail-v1.mjs landing.js app.js bridgepoint-app-space-explorer-v1.js world-v2300-map.js app/world-v2300-map.js index.html app/index.html world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-viewport-forest-v5.mjs world-v2300-water.js app/world-v2300-water.js; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?camera=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo TERRAIN_ASPHALT_V5_LIVE_PASS
