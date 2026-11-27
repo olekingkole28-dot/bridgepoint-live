@@ -55,26 +55,35 @@ export async function attachSourceSurfaces(map){
  let T,renderer,scene,camera,material,texture,roadMesh,meshAnchor,meshVersion=0,lastMeshCenter=null,lastMeshRadius=0,lastBuiltAt=0,lastRoadPolys=[];
  d.meshVisible=true;d.meshDrawCalls=0;d.meshFrames=0;d.meshTriangles=0;d.meshBuilds=0;
  d.markingsAboveMesh=false;d.markingLayers=[];
- const streetDetailLayerIds=['gta-road-center-gold-bp','gta-road-center-white-bp','gta-road-major-center-v2300','gta-road-edge-v2300','gta-crosswalk-v2300','gta-service-guide-v2300','gta-service-drive-v2300','gta-pedestrian-casing-v2300','gta-pedestrian-surface-v2300','gta-road-major-marking','gta-road-local-marking'];
+ const existingStreetDetailLayerIds=['gta-road-center-gold-bp','gta-road-center-white-bp','gta-road-major-center-v2300','gta-road-edge-v2300','gta-crosswalk-v2300','gta-service-guide-v2300','gta-service-drive-v2300','gta-pedestrian-casing-v2300','gta-pedestrian-surface-v2300','gta-road-major-marking','gta-road-local-marking'];
+ const sourceStreetLineLayers=[
+  {id:'bp-source-road-edge-v3',type:'line',source:'ofm','source-layer':'transportation',minzoom:9.3,filter:['in','class','motorway','trunk','primary','secondary'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#f0f2ed','line-width':['interpolate',['linear'],['zoom'],9.3,.18,13,.35,17,.7,20,1.1],'line-gap-width':['interpolate',['exponential',1.25],['zoom'],9.3,1.2,13,2.8,17,7.5,20,13],'line-opacity':['interpolate',['linear'],['zoom'],9.3,.18,12,.4,15,.68,18,.82]}},
+  {id:'bp-source-road-center-v3',type:'line',source:'ofm','source-layer':'transportation',minzoom:14,filter:['in','class','motorway','trunk','primary','secondary'],layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['match',['get','class'],'secondary','#f5f3ed','#f2c94c'],'line-width':['interpolate',['linear'],['zoom'],14,.42,17,.9,20,1.45],'line-opacity':['interpolate',['linear'],['zoom'],14,.35,16,.74,20,.9],'line-dasharray':[3,4]}},
+  {id:'bp-source-local-center-v3',type:'line',source:'ofm','source-layer':'transportation',minzoom:16.2,filter:['in','class','tertiary','minor'],layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':'#f5f3ed','line-width':['interpolate',['linear'],['zoom'],16.2,.3,20,.8],'line-opacity':.62,'line-dasharray':[2,5]}},
+  {id:'bp-source-crosswalk-v3',type:'line',source:'ofm','source-layer':'transportation',minzoom:14.1,filter:['in','subclass','crossing','crosswalk'],layout:{'line-cap':'butt'},paint:{'line-color':'#f7f7f2','line-width':['interpolate',['linear'],['zoom'],14.1,.7,17,1.7,20,3.2],'line-opacity':.92,'line-dasharray':[.45,.7]}},
+  {id:'bp-source-service-drive-v3',type:'line',source:'ofm','source-layer':'transportation',minzoom:10.4,filter:['all',['==','class','service'],['!in','subclass','pedestrian','footway','path','cycleway','steps','sidewalk']],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#d2d1c9','line-width':['interpolate',['exponential',1.25],['zoom'],10.4,.48,13,1.18,16,3.15,20,7.5],'line-opacity':['interpolate',['linear'],['zoom'],10.4,.38,12,.68,15,.96]}},
+  {id:'bp-source-pedestrian-path-v3',type:'line',source:'ofm','source-layer':'transportation',minzoom:11.25,filter:['any',['==','class','path'],['in','subclass','pedestrian','footway','path','cycleway','sidewalk','steps']],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#a8ada9','line-width':['interpolate',['linear'],['zoom'],11.25,.3,15,1.0,19,2.6],'line-opacity':['interpolate',['linear'],['zoom'],11.25,.28,14,.62,17,.9]}}
+ ];
+ const streetDetailLayerIds=[...sourceStreetLineLayers.map(x=>x.id),...existingStreetDetailLayerIds];
  let streetOrderTimer=0;
+ function firstSymbolLayer(){return(map.getStyle()?.layers||[]).find(l=>l.type==='symbol')?.id||null;}
+ function installStreetMarkings(){
+  if(!map.getSource('ofm'))return;
+  const before=firstSymbolLayer();
+  for(const layer of sourceStreetLineLayers)if(!map.getLayer(layer.id)){try{map.addLayer(layer,before||undefined);}catch(e){d.markingInstallError=String(e).slice(0,160);}}
+ }
  function keepStreetRenderOrder(){
   if(dead||!map.getLayer(MESH))return;
   try{
-   let layers=map.getStyle()?.layers||[],symbol=layers.find(l=>l.type==='symbol')?.id||null;
-   let meshIndex=layers.findIndex(l=>l.id===MESH),symbolIndex=symbol?layers.findIndex(l=>l.id===symbol):-1;
-   if(meshIndex<0)return;
-   if(symbolIndex>=0&&meshIndex>symbolIndex){map.moveLayer(MESH,symbol);layers=map.getStyle()?.layers||[];meshIndex=layers.findIndex(l=>l.id===MESH);}
-   for(const id of streetDetailLayerIds){
-    if(!map.getLayer(id))continue;
-    layers=map.getStyle()?.layers||[];meshIndex=layers.findIndex(l=>l.id===MESH);
-    const index=layers.findIndex(l=>l.id===id),labelIndex=symbol?layers.findIndex(l=>l.id===symbol):-1;
-    if(index>=0&&meshIndex>=0&&(index<meshIndex||(labelIndex>=0&&index>labelIndex))){
-     if(symbol)map.moveLayer(id,symbol);else map.moveLayer(id);
-    }
-   }
-   layers=map.getStyle()?.layers||[];meshIndex=layers.findIndex(l=>l.id===MESH);
-   d.markingLayers=streetDetailLayerIds.filter(id=>map.getLayer(id));
-   d.markingsAboveMesh=d.markingLayers.length>0&&d.markingLayers.every(id=>layers.findIndex(l=>l.id===id)>meshIndex);
+   const symbol=firstSymbolLayer(),present=streetDetailLayerIds.filter(id=>map.getLayer(id));
+   const first=present[0];
+   let anchored=false;
+   if(first){try{map.moveLayer(MESH,first);anchored=true;}catch(e){d.layerOrderError=String(e).slice(0,160);}}
+   if(symbol)for(const id of present){try{map.moveLayer(id,symbol);}catch(e){d.layerOrderError=String(e).slice(0,160);}}
+   d.markingLayers=present;
+   // The custom mesh is deliberately inserted before this source-backed linework;
+   // MapLibre's serialized style omits runtime custom layers from getStyle().layers.
+   d.markingsAboveMesh=!!first&&anchored&&present.length>0&&present.every(id=>!!map.getLayer(id));
   }catch(e){d.layerOrderError=String(e).slice(0,160);}
  }
  function scheduleStreetRenderOrder(){
@@ -85,6 +94,7 @@ export async function attachSourceSurfaces(map){
  function covered(p,z){if(!roadMesh||!lastMeshCenter||!lastRoadPolys.length||z<16.5)return false;const safe=Math.min(120,lastMeshRadius*.22);return centerDistance(p,lastMeshCenter)<safe;}
  function installMesh(){
   if(!T||map.getLayer(MESH))return;
+  const before=streetDetailLayerIds.find(id=>map.getLayer(id))||firstSymbolLayer()||undefined;
   map.addLayer({id:MESH,type:'custom',renderingMode:'3d',onAdd(m,gl){
    renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});renderer.autoClear=false;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NoToneMapping;
    scene=new T.Scene();camera=new T.Camera();const img=imageData['bp-scan-asphalt-v2'];
@@ -94,7 +104,7 @@ export async function attachSourceSurfaces(map){
    if(!renderer||!scene||!roadMesh||!meshAnchor||map.getZoom()<14.6||document.hidden||!d.meshVisible)return;
    const raw=map.transform?.getMatrixForModel?.(meshAnchor.q,meshAnchor.z),matrix=args?.defaultProjectionData?.mainMatrix;if(!raw||!matrix)return;
    camera.projectionMatrix.fromArray(matrix).multiply(new T.Matrix4().fromArray(raw));renderer.resetState();renderer.render(scene,camera);d.meshDrawCalls=renderer.info.render.calls;d.meshFrames++;d.meshRenderedTriangles=renderer.info.render.triangles;d.meshZoom=map.getZoom();
-  },onRemove(){roadMesh?.geometry.dispose();roadMesh=null;material?.dispose();texture?.dispose();renderer?.dispose();renderer=null;scene=null;meshAnchor=null;d.meshDrawCalls=0;d.meshTriangles=0;}});
+  },onRemove(){roadMesh?.geometry.dispose();roadMesh=null;material?.dispose();texture?.dispose();renderer?.dispose();renderer=null;scene=null;meshAnchor=null;d.meshDrawCalls=0;d.meshTriangles=0;}},before);
  }
  async function makeRoadMesh(center,vertices,version){
   if(!scene||!vertices?.length)return false;
@@ -122,7 +132,7 @@ export async function attachSourceSurfaces(map){
  if(dead)return;
  function install(){if(!map.getStyle()?.layers?.length)return false;
  for(const [id,img] of Object.entries(imageData))if(!map.hasImage(id))map.addImage(id,img,{pixelRatio:4});
- installMesh();
+ installMesh();installStreetMarkings();
  if(!map.getSource(SRC))map.addSource(SRC,{type:'geojson',data:empty(),maxzoom:20});
  if(!map.getLayer(LAYER)){
   const before=['gta-road-major-marking','gta-road-local-marking','gta-context-building-footprints','gta-water-label'].find(x=>map.getLayer(x));
