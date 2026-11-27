@@ -21,14 +21,7 @@ function collectFeatures(map){const out=[],seen=new Set();const add=fs=>{for(con
  return out;
 }
 function collectRoadPieces(features,center,map,templates){
- const c=toMerc(center),cos=Math.max(.12,Math.cos(center[1]*RAD)),radius=map.getZoom()<15?1900:map.getZoom()<17?1050:650,canvas=map.getCanvas(),pieces=[],seenWays=new Set(),ends=new Map(),probes=[];
- const angleGap=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
- const addArm=(q,neighbor,width,cls)=>{
-  const p=toMerc(q),n=toMerc(neighbor),bearing=Math.atan2(n[0]-p[0],n[1]-p[1]),key=q.map(v=>Number(v).toFixed(5)).join(':');
-  let node=ends.get(key);if(!node){node={q,bearings:[],width:0,classes:new Set()};ends.set(key,node);}
-  if(!node.bearings.some(x=>angleGap(x,bearing)<20*RAD))node.bearings.push(bearing);
-  node.width=Math.max(node.width,width);node.classes.add(cls);
- };
+ const c=toMerc(center),cos=Math.max(.12,Math.cos(center[1]*RAD)),radius=map.getZoom()<15?1900:map.getZoom()<17?1050:650,canvas=map.getCanvas(),pieces=[],seenWays=new Set(),probes=[];
  for(const {line,properties:p} of features){
   const cls=lower(p.class).replace(/_link$/,''),probe={class:cls,vertices:line.length,piecesAdded:0},wayKey=lineSignature(line,cls);
   probes.push(probe);if(seenWays.has(wayKey)){probe.skip='duplicate';continue;}seenWays.add(wayKey);
@@ -36,12 +29,12 @@ function collectRoadPieces(features,center,map,templates){
   for(let i=1;i<projected.length;i++)cum.push(cum[i-1]+Math.hypot((projected[i][0]-projected[i-1][0])*cos,(projected[i][1]-projected[i-1][1])*cos));
   const total=cum[cum.length-1];probe.totalMeters=total;if(total<4){probe.skip='short-line';continue;}
   const carriage=widthFor(p),urban=!['motorway','trunk'].includes(cls)||String(p.sidewalk||'').toLowerCase()==='both',fullWidth=carriage+(urban&&String(p.sidewalk||'').toLowerCase()!=='no'?3.2:0);
-  if(line.length>=2){addArm(line[0],line[1],fullWidth,cls);addArm(line[line.length-1],line[line.length-2],fullWidth,cls);}
-  const asset=(p.oneway==='yes'||p.oneway===true||p.oneway==='-1')?'street2':(['motorway','trunk','primary','secondary'].includes(cls)?'street3':'street1');
-  const t=templates[asset];probe.asset=asset;probe.templateSize=t?.size;
+  const asset=(p.oneway==='yes'||p.oneway===true||p.oneway==='-1')?'street2':'street1',t=templates[asset];
+  probe.asset=asset;probe.templateSize=t?.size;
   if(!t){probe.skip='template-missing';continue;}
-  const count=Math.min(5000,Math.max(1,Math.ceil(total/Math.max(6,t.size.z)))),chunk=total/count;
-  probe.segmentCount=count;probe.chunkMeters=chunk;
+  // Use only straight Sketchfab road/sidewalk sections. Real mapped road ribbons cross to form intersections.
+  const nominal=Math.max(6,t.size.z),count=Math.min(5000,Math.max(1,Math.ceil(total/nominal))),chunk=total/count;
+  probe.segmentCount=count;probe.chunkMeters=chunk;probe.intersectionMethod='mapped centerlines cross directly';
   for(let i=0;i<count;i++){
    const a=atDistance(projected,cum,i*chunk),b=atDistance(projected,cum,(i+1)*chunk),dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx*cos,dy*cos);
    if(len<3){probe.skip='short-segment';continue;}
@@ -49,34 +42,14 @@ function collectRoadPieces(features,center,map,templates){
    if(dist>radius)continue;
    const q=fromMerc(mid),px=map.project(q);
    if(px.x< -80||px.y< -80||px.x>canvas.clientWidth+80||px.y>canvas.clientHeight+80)continue;
-   pieces.push({q,dx,dy,len,width:fullWidth,asset,yaw:Math.atan2(dx,dy),dist});probe.piecesAdded++;
+   // A small end overlap closes seams without enlarging mapped road width.
+   const overlap=Math.min(.9,len*.045),runLength=Math.min(t.size.z*1.08,len+overlap);
+   pieces.push({q,dx,dy,len:runLength,width:fullWidth,asset,yaw:Math.atan2(dx,dy),dist});probe.piecesAdded++;
   }
- }
- const axisForFourWay=node=>{
-  const arms=node.bearings;if(arms.length!==4)return null;
-  const pairs=[];
-  for(let i=0;i<arms.length;i++)for(let j=i+1;j<arms.length;j++){
-   const gap=angleGap(arms[i],arms[j]);if(Math.abs(Math.PI-gap)<=28*RAD)pairs.push({i,j,error:Math.abs(Math.PI-gap)});
-  }
-  pairs.sort((a,b)=>a.error-b.error);
-  for(const a of pairs)for(const b of pairs){
-   if(a===b||a.i===b.i||a.i===b.j||a.j===b.i||a.j===b.j||a.error>24*RAD||b.error>24*RAD)continue;
-   return {bearing:arms[a.i],span:Math.max(node.width*2.1,node.width+8)};
-  }
-  return null;
- };
- const junctions=[...ends.values()].map(node=>{
-  const axis=axisForFourWay(node);if(!axis)return null;
-  const p=toMerc(node.q);return {...node,...axis,dist:Math.hypot((p[0]-c[0])*cos,(p[1]-c[1])*cos)};
- }).filter(Boolean).filter(j=>j.dist<radius).sort((a,b)=>a.dist-b.dist).slice(0,120);
- for(const j of junctions){
-  const px=map.project(j.q);if(px.x< -120||px.y< -120||px.x>canvas.clientWidth+120||px.y>canvas.clientHeight+120)continue;
-  const t=templates.street4,scale=clamp(j.span/Math.max(t.size.x,t.size.z),.25,4);
-  pieces.push({q:j.q,dx:Math.sin(j.bearing),dy:Math.cos(j.bearing),len:t.size.z*scale,width:t.size.x*scale,asset:'street4',yaw:j.bearing,dist:j.dist,intersection:true});
  }
  const collectionProbe={center,zoom:map.getZoom(),radiusMeters:radius,canvas:{width:canvas.clientWidth,height:canvas.clientHeight},features:probes};
  pieces.sort((a,b)=>a.dist-b.dist);
- return {pieces:pieces.slice(0,(innerWidth<=700?900:1600)),junctionCount:junctions.length,collectionProbe};
+ return {pieces:pieces.slice(0,(innerWidth<=700?900:1600)),junctionCount:0,collectionProbe};
 }
 export function attachSketchfabRoadModels(map){
  if(!map||map.__BP_SKETCHFAB_ROAD_MODELS_V1__)return map?.__BP_SKETCHFAB_ROAD_MODELS_V1__;
@@ -159,9 +132,9 @@ export function attachSketchfabRoadModels(map){
   for(const row of rows){const t=templates[row.asset];if(!t)continue;const mxy=toMerc(row.q),x=(mxy[0]-c[0])*cos,y=(mxy[1]-c[1])*cos,lx=ee.x*x+nn.x*y,lz=ee.z*x+nn.z*y;let z=base;try{if(map.getTerrain?.()){const e=map.queryTerrainElevation(row.q,{exaggerated:true});if(Number.isFinite(e))z=e;}}catch(_){}const widthScale=clamp(row.width/t.size.x,.02,8),lengthScale=clamp(row.len/t.size.z,.02,8),matrix=new T.Matrix4().makeTranslation(lx,z-base+.035,lz).multiply(new T.Matrix4().makeRotationY(row.yaw)).multiply(new T.Matrix4().makeScale(widthScale,1,lengthScale));accepted[row.asset].push(matrix);}
   const next=new T.Group();next.frustumCulled=false;let roadCount=0,intersectionCount=0,triangles=0;for(const name of Object.keys(accepted)){const matrices=accepted[name];if(!matrices.length)continue;const t=templates[name];const mesh=new T.InstancedMesh(t.geometry,t.material,matrices.length);mesh.frustumCulled=false;for(let i=0;i<matrices.length;i++)mesh.setMatrixAt(i,matrices[i]);mesh.instanceMatrix.needsUpdate=true;mesh.userData.sketchfabRoadAsset=true;next.add(mesh);triangles+=t.triangles*matrices.length;if(name==='street4')intersectionCount=matrices.length;else roadCount+=matrices.length;}
   state.acceptedModels=Object.fromEntries(Object.entries(accepted).map(([name,items])=>[name,items.length]));if(!next.children.length)return null;return{group:next,base,roadCount,intersectionCount,triangles};}
- async function refresh(){if(dead||map.isMoving?.()||map.getZoom()<14.4)return;if(!T){void initialize();return;}const center=[map.getCenter().lng,map.getCenter().lat],features=collectFeatures(map),rows=collectRoadPieces(features,center,map,templates);state.mappedRoadFeatures=features.length;state.collectionProbe=rows.collectionProbe;state.sourceCandidates=rows.pieces.length;state.junctionCandidates=rows.junctionCount;const key=center.map(v=>v.toFixed(4)).join(':')+':'+Math.floor(map.getZoom()*2)+':'+rows.pieces.map(x=>x.q.map(v=>v.toFixed(5)).join(',')+x.asset).join('|');if(key===lastKey)return;const run=++seq,built=createGroup(rows.pieces,center);if(dead||run!==seq||map.isMoving?.())return;if(!built){state.status='waiting-for-mapped-roads';return;}clearGroup();group=built.group;scene.add(group);anchor=center;anchorZ=built.base;lastKey=key;state.status='ready';state.roadInstances=built.roadCount;state.intersectionInstances=built.intersectionCount;state.junctions=rows.junctionCount;state.triangles=built.triangles;state.sourceCandidates=rows.pieces.length;state.terrainAnchored=true;state.sidewalksAttached=true;state.curbsAttached=true;state.model='Pack de Ruas LW3D v2';state.updatedAt=Date.now();
+ async function refresh(){if(dead||map.isMoving?.()||map.getZoom()<14.4)return;if(!T){void initialize();return;}const center=[map.getCenter().lng,map.getCenter().lat],features=collectFeatures(map),rows=collectRoadPieces(features,center,map,templates);state.mappedRoadFeatures=features.length;state.collectionProbe=rows.collectionProbe;state.sourceCandidates=rows.pieces.length;state.junctionCandidates=rows.junctionCount;const key=center.map(v=>v.toFixed(4)).join(':')+':'+Math.floor(map.getZoom()*2)+':'+rows.pieces.map(x=>x.q.map(v=>v.toFixed(5)).join(',')+x.asset).join('|');if(key===lastKey)return;const run=++seq,built=createGroup(rows.pieces,center);if(dead||run!==seq||map.isMoving?.())return;if(!built){state.status='waiting-for-mapped-roads';return;}clearGroup();group=built.group;scene.add(group);anchor=center;anchorZ=built.base;lastKey=key;state.status='ready';state.roadInstances=built.roadCount;state.intersectionInstances=built.intersectionCount;state.junctions=rows.junctionCount;state.triangles=built.triangles;state.sourceCandidates=rows.pieces.length;state.terrainAnchored=true;state.sidewalksAttached=true;state.curbsAttached=true;state.model='Pack de Ruas LW3D v2 · continuous mapped centerlines';state.updatedAt=Date.now();
   // Keep mapped asphalt, sidewalks, curbs, and markings visible beneath viewport-local Sketchfab meshes.
-  disableDuplicateFallback();map.triggerRepaint();}
+  restoreDuplicateFallback();state.sourceSurfaceFallback=true;state.intersectionStrategy='mapped straight road ribbons meet at real centerlines';map.triggerRepaint();}
  function schedule(){if(dead||timer)return;timer=setTimeout(()=>{timer=0;if(map.getZoom()<14.4){if(group)clearGroup();restoreDuplicateFallback();state.status='standby';return;}void refresh();},350);}
  map.on('moveend',schedule);map.on('zoomend',schedule);map.on('sourcedata',e=>{if(['ofm','bpLivingWorld'].includes(e.sourceId)&&e.isSourceLoaded)schedule();});map.on('bpsurfacemaskready',()=>{if(state.status==='ready')disableDuplicateFallback();});map.on('style.load',()=>{lastKey='';oldVisibility={};schedule();});map.once('remove',()=>{dead=true;seq++;clearTimeout(timer);map.off('moveend',schedule);map.off('zoomend',schedule);for(const [id,v] of Object.entries(oldVisibility))if(map.getLayer(id))try{map.setLayoutProperty(id,'visibility',v||'visible');}catch(_){}clearGroup();restoreDuplicateFallback();});void initialize();return state;
 }
