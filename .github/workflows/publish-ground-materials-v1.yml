@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/publish-ground-materials-v1.yml','street-detail-v1/install.py','street-detail-v1/sketchfab-road-models-v1.mjs','street-detail-v1/street-detail.mjs','street-detail-v1/source-assets/**']
+    paths: ['.github/workflows/publish-ground-materials-v1.yml','street-detail-v1/install.py','street-detail-v1/sketchfab-road-models-v1.mjs','street-detail-v1/street-detail.mjs','street-detail-v1/source-assets/**','rebuild-v5000/bridgepoint-transportation-v1.js']
 permissions:
   contents: read
   actions: read
@@ -70,7 +70,7 @@ jobs:
           for base in (site,site/'app'):
               p=base/'bridgepoint-transportation-loader-v1.js'
               if p.exists():
-                  s=p.read_text();s,n=re.subn(r"const MODULE_SRC = '[^']+'", "const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=20261127-sketchfab-models-v5'", s);assert n==1
+                  s=p.read_text();s,n=re.subn(r"const MODULE_SRC = '[^']+'", "const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=20261127-connected-traffic-signals-v6'", s);assert n==1
                   p.write_text(s)
               p=base/'bridgepoint-drone-awareness-v1.js'
               if p.exists():
@@ -91,7 +91,7 @@ jobs:
                   if p.exists():
                       s=p.read_text()
                       s=s.replace('aircraftlock=aircraft-lights-cloudwake-v20261125-v10','aircraftlock=sketchfab-fixed-wing-v20261127-v11')
-                      s=s.replace('bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models','bridgepoint-transportation-loader-v1.js?v=20261127-sketchfab-models-v5')
+                      s=s.replace('bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models','bridgepoint-transportation-loader-v1.js?v=20261127-connected-traffic-signals-v6')
                       p.write_text(s)
               for rel in ('vendor/bp-street-detail-v1.mjs','app/vendor/bp-street-detail-v1.mjs'):
                   p=site/rel
