@@ -5,7 +5,7 @@
   'use strict';
   const control = window.__BP_TRANSPORTATION_LOADER_V1__ || (window.__BP_TRANSPORTATION_LOADER_V1__ = {});
 
-  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=20261127-roadwork-closure-routing-v7';
+  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=20261127-traffic-density-safe-headway-v8';
   const ROADWORK_SRC = '/bridgepoint-roadwork-v1.js?v=20261127-roadwork-traffic-control-v2';
   control.version = 2; control.loading = !!control.loading; control.loaded = !!control.loaded;
 
