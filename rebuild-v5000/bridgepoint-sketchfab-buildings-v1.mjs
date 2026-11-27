@@ -6,8 +6,8 @@
 const T_URL = '/vendor/three.module.js?v=169-local';
 const GL_URL = '/vendor/GLTFLoader.bundle.js?v=169-local';
 const H_URL = '/vendor/bp-street-detail-v1.mjs?v=20261127-sketchfab-models';
-const MODEL_URL = '/assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz';
-const CITY_CATALOG_URL = '/assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz?v=20261127-city-building-variants-v1';
+const MODEL_URL = '/assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz?v=20261127-glass-tower-material-fix-v2';
+const CITY_CATALOG_URL = '/assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz?v=20261127-city-building-variants-v2';
 const CITY_MODELS = {
   BP_SquareTower: { x: 12.81, z: 12.57, y: 39.25 },
   BP_CornerOffice: { x: 10.95, z: 5.61, y: 17.84 },
@@ -76,14 +76,16 @@ export function selectBuildingCandidates(features, center, cap = 4) {
       const m = CITY_MODELS[id], sourceAspect = Math.max(m.x, m.z) / Math.min(m.x, m.z);
       return { id, score: Math.abs(Math.log(aspect / sourceAspect)) * 1.8 + Math.abs(Math.log(height / m.y)) * .35 };
     }).sort((a, b) => a.score - b.score)[0].id;
-    const id = String(f.id ?? p.id ?? [geo.q[0].toFixed(5), geo.q[1].toFixed(5)].join(':'));
+    const legacyFeatureId = f.id ?? p.building_id ?? p.osm_id ?? p.id ?? null;
+    const legacyIdField = f.id != null ? 'feature' : p.building_id != null ? 'building_id' : p.osm_id != null ? 'osm_id' : p.id != null ? 'id' : null;
+    const id = String(legacyFeatureId ?? [geo.q[0].toFixed(5), geo.q[1].toFixed(5)].join(':'));
     if (seen.has(id)) continue; seen.add(id);
     const dx = (geo.q[0] - Number(center[0])) * 111320 * cos, dy = (geo.q[1] - Number(center[1])) * 111132;
     const source = CITY_MODELS[model], sourceAspect = Math.max(source.x, source.z) / Math.min(source.x, source.z);
     const footprintFit = Math.abs(Math.log(Math.max(.01, aspect / sourceAspect)));
     const heightFit = Math.abs(Math.log(height / source.y));
     const longAxisYaw = geo.width >= geo.depth ? geo.angle : geo.angle + Math.PI / 2;
-    found.push({ id, q: geo.q, width, depth, height, yaw: longAxisYaw, area: geo.area, model,
+    found.push({ id, legacyFeatureId, legacyIdField, source: String(p.__bpSource || ''), sourceLayer: String(p.__bpSourceLayer || ''), q: geo.q, width, depth, height, yaw: longAxisYaw, area: geo.area, model,
       distance: Math.hypot(dx, dy), score: footprintFit * 2.2 + heightFit * .45 + Math.hypot(dx, dy) / 1800, name: String(p.name || p['addr:housenumber'] || ''), properties: p });
   }
   return found.sort((a, b) => a.score - b.score).slice(0, cap);
@@ -92,7 +94,7 @@ export function selectBuildingCandidates(features, center, cap = 4) {
 export function attachSketchfabBuildings(map, options = {}) {
   if (!map || map.__BP_SKETCHFAB_BUILDINGS_V1__) return map?.__BP_SKETCHFAB_BUILDINGS_V1__;
   const mobile = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches; } catch (_) { return innerWidth < 760; } })();
-  const cap = options.maxModels || (mobile ? 6 : 18);
+  const cap = options.maxModels || (mobile ? 16 : 36);
   const status = map.__BP_SKETCHFAB_BUILDINGS_V1__ = { status: 'loading-models', version: 1, model: 'Full Gameready City Buildings + Glass Building', sourceGeometryCloned: true,
     source: 'https://sketchfab.com/3d-models/full-gameready-city-buildings-retextured-5fad2351e34f4c069a2eec45cce0824c', license: 'CC-BY-4.0', mappedFootprintPlacement: true,
     sources: ['Full Gameready City Buildings [retextured] · CC BY 4.0', 'Glass Building (low poly) · CC BY 4.0'], placementMode: 'source mesh variants fitted to mapped footprint dimensions and recorded heights',
@@ -100,14 +102,63 @@ export function attachSketchfabBuildings(map, options = {}) {
   window.__BP_SKETCHFAB_BUILDINGS_V1__ = status;
   let T, renderer, camera, scene, group = null, anchor = null, anchorZ = 0, busy = false, dead = false, timer = 0, lastKey = '', layersInstalled = false;
   const templates = new Map();
+  const previousBuildingFilters = new Map();
+  function restoreLegacyBuildingFilters() {
+    for (const [id, filter] of previousBuildingFilters) {
+      if (!map.getLayer(id)) continue;
+      try { map.setFilter(id, filter); } catch (_) {}
+    }
+    previousBuildingFilters.clear();
+    status.legacyBuildingFeaturesHidden = 0;
+  }
+  function suppressLegacyBuildingFeatures(items) {
+    restoreLegacyBuildingFilters();
+    const layers = (map.getStyle()?.layers || []).filter(l =>
+      l.type === 'fill-extrusion' && l.source && l['source-layer'] &&
+      /building/i.test(String(l['source-layer']) + ' ' + String(l.id)));
+    const byLayer = new Map();
+    for (const item of items || []) {
+      if (item.legacyFeatureId == null || !item.source || !item.sourceLayer || !item.legacyIdField) continue;
+      const expression = item.legacyIdField === 'feature' ? ['id'] : ['get', item.legacyIdField];
+      for (const layer of layers) {
+        if (layer.source !== item.source || layer['source-layer'] !== item.sourceLayer) continue;
+        let row = byLayer.get(layer.id);
+        if (!row) byLayer.set(layer.id, row = { expression, ids: [] });
+        row.ids.push(item.legacyFeatureId);
+      }
+    }
+    let hidden = 0;
+    for (const [id, row] of byLayer) {
+      const ids = [...new Set(row.ids)];
+      if (!ids.length || !map.getLayer(id)) continue;
+      const original = map.getFilter(id) ?? null;
+      previousBuildingFilters.set(id, original);
+      const exclude = ['!', ['in', row.expression, ['literal', ids]]];
+      try {
+        map.setFilter(id, original ? ['all', original, exclude] : exclude);
+        hidden += ids.length;
+      } catch (e) {
+        previousBuildingFilters.delete(id);
+        status.filterError = String(e?.message || e).slice(0, 140);
+      }
+    }
+    status.legacyBuildingFeaturesHidden = hidden;
+    status.legacyBuildingLayersFiltered = byLayer.size;
+  }
 
-  const emptyGroup = () => { if (group && scene) scene.remove(group); group = null; status.modelsPlaced = 0; };
+  const emptyGroup = () => { restoreLegacyBuildingFilters(); if (group && scene) scene.remove(group); group = null; status.modelsPlaced = 0; };
   function collect() {
     const out = [], seen = new Set();
     for (const [source, sourceLayer] of sourceSpecs(map)) {
       let rows = [];
       try { rows = map.querySourceFeatures(source, { sourceLayer }) || []; } catch (_) {}
-      for (const f of rows) { const id = String(f.id ?? f.properties?.id ?? ''); const key = source + ':' + sourceLayer + ':' + id + ':' + JSON.stringify(f.geometry?.coordinates?.[0]?.[0] || f.geometry?.coordinates?.[0] || []); if (seen.has(key)) continue; seen.add(key); out.push(f); if (out.length > 2400) return out; }
+      for (const f of rows) {
+        const p = f.properties || {}, id = String(f.id ?? p.building_id ?? p.osm_id ?? p.id ?? '');
+        const key = source + ':' + sourceLayer + ':' + id + ':' + JSON.stringify(f.geometry?.coordinates?.[0]?.[0] || f.geometry?.coordinates?.[0] || []);
+        if (seen.has(key)) continue; seen.add(key);
+        out.push({ ...f, properties: { ...p, __bpSource: source, __bpSourceLayer: sourceLayer } });
+        if (out.length > 2400) return out;
+      }
     }
     return out;
   }
@@ -181,7 +232,7 @@ export function attachSketchfabBuildings(map, options = {}) {
       }
       if (!next.children.length) { status.status = 'waiting-for-mapped-footprints'; busy = false; return; }
       emptyGroup(); group = next; scene.add(group); anchor = center; anchorZ = z; lastKey = key;
-      status.modelsPlaced = next.children.length; status.triangleCount = tris; status.status = 'ready'; status.exactSourceGeometry = true; status.terrainAnchored = true;
+      status.modelsPlaced = next.children.length; status.triangleCount = tris; status.status = 'ready'; status.exactSourceGeometry = true; status.terrainAnchored = true; suppressLegacyBuildingFeatures(chosen);
       map.triggerRepaint();
     } catch (e) { status.status = 'error'; status.error = String(e?.message || e).slice(0, 180); } finally { busy = false; }
   }
