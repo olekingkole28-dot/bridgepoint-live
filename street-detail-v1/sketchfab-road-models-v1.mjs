@@ -21,21 +21,21 @@ function collectFeatures(map){const out=[],seen=new Set();const add=fs=>{for(con
  return out;
 }
 function collectRoadPieces(features,center,map,templates){
- const c=toMerc(center),cos=Math.max(.12,Math.cos(center[1]*RAD)),radius=map.getZoom()<15?1900:map.getZoom()<17?1050:650,seenJunctions=new Map(),pieces=[],seenWays=new Set(),canvas=map.getCanvas();
+ const c=toMerc(center),cos=Math.max(.12,Math.cos(center[1]*RAD)),radius=map.getZoom()<15?1900:map.getZoom()<17?1050:650,seenJunctions=new Map(),pieces=[],seenWays=new Set(),canvas=map.getCanvas(),probes=[];
  for(const {line,properties:p} of features){
-  const cls=lower(p.class),wayKey=lineSignature(line,cls);if(seenWays.has(wayKey))continue;seenWays.add(wayKey);
+  const cls=lower(p.class),probe={class:cls,vertices:line.length,piecesAdded:0},wayKey=lineSignature(line,cls);probes.push(probe);if(seenWays.has(wayKey)){probe.skip='duplicate';continue;}seenWays.add(wayKey);
   const projected=line.map(toMerc),cum=[0];for(let i=1;i<projected.length;i++)cum.push(cum[i-1]+Math.hypot(projected[i][0]-projected[i-1][0],projected[i][1]-projected[i-1][1]));
-  const total=cum[cum.length-1];if(total<4)continue;
-  const asset=(p.oneway==='yes'||p.oneway===true||p.oneway==='-1')?'street2':(['motorway','trunk','primary','secondary'].includes(cls)?'street3':'street1');
-  const t=templates[asset];if(!t)continue;
-  const count=Math.max(1,Math.ceil(total/t.size.z)),chunk=total/count;if(chunk<4)continue;
+  const total=cum[cum.length-1];probe.totalMeters=total;if(total<4){probe.skip='short-line';continue;}
+  const asset=(p.oneway==='yes'||p.oneway===true||p.oneway==='-1')?'street2':(['motorway','trunk','primary','secondary'].includes(cls)?'street3':'street1');probe.asset=asset;
+  const t=templates[asset];probe.templateSize=t?.size;if(!t){probe.skip='template-missing';continue;}
+  const count=Math.max(1,Math.ceil(total/t.size.z)),chunk=total/count;probe.segmentCount=count;probe.chunkMeters=chunk;if(chunk<4){probe.skip='short-segment';continue;}
   const carriage=widthFor(p),urban=!['motorway','trunk'].includes(cls)||String(p.sidewalk||'').toLowerCase()==='both';
   const fullWidth=carriage+(urban&&String(p.sidewalk||'').toLowerCase()!=='no'?3.2:0);
   for(let i=0;i<count;i++){
-   const a=atDistance(projected,cum,i*chunk),b=atDistance(projected,cum,(i+1)*chunk),dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<4)continue;
-   const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],dist=Math.hypot((mid[0]-c[0])*cos,(mid[1]-c[1])*cos);if(dist>radius)continue;
-   const q=fromMerc(mid),px=map.project(q);if(px.x< -80||px.y< -80||px.x>canvas.clientWidth+80||px.y>canvas.clientHeight+80)continue;
-   pieces.push({q,dx,dy,len,width:fullWidth,asset,yaw:Math.atan2(dx,dy),dist});
+   const a=atDistance(projected,cum,i*chunk),b=atDistance(projected,cum,(i+1)*chunk),dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<4){probe.skip='short-segment';continue;}
+   const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],dist=Math.hypot((mid[0]-c[0])*cos,(mid[1]-c[1])*cos);if(dist>radius){probe.skip='outside-radius';continue;}
+   const q=fromMerc(mid),px=map.project(q);probe.lastPixel={x:px.x,y:px.y};if(px.x< -80||px.y< -80||px.x>canvas.clientWidth+80||px.y>canvas.clientHeight+80){probe.skip='outside-canvas';continue;}
+   pieces.push({q,dx,dy,len,width:fullWidth,asset,yaw:Math.atan2(dx,dy),dist});probe.piecesAdded++;
   }
   const bearing=Math.atan2(projected[projected.length-1][0]-projected[0][0],projected[projected.length-1][1]-projected[0][1]);
   for(const q of [line[0],line[line.length-1]]){const k=q.map(v=>Number(v).toFixed(5)).join(':');const j=seenJunctions.get(k)||{q,count:0,bearing,width:carriage,urban};j.count++;if(carriage>j.width){j.bearing=bearing;j.width=carriage;j.urban=urban;}seenJunctions.set(k,j);}
@@ -43,6 +43,7 @@ function collectRoadPieces(features,center,map,templates){
  // The source pack's street4 mesh is a full marked intersection with zebra crossings.
  const junctions=[...seenJunctions.values()].filter(j=>j.count>=4).map(j=>({...j,dist:Math.hypot((toMerc(j.q)[0]-c[0])*cos,(toMerc(j.q)[1]-c[1])*cos)})).filter(j=>j.dist<radius).sort((a,b)=>a.dist-b.dist).slice(0,100);
  for(const j of junctions){const px=map.project(j.q);if(px.x< -120||px.y< -120||px.x>canvas.clientWidth+120||px.y>canvas.clientHeight+120)continue;pieces.push({q:j.q,dx:Math.sin(j.bearing),dy:Math.cos(j.bearing),len:templates.street4.size.z,width:templates.street4.size.x,asset:'street4',yaw:j.bearing,dist:j.dist,intersection:true});}
+ state.collectionProbe={center,zoom:map.getZoom(),radiusMeters:radius,canvas:{width:canvas.clientWidth,height:canvas.clientHeight},features:probes};
  pieces.sort((a,b)=>a.dist-b.dist);return {pieces:pieces.slice(0,(innerWidth<=700?900:1600)),junctionCount:junctions.length};
 }
 export function attachSketchfabRoadModels(map){
