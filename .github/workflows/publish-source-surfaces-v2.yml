@@ -104,18 +104,48 @@ jobs:
                   assert s.count(marker)==1
                   s=s.replace(marker,marker+"""
               let bpSourceSurfacesAttached=false;
-              const bpAttachSourceSurfaces=()=>{if(bpSourceSurfacesAttached||map.getZoom()<13.2)return;bpSourceSurfacesAttached=true;import('/vendor/bp-source-surfaces-v2.mjs?v=20261127-connected-street-surfaces-v3').then(m=>m.attachSourceSurfaces(map)).then(()=>{const c=map.getContainer().querySelector('.maplibregl-ctrl-attrib-inner');if(c&&!c.querySelector('[href="/assets/street-detail-v1/surfaces-v2/credits.html"]')){const a=document.createElement('a');a.href='/assets/street-detail-v1/surfaces-v2/credits.html';a.textContent='Surface models';a.target='_blank';a.rel='noopener';c.append(' · ',a);}}).catch(e=>{bpSourceSurfacesAttached=false;console.warn('Surface assets',e);});};
+              const bpAttachSourceSurfaces=()=>{if(bpSourceSurfacesAttached||map.getZoom()<13.2)return;bpSourceSurfacesAttached=true;import('/vendor/bp-source-surfaces-v2.mjs?v=20261127-connected-street-surfaces-v4').then(m=>m.attachSourceSurfaces(map)).then(()=>{const c=map.getContainer().querySelector('.maplibregl-ctrl-attrib-inner');if(c&&!c.querySelector('[href="/assets/street-detail-v1/surfaces-v2/credits.html"]')){const a=document.createElement('a');a.href='/assets/street-detail-v1/surfaces-v2/credits.html';a.textContent='Surface models';a.target='_blank';a.rel='noopener';c.append(' · ',a);}}).catch(e=>{bpSourceSurfacesAttached=false;console.warn('Surface assets',e);});};
               map.on('zoom',bpAttachSourceSurfaces);map.on('moveend',bpAttachSourceSurfaces);map.once('load',bpAttachSourceSurfaces);
               """)
               else:
                   assert s.count("let bpSourceSurfacesAttached=false;")==1
-              s,n=re.subn(r"(/vendor/bp-source-surfaces-v2\.mjs\?v=)[^'\"\s]+",r"\g<1>20261127-connected-street-surfaces-v3",s)
+              s,n=re.subn(r"(/vendor/bp-source-surfaces-v2\.mjs\?v=)[^'\"\s]+",r"\g<1>20261127-connected-street-surfaces-v4",s)
               assert n==1, f"{rel}: expected one source-surface module URL, got {n}"
               s=s.replace('/vendor/bp-traffic-furniture-v1.mjs?v=20261126-traffic-v3','/vendor/bp-traffic-furniture-v1.mjs?v=20261126-surface-alignment-v2')
+              visibility_guard="const targetVisibility=blenderWorldEnabled?'none':'visible';"
+              if "const surfaceZoom=map.getZoom()" not in s:
+                  assert s.count(visibility_guard)==1, f"{rel}: satellite guard not found exactly once"
+                  s=s.replace(visibility_guard,"""const surfaceZoom=map.getZoom(),closeZoomSurfaces=!underwaterDiveActive&&surfaceZoom>=15.8&&!!map.getSource('ofm');
+   base=closeZoomSurfaces?'surface':'satellite';
+   window.__BP_CLOSE_ZOOM_SURFACE_MODE__={enabled:closeZoomSurfaces,zoom:surfaceZoom,ground:'mapped landcover and landuse with 3D road, sidewalk and grass meshes',updatedAt:Date.now()};
+   const targetVisibility=blenderWorldEnabled||closeZoomSurfaces?'none':'visible';""")
+              else:
+                  assert s.count("const surfaceZoom=map.getZoom()")==1
+              if "const surfaceLandcoverColor=" not in s:
+                  assert s.count("let oceanFill='unavailable';")==1
+                  s=s.replace("let oceanFill='unavailable';","""const savedSurfacePaint=window.__BP_CLOSE_ZOOM_SURFACE_PAINTS__;
+   if(!savedSurfacePaint||savedSurfacePaint.map!==map)window.__BP_CLOSE_ZOOM_SURFACE_PAINTS__={map,landcoverColor:map.getPaintProperty('gta-landcover','fill-color'),landuseColor:map.getPaintProperty('gta-landuse','fill-color'),waterColor:map.getPaintProperty('gta-water','fill-color'),waterOpacity:map.getPaintProperty('gta-water','fill-opacity')};
+   const surfacePaints=window.__BP_CLOSE_ZOOM_SURFACE_PAINTS__;
+   const setSurfacePaint=(id,prop,value)=>{try{if(map.getLayer(id)&&JSON.stringify(map.getPaintProperty(id,prop))!==JSON.stringify(value))map.setPaintProperty(id,prop,value)}catch(_){}};
+   const surfaceLandcoverColor=['match',['downcase',['to-string',['coalesce',['get','class'],'']]],['wood','forest'],'#365d3d',['grass','meadow'],'#79a953','farmland','#7d834b',['wetland','marsh'],'#477a77',['sand','beach'],'#c3af7f',['desert','dune'],'#b3945b',['bare_rock','rock','scree'],'#777b73',['ice','glacier','snow'],'#d9e4df',['scrub','heath'],'#66824a','#6c756b'];
+   const surfaceLanduseColor=['match',['downcase',['to-string',['coalesce',['get','class'],'']]],['park','recreation_ground'],'#648a53','grass','#7ca75b','cemetery','#617653','residential','#737a73','commercial','#83867f','retail','#8b887d','industrial','#7c807e','school','#778c62','hospital','#a99b8d','#717973'];
+   setSurfacePaint('gta-landcover','fill-color',closeZoomSurfaces?surfaceLandcoverColor:surfacePaints.landcoverColor);
+   setSurfacePaint('gta-landcover','fill-opacity',closeZoomSurfaces ? 0.98 : 0);
+   setSurfacePaint('gta-landuse','fill-color',closeZoomSurfaces?surfaceLanduseColor:surfacePaints.landuseColor);
+   setSurfacePaint('gta-landuse','fill-opacity',closeZoomSurfaces ? 0.62 : 0);
+   setSurfacePaint('gta-water','fill-color',closeZoomSurfaces?'#317486':surfacePaints.waterColor);
+   setSurfacePaint('gta-water','fill-opacity',closeZoomSurfaces ? 0.92 : surfacePaints.waterOpacity);
+   setSurfacePaint('gta-landcover-texture','fill-opacity',closeZoomSurfaces ? 0.38 : 0);
+   vis(map,'gta-landcover-texture',closeZoomSurfaces);
+   let oceanFill='unavailable';""")
+              if "window.__BP_CLOSE_ZOOM_SURFACE_MODE__?.enabled===true" not in s:
+                  old_terrain="vis(map,'gta-landcover-texture',base!=='satellite'&&z<19.5);"
+                  assert s.count(old_terrain)==1, f"{rel}: landcover texture toggle missing"
+                  s=s.replace(old_terrain,"vis(map,'gta-landcover-texture',(base!=='satellite'||window.__BP_CLOSE_ZOOM_SURFACE_MODE__?.enabled===true)&&z<22);")
               p.write_text(s);allowed.add(rel)
           for rel in ('index.html','app/index.html','landing.js','app.js'):
               p=site/rel;s=p.read_text()
-              n=re.sub(r'20261126-(?:traffic-v3|source-surfaces-v2|terrain-asphalt-retained-v6)', '20261127-connected-street-surfaces-v3', s)
+              n=re.sub(r'20261126-(?:traffic-v3|source-surfaces-v2|terrain-asphalt-retained-v6)', '20261127-connected-street-surfaces-v4', s)
               if s!=n:p.write_text(n);allowed.add(rel)
           after=hashes();changed={p for p in after if before.get(p)!=after[p]};assert before.keys()<=after.keys();assert changed<=allowed
           print('SOURCE_SURFACES_SCOPED_PASS',sorted(changed))
@@ -128,7 +158,7 @@ jobs:
           import assert from 'node:assert/strict';
           const {roadFootprints,contains}=await import(pathToFileURL(process.env.SITE+'/vendor/bp-source-surfaces-v2.mjs'));
           const f=(a,b,p)=>({geometry:{type:'LineString',coordinates:[a,b]},properties:p});
-          const polys=roadFootprints([f([0,-.002],[0,.002],{class:'primary',width:14}),f([-.002,0],[.002,0],{class:'secondary',width:10}),f([.001,-.002],[.001,.002],{class:'path'}),f([.0015,-.002],[.0015,.002],{class:'residential',surface:'gravel'})],[0,0],300);
+          const polys=roadFootprints([f([0,-.002],[0,.002],{class:'primary',width:14}),f([-.002,0],[.002,0],{class:'secondary',width:10}),f([.001,-.002],[.001,.002],{class:'path',width:4}),f([.0015,-.002],[.0015,.002],{class:'residential',surface:'gravel'})],[0,0],300);
           assert(contains([0,0],polys)&&contains([.00004,.0003],polys)&&!contains([.00012,.0003],polys)&&!contains([.001,.0005],polys)&&!contains([.0015,.0005],polys));console.log('CONNECTED_ROAD_MASK_AND_NONROAD_EXCLUSIONS_PASS');
           JS
       - name: Verify actual source surface rendering and traffic models
@@ -151,10 +181,10 @@ jobs:
            await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;w.map.jumpTo({center:[-73.98565,40.75843],zoom:17.3,pitch:36,bearing:0});});
            const diag=()=>p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w?.map,d=window.__BP_SOURCE_SURFACES_V2__,ids=m?.getStyle?.()?.layers?.map(l=>l.id)||[];return {zoom:m?.getZoom?.(),moving:m?.isMoving?.(),d,mesh:ids.indexOf('bp-source-road-mesh-v5'),center:ids.indexOf('gta-road-center-gold-bp'),crosswalk:ids.indexOf('gta-crosswalk-v2300')}});
            await p.waitForFunction(()=>window.__BP_SOURCE_SURFACES_V2__?.assets?.length===4,null,{timeout:120000});
-           await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w?.map,d=window.__BP_SOURCE_SURFACES_V2__,ids=m?.getStyle?.()?.layers?.map(l=>l.id)||[];let visible=0;try{visible=m.queryRenderedFeatures({layers:['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3']}).length}catch(_){}return !!m&&!m.isMoving()&&d?.meshGrounded&&d.meshDrawCalls>0&&d.meshRenderedTriangles>0&&d.markingsAboveMesh&&['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3','bp-source-crosswalk-v3'].every(id=>!!m.getLayer(id))&&visible>0},null,{timeout:180000}).catch(async e=>{console.log('STREET_MESH_ORDER_DIAGNOSTICS',await diag());throw e;});
-           const state=await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w.map,d=window.__BP_SOURCE_SURFACES_V2__;return {d,mesh:!!m.getLayer('bp-source-road-mesh-v5'),lines:['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3','bp-source-crosswalk-v3'].map(id=>!!m.getLayer(id)),visible:m.queryRenderedFeatures({layers:['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3']}).length}});assert(state.d.assets.length===4&&state.mesh&&state.lines.every(Boolean)&&state.visible>0&&state.d.markingsAboveMesh);
+           await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w?.map,d=window.__BP_SOURCE_SURFACES_V2__,ids=m?.getStyle?.()?.layers?.map(l=>l.id)||[];let visible=0;try{visible=m.queryRenderedFeatures({layers:['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3']}).length}catch(_){}const surface=window.__BP_CLOSE_ZOOM_SURFACE_MODE__,rasters=['gta-foundation','gta-nasa','gta-esri','gta-usgs','gta-oam'];return !!m&&!m.isMoving()&&d?.meshGrounded&&d.meshDrawCalls>0&&d.meshRenderedTriangles>0&&d.markingsAboveMesh&&surface?.enabled&&rasters.every(id=>!m.getLayer(id)||m.getLayoutProperty(id,'visibility')==='none')&&m.getPaintProperty('gta-landcover','fill-opacity')>.9&&['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3','bp-source-crosswalk-v3'].every(id=>!!m.getLayer(id))&&visible>0},null,{timeout:180000}).catch(async e=>{console.log('STREET_MESH_ORDER_DIAGNOSTICS',await diag());throw e;});
+           const state=await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w.map,d=window.__BP_SOURCE_SURFACES_V2__;return {d,mesh:!!m.getLayer('bp-source-road-mesh-v5'),surface:window.__BP_CLOSE_ZOOM_SURFACE_MODE__||null,rasters:['gta-foundation','gta-nasa','gta-esri','gta-usgs','gta-oam'].map(id=>m.getLayer(id)?m.getLayoutProperty(id,'visibility'):'missing'),landcoverOpacity:m.getPaintProperty('gta-landcover','fill-opacity'),lines:['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3','bp-source-crosswalk-v3'].map(id=>!!m.getLayer(id)),visible:m.queryRenderedFeatures({layers:['bp-source-road-edge-v3','bp-source-road-center-v3','bp-source-local-center-v3']}).length}});assert(state.d.assets.length===4&&state.mesh&&state.lines.every(Boolean)&&state.visible>0&&state.d.markingsAboveMesh&&state.surface?.enabled&&state.rasters.every(x=>x==='none'||x==='missing')&&state.landcoverOpacity>.9);
            await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;w.map.jumpTo({zoom:20,bearing:45});});
-           await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w?.map,d=window.__BP_SOURCE_SURFACES_V2__;return !!m&&!m.isMoving()&&m.getZoom()>19.9&&d?.meshDrawCalls>0&&d.markingsAboveMesh},null,{timeout:30000});
+           await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w?.map,d=window.__BP_SOURCE_SURFACES_V2__;return !!m&&!m.isMoving()&&m.getZoom()>19.9&&d?.meshDrawCalls>0&&d.markingsAboveMesh&&window.__BP_CLOSE_ZOOM_SURFACE_MODE__?.enabled&&m.getLayoutProperty('gta-esri','visibility')==='none'},null,{timeout:30000});
            console.log('REAL_STREET_MESH_MARKINGS_PASS',state);
            await p.close();
           """+s[b:]
