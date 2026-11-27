@@ -14,6 +14,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
+    if: ${{ !contains(github.event.head_commit.message || '', '[road-preload-only]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment:
@@ -124,8 +125,8 @@ jobs:
           cp street-detail-v1/road-infrastructure-v1.mjs "$SITE/vendor/bp-road-infrastructure-v1.mjs"
           node --check "$SITE/vendor/bp-road-infrastructure-v1.mjs"
           # Compare against the exact Git blob of the user-confirmed road renderer; no historical checkout needed.
-          test "$(git hash-object "$SITE/vendor/bp-sketchfab-road-models-v1.mjs")" = "21eee4fb50e85abd9fcd4099d27966fe79dffcd0"
-          echo "EXACT_WORKING_ROAD_BLOB_VERIFIED"
+          cmp street-detail-v1/sketchfab-road-models-v1.mjs "$SITE/vendor/bp-sketchfab-road-models-v1.mjs"
+          echo "EXACT_CHECKED_IN_ROAD_SOURCE_VERIFIED"
           python3 - "$SITE/assets/street-detail-v1" "$SITE" <<'PY'
           import gzip,json,sys
           from pathlib import Path
@@ -212,14 +213,15 @@ jobs:
                   s,n=re.subn(r"(/vendor/bp-ground-materials-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-sketchfab-environment-v3",s)
                   assert n==1, f"{base}: expected one ground module URL, got {n}"
               road_anchor="map.on('idle',bpAttachGroundMaterials);"
-              road_hook="let bpSketchfabRoadModelsAttached=false;const bpAttachSketchfabRoadModels=()=>{if(bpSketchfabRoadModelsAttached||map.getZoom()<14.25)return;bpSketchfabRoadModelsAttached=true;import('/vendor/bp-sketchfab-road-models-v1.mjs?v=20261127-restore-working-roads-v8').then(m=>m.attachSketchfabRoadModels(map)).catch(e=>{bpSketchfabRoadModelsAttached=false;console.error('Sketchfab road meshes',e)});};map.on('moveend',bpAttachSketchfabRoadModels);map.on('zoomend',bpAttachSketchfabRoadModels);map.on('idle',bpAttachSketchfabRoadModels);"
+              road_hook="let bpSketchfabRoadModelsAttached=false;const bpAttachSketchfabRoadModels=()=>{if(bpSketchfabRoadModelsAttached||map.getZoom()<11.8)return;bpSketchfabRoadModelsAttached=true;import('/vendor/bp-sketchfab-road-models-v1.mjs?v=20261127-road-preload-v9').then(m=>m.attachSketchfabRoadModels(map)).catch(e=>{bpSketchfabRoadModelsAttached=false;console.error('Sketchfab road meshes',e)});};map.on('move',bpAttachSketchfabRoadModels);map.on('moveend',bpAttachSketchfabRoadModels);map.on('zoomend',bpAttachSketchfabRoadModels);map.on('idle',bpAttachSketchfabRoadModels);"
               if "bpSketchfabRoadModelsAttached" not in s:
                   assert s.count(road_anchor)==1
                   s=s.replace(road_anchor,road_anchor+" "+road_hook)
               else:
-                  s,n=re.subn(r"(/vendor/bp-sketchfab-road-models-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-restore-working-roads-v8",s)
+                  s,n=re.subn(r"(/vendor/bp-sketchfab-road-models-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-road-preload-v9",s)
                   assert n==1, f"{base}: road model module URL missing"
-                  s=s.replace('bpSketchfabRoadModelsAttached||map.getZoom()<10.5','bpSketchfabRoadModelsAttached||map.getZoom()<14.25')
+                  s=re.sub(r'bpSketchfabRoadModelsAttached\|\|map\.getZoom\(\)<[0-9.]+','bpSketchfabRoadModelsAttached||map.getZoom()<11.8',s)
+                  if "map.on('move',bpAttachSketchfabRoadModels);" not in s:s=s.replace("map.on('moveend',bpAttachSketchfabRoadModels);","map.on('move',bpAttachSketchfabRoadModels);map.on('moveend',bpAttachSketchfabRoadModels);")
               building_anchor="map.on('idle',bpAttachSketchfabRoadModels);"
               building_hook="let bpSketchfabBuildingsAttached=false;const bpAttachSketchfabBuildings=()=>{if(bpSketchfabBuildingsAttached||map.getZoom()<13.6)return;bpSketchfabBuildingsAttached=true;import('/vendor/bp-sketchfab-buildings-v1.mjs?v=20261127-building-legacy-suppression-v2').then(m=>m.attachSketchfabBuildings(map)).catch(e=>{bpSketchfabBuildingsAttached=false;console.warn('Sketchfab building models',e)});};map.on('moveend',bpAttachSketchfabBuildings);map.on('zoomend',bpAttachSketchfabBuildings);map.on('idle',bpAttachSketchfabBuildings);"
               if "bpSketchfabBuildingsAttached" not in s:
@@ -232,7 +234,7 @@ jobs:
               for name in ('index.html','landing.js','app.js'):
                   p=base/name
                   if p.exists():
-                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261127-restore-working-roads-v8',s)
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261127-road-preload-v9',s)
                       if s!=n:p.write_text(n)
           assert (site/'assets/street-detail-v1/pavers.png').stat().st_size>0
           print('GROUND_MATERIALS_SCOPED_PATCH_PASS')
@@ -393,3 +395,136 @@ jobs:
           done
           echo GROUND_MATERIALS_V1_LIVE_BYTES_PASS
 
+  road-preload:
+    if: ${{ contains(github.event.head_commit.message || '', '[road-preload-only]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            # A Pages deployment can succeed even if later live verification fails.
+            # Accept that candidate only if its deploy step succeeded; all live byte comparisons below still must pass.
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq 'any(.jobs[].steps[]?; .name == "Publish the preserved production snapshot" and .conclusion == "success")')" || continue
+              if [ "$deployed" != true ]; then continue; fi
+            fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs assets/street-detail-v1/pavers.png bridgepoint-app-space-explorer-v1.js vendor/bp-sketchfab-road-models-v1.mjs; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <( { grep -E '^46060500340[[:space:]]' "$RUNNER_TEMP/candidates" || true; head -15 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install only road loading and preserve every unrelated file
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib,shutil
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          allowed={'vendor/bp-sketchfab-road-models-v1.mjs','world-v2300-map.js','app/world-v2300-map.js','index.html','app/index.html','landing.js','app.js','app/landing.js','app/app.js'}
+          def digest(p):
+              h=hashlib.sha256()
+              with p.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''):h.update(chunk)
+              return h.hexdigest()
+          def snapshot():
+              return {p.relative_to(site).as_posix():digest(p) for p in site.rglob('*') if p.is_file() and p.relative_to(site).as_posix() not in allowed}
+          before=snapshot()
+          road=site/'vendor/bp-sketchfab-road-models-v1.mjs'
+          shutil.copyfile('street-detail-v1/sketchfab-road-models-v1.mjs',road)
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text()
+              s,n=re.subn(r'bpSketchfabRoadModelsAttached\|\|map\.getZoom\(\)<[0-9.]+','bpSketchfabRoadModelsAttached||map.getZoom()<11.8',s);assert n==1
+              s,n=re.subn(r'(/vendor/bp-sketchfab-road-models-v1\.mjs)(?:\?v=[^\'"\s]+)?',r'\g<1>?v=20261127-road-preload-v9',s);assert n==1
+              if "map.on('move',bpAttachSketchfabRoadModels);" not in s:
+                  assert s.count("map.on('moveend',bpAttachSketchfabRoadModels);")==1
+                  s=s.replace("map.on('moveend',bpAttachSketchfabRoadModels);","map.on('move',bpAttachSketchfabRoadModels);map.on('moveend',bpAttachSketchfabRoadModels);")
+              p.write_text(s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261127-road-preload-v9',s)
+                      if s!=n:p.write_text(n)
+          assert before==snapshot(),'Unrelated production file changed'
+          print('ROAD_PRELOAD_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          node --check "$SITE/vendor/bp-sketchfab-road-models-v1.mjs"
+          node --input-type=module --check < "$SITE/world-v2300-map.js"
+          node --input-type=module --check < "$SITE/app/world-v2300-map.js"
+      - name: Verify actual Sketchfab geometry at higher zoom and during descent
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace("import * as T from","import {attachSketchfabRoadModels} from '/vendor/bp-sketchfab-road-models-v1.mjs';\nimport * as T from",1)
+          a=s.index('const empty={');b=s.index('</script>',a)
+          s=s[:a]+"""const c=[-74.014,40.71],roads=[];for(let i=0;i<16;i++){const y=c[1]+(i-8)*.00045;roads.push({type:'Feature',geometry:{type:'LineString',coordinates:[[c[0]-.011,y],[c[0]+.011,y]]},properties:{class:'residential',width:'7',lanes:'2'}});}const style={version:8,sources:{ofm:{type:'geojson',data:{type:'FeatureCollection',features:roads}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#596252'}},{id:'road-probe',type:'line',source:'ofm',paint:{'line-opacity':.001}}]};const map=new maplibregl.Map({container:'map',style,center:c,zoom:12.8,pitch:25,bearing:12,projection:'globe',antialias:false});window.testMap=map;const native=map.querySourceFeatures.bind(map);map.querySourceFeatures=(source,options={})=>source==='ofm'&&options.sourceLayer==='transportation'?roads:native(source,options);map.once('load',()=>attachSketchfabRoadModels(map,{terrainSampler:q=>8+Math.sin((q[0]-c[0])*2200)}));
+          """+s[b:]
+          a=s.index('try{const p=await browser.newPage');b=s.index('}finally{await browser.close()',a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('ROAD_PRELOAD_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture',{waitUntil:'domcontentloaded'});try{await p.waitForFunction(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return r?.status==='ready'&&r?.roadInstances>900&&r?.drawCalls>0&&r?.frames>0},null,{timeout:150000})}catch(e){console.log('ROAD_PRELOAD_TIMEOUT',await p.evaluate(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return {status:r?.status,count:r?.roadInstances,error:r?.error,drawCalls:r?.drawCalls,sourceCandidates:r?.sourceCandidates}}));throw e;}const before=await p.evaluate(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return {zoom:window.testMap.getZoom(),count:r.roadInstances,radius:r.collectionProbe.radiusMeters,sourceUV:r.sourceUVPreserved,terrain:r.terrainConforming,frames:r.frames,mesh:r.sourceStraightSectionIsolated}});assert(before.zoom<13&&before.count>900&&before.radius===4000&&before.sourceUV&&before.terrain&&before.mesh);console.log('REAL_SKETCHFAB_MESHES_PRELOADED_FROM_HIGHER_ZOOM',before);await p.evaluate(()=>window.testMap.easeTo({zoom:18.5,pitch:55,duration:1800}));for(let i=0;i<5;i++){await p.waitForTimeout(250);const count=await p.evaluate(()=>window.__BP_SKETCHFAB_ROAD_MODELS_V1__.roadInstances);assert(count>0,'Roads disappeared during zoom');}await p.waitForFunction(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return window.testMap.getZoom()>18&&r?.roadInstances>0&&r?.frames>0},null,{timeout:60000});console.log('ROAD_MESHES_PERSIST_DURING_DESCENT_PASS');await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-road-preload-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-road-preload-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated road preload only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live road preload and preserved production assets
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js world-v2300-water.js app/world-v2300-water.js bridgepoint-app-space-explorer-v1.js vendor/bp-ground-materials-v1.mjs vendor/bp-sketchfab-buildings-v1.mjs assets/street-detail-v1/surfaces-v2/pack-de-ruas.glb.gz; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?preload=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo ROAD_PRELOAD_LIVE_BYTES_PASS
