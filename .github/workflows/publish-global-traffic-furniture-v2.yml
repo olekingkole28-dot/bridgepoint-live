@@ -74,7 +74,7 @@ jobs:
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
               p=site/rel;s=p.read_text();assert s.count('bpTrafficFurnitureAttached||map.getZoom()<12.1')+s.count('bpTrafficFurnitureAttached||map.getZoom()<11.6')>=1
               n=s.replace('bpTrafficFurnitureAttached||map.getZoom()<12.1','bpTrafficFurnitureAttached||map.getZoom()<11.6')
-              n=re.sub(r"/vendor/bp-traffic-furniture-v1.mjs(?:\\?[^\\"'\\s);,]*)?",'/vendor/bp-traffic-furniture-v1.mjs?v=20261127-signal-vehicle-sync-v3',n)
+              n=re.sub(r'/vendor/bp-traffic-furniture-v1\.mjs(?:\?[^\'"\s);,]*)?', '/vendor/bp-traffic-furniture-v1.mjs?v=20261127-signal-vehicle-sync-v3', n)
               if n!=s:p.write_text(n);allowed.add(rel)
           for rel in ('index.html','app/index.html','landing.js','app.js'):
               p=site/rel;s=p.read_text();n=s.replace('20261126-traffic-v1','20261127-signal-vehicle-sync-v3').replace('20261126-traffic-v2','20261127-signal-vehicle-sync-v3')
