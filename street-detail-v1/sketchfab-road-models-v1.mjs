@@ -56,10 +56,10 @@ function collectRoadPieces(features,center,map,templates){
  pieces.sort((a,b)=>a.dist-b.dist);
  return {pieces:pieces.slice(0,(innerWidth<=700?900:1600)),junctionCount:0,collectionProbe};
 }
-export function attachSketchfabRoadModels(map){
+export function attachSketchfabRoadModels(map,options={}){
  if(!map||map.__BP_SKETCHFAB_ROAD_MODELS_V1__)return map?.__BP_SKETCHFAB_ROAD_MODELS_V1__;
  const state=map.__BP_SKETCHFAB_ROAD_MODELS_V1__={status:'loading',sourcePack:'Pack de Ruas LW3D v2',source:'mapped road centerlines',roadInstances:0,intersectionInstances:0,frames:0,sidewalksAttached:true,curbsAttached:true,markings:'source pack textures',updatedAt:Date.now()};window.__BP_SKETCHFAB_ROAD_MODELS_V1__=state;
- let T,loader,helpers,renderer,camera,scene,group,layer,anchor,anchorZ,templates={},job,timer=0,seq=0,dead=false,lastKey='',oldVisibility={};
+ let T,loader,helpers,renderer,camera,scene,group,layer,anchor,anchorZ,templates={},job,timer=0,seq=0,dead=false,lastKey='',oldVisibility={},terrainRevision=0,refreshing=false,rerun=false;
  function disableDuplicateFallback(){
    const d=map.__BP_SOURCE_SURFACES_V2__;
    if(d){
@@ -68,20 +68,21 @@ export function attachSketchfabRoadModels(map){
    }
    for(const id of ['gta-road3d-deck','gta-bp-sidewalk-slabs-v1','bp-source-road-asphalt-v2','bp-source-sidewalk-concrete-v2']){
     if(!map.getLayer(id))continue;
-    try{if(!(id in oldVisibility))oldVisibility[id]=map.getLayoutProperty(id,'visibility');map.setLayoutProperty(id,'visibility','none');}catch(_){}
+    try{if(!(id in oldVisibility))oldVisibility[id]=map.getLayoutProperty(id,'visibility');map.setLayoutProperty(id,'visibility',id==='bp-source-road-asphalt-v2'&&map.getLayer(id)?.type==='fill-extrusion'?'visible':'none');}catch(_){}
    }
    state.duplicateSurfaceSuppressed=true;
    state.suppressedFallbackLayers=Object.keys(oldVisibility);
    state.sourceSurfaceFallback=false;
+   state.nativeAsphaltUnderlay=map.getLayer('bp-source-road-asphalt-v2')?.type==='fill-extrusion'&&map.getLayoutProperty('bp-source-road-asphalt-v2','visibility')==='visible';
   }
   function restoreDuplicateFallback(){
    const d=map.__BP_SOURCE_SURFACES_V2__;
    if(d&&Object.prototype.hasOwnProperty.call(state,'previousSourceMeshVisible')){d.meshVisible=state.previousSourceMeshVisible;d.fallbackDisabledBySketchfab=false;}
    for(const [id,v] of Object.entries(oldVisibility))if(map.getLayer(id))try{map.setLayoutProperty(id,'visibility',v||'visible');}catch(_){}
-   oldVisibility={};state.duplicateSurfaceSuppressed=false;state.suppressedFallbackLayers=[];state.sourceSurfaceFallback=true;
+   oldVisibility={};state.nativeAsphaltUnderlay=false;state.duplicateSurfaceSuppressed=false;state.suppressedFallbackLayers=[];state.sourceSurfaceFallback=true;
   }
   function install(){if(map.getLayer(LAYER))return;layer={id:LAYER,type:'custom',renderingMode:'3d',onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});renderer.autoClear=false;renderer.info.autoReset=false;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NoToneMapping;camera=new T.Camera();scene=new T.Scene();scene.add(new T.HemisphereLight(0xe8f0f5,0x625e50,1.8));const sun=new T.DirectionalLight(0xffefd8,2);sun.position.set(-35,60,45);scene.add(sun);},render(gl,args){if(!renderer||!scene||!group||!group.children.length||map.getZoom()<14.4||document.hidden)return;const raw=map.transform?.getMatrixForModel?.(anchor,anchorZ),matrix=args?.defaultProjectionData?.mainMatrix;if(!raw||!matrix)return;camera.projectionMatrix.fromArray(matrix).multiply(new T.Matrix4().fromArray(raw));renderer.resetState();renderer.info.reset();renderer.render(scene,camera);state.drawCalls=renderer.info.render.calls;state.triangles=renderer.info.render.triangles;state.frames=(state.frames||0)+1;},onRemove(){clearGroup();renderer?.dispose();renderer=null;scene=null;}};const before=['gta-road-label-major','gta-road-label-local','gta-context-building-footprints','gta-water-label'].find(id=>map.getLayer(id));map.addLayer(layer,before);}
- function clearGroup(){if(group&&scene){scene.remove(group);group.traverse(o=>{if(o.isInstancedMesh)o.dispose?.();});}group=null;state.roadInstances=0;state.intersectionInstances=0;}
+ function clearGroup(){if(group&&scene){scene.remove(group);group.traverse(o=>{if(o.userData?.bpTerrainRoadBatch)o.geometry?.dispose();else if(o.isInstancedMesh)o.dispose?.();});}group=null;state.roadInstances=0;state.intersectionInstances=0;}
  function materialGeometry(mesh,materialIndex){
    let g=mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
    const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
@@ -140,7 +141,7 @@ export function attachSketchfabRoadModels(map){
       g.applyMatrix4(new T.Matrix4().makeRotationY(Math.PI/2));g.computeBoundingBox();box=g.boundingBox;size={x:box.max.x-box.min.x,y:box.max.y-box.min.y,z:box.max.z-box.min.z};
      }
      g.translate(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2);g.computeBoundingBox();g.computeBoundingSphere();
-     const material=mats[mi].clone();material.side=T.DoubleSide;material.needsUpdate=true;
+     const material=mats[mi].clone();material.side=T.DoubleSide;material.transparent=false;material.depthTest=true;material.depthWrite=true;material.polygonOffset=true;material.polygonOffsetFactor=-2;material.polygonOffsetUnits=-4;material.needsUpdate=true;
      options.push({geometry:g,material,size,triangles:(g.index?.count||g.attributes.position.count)/3});
     });
     options.sort((a,b)=>b.triangles-a.triangles);
@@ -153,25 +154,63 @@ export function attachSketchfabRoadModels(map){
    state.templateTriangles=Object.fromEntries(Object.entries(templates).map(([name,t])=>[name,t.triangles]));
   }
   async function initialize(){if(job)return job;job=(async()=>{const mods=await Promise.all([import('/vendor/three.module.js?v=169-local'),import('/vendor/GLTFLoader.bundle.js?v=169-local'),import('/vendor/bp-street-detail-v1.mjs')]);T=mods[0].default||mods[0];loader=new mods[1].GLTFLoader();helpers=mods[2];const gltf=await helpers.loadStreetGLTF(loader,{url:BASE+'pack-de-ruas.glb.gz'});makeTemplates(gltf.scene);if(dead)return;install();state.status='models-ready';state.asset='Sketchfab Pack de Ruas LW3D v2';state.assetBytes='8.35 MB source GLB, gzip served';schedule();})().catch(e=>{job=null;restoreDuplicateFallback();state.status='asset-error';state.error=String(e).slice(0,180);});return job;}
- function createGroup(rows,center){const base=map.getTerrain?.()?map.queryTerrainElevation(center,{exaggerated:true}):0;if(!Number.isFinite(base)){state.transformProbe={finiteBase:false};return null;}const raw=map.transform?.getMatrixForModel?.(center,base);if(!raw){state.transformProbe={raw:false,base};return null;}const inv=new T.Matrix4().fromArray(raw).invert(),accepted={street1:[],street2:[],street3:[],street4:[]};
-  function local(q){let z=base;try{if(map.getTerrain?.()){const e=map.queryTerrainElevation(q,{exaggerated:true});if(Number.isFinite(e))z=e;}}catch(_){}const m=map.transform?.getMatrixForModel?.(q,z+.035);return m?new T.Vector3().setFromMatrixPosition(new T.Matrix4().fromArray(m).premultiply(inv)):null;}
-  let maxEndpointError=0;
-  for(const row of rows){const t=templates[row.asset];if(!t)continue;const a=local(row.a),b=local(row.b);if(!a||!b)continue;
-   const delta=b.clone().sub(a),length=delta.length();if(length<.05)continue;
-   const forward=delta.clone().normalize(),right=new T.Vector3(0,1,0).cross(forward).normalize(),up=forward.clone().cross(right).normalize();
-   if(right.lengthSq()<.5)continue;
-   const mid=a.clone().add(b).multiplyScalar(.5),widthScale=row.width/t.size.x,lengthScale=length/t.size.z;
-   const matrix=new T.Matrix4().makeBasis(right,up,forward).scale(new T.Vector3(widthScale,1,lengthScale)).setPosition(mid);
-   const pa=new T.Vector3(0,0,-t.size.z/2).applyMatrix4(matrix),pb=new T.Vector3(0,0,t.size.z/2).applyMatrix4(matrix);
-   maxEndpointError=Math.max(maxEndpointError,pa.distanceTo(a),pb.distanceTo(b));accepted[row.asset].push(matrix);
+ // Preserve the source cross-section, UVs and 15 cm curb. Subdivide its
+ // triangles in road-local space before sampling the terrain at every vertex.
+ const ROAD_CLEARANCE=.32,MAX_EDGE_METERS=3.5;
+ const midpoint=(a,b)=>a.map((v,i)=>(v+b[i])*.5);
+ function subdivide(a,b,c,sx,sz,out,depth=0){
+  const length=(p,q)=>Math.hypot((p[0]-q[0])*sx,(p[2]-q[2])*sz),ab=length(a,b),bc=length(b,c),ca=length(c,a),max=Math.max(ab,bc,ca);
+  if(max<=MAX_EDGE_METERS||depth>=8){out.push(a,b,c);return;}
+  if(max===ab){const m=midpoint(a,b);subdivide(a,m,c,sx,sz,out,depth+1);subdivide(m,b,c,sx,sz,out,depth+1);}
+  else if(max===bc){const m=midpoint(b,c);subdivide(a,b,m,sx,sz,out,depth+1);subdivide(a,m,c,sx,sz,out,depth+1);}
+  else{const m=midpoint(c,a);subdivide(a,b,m,sx,sz,out,depth+1);subdivide(m,b,c,sx,sz,out,depth+1);}
+ }
+ async function createGroup(rows,center){
+  const hasTerrain=!!map.getTerrain?.(),sample=typeof options.terrainSampler==='function'?options.terrainSampler:q=>hasTerrain?map.queryTerrainElevation({lng:q[0],lat:q[1]},{exaggerated:true}):0;
+  const base=sample(center);if(!Number.isFinite(base)){state.transformProbe={finiteBase:false};return null;}
+  const raw=map.transform?.getMatrixForModel?.(center,base);if(!raw){state.transformProbe={raw:false,base};return null;}
+  const inv=new T.Matrix4().fromArray(raw).invert(),accepted={street1:0,street2:0,street3:0,street4:0},batches=new Map(),cache=new Map();
+  let maxEndpointError=0,minClearance=Infinity,minHeight=Infinity,maxHeight=-Infinity,missing=0,vertexCount=0,terrainConformedRows=0;
+  function samplePoint(q,sourceY){
+   const k=q.map(v=>v.toFixed(8)).join(',');
+   let entry=cache.get(k);
+   if(!entry){const h=sample(q);if(!Number.isFinite(h))return null;entry={h,positions:new Map()};cache.set(k,entry);}
+   const ykey=sourceY.toFixed(5);let point=entry.positions.get(ykey);
+   if(!point){const m=map.transform?.getMatrixForModel?.(q,entry.h+ROAD_CLEARANCE+sourceY);if(!m)return null;
+    point=new T.Vector3().setFromMatrixPosition(new T.Matrix4().fromArray(m).premultiply(inv));if(!Number.isFinite(point.x+point.y+point.z))return null;entry.positions.set(ykey,point);}
+   minHeight=Math.min(minHeight,entry.h);maxHeight=Math.max(maxHeight,entry.h);minClearance=Math.min(minClearance,ROAD_CLEARANCE+sourceY);
+   return point;
   }
-  state.transformProbe={raw:true,base,alignment:'endpoint-derived local 3D basis',maxEndpointError};state.maxEndpointError=maxEndpointError;
-  const next=new T.Group();next.frustumCulled=false;let roadCount=0,intersectionCount=0,triangles=0;for(const name of Object.keys(accepted)){const matrices=accepted[name];if(!matrices.length)continue;const t=templates[name];const mesh=new T.InstancedMesh(t.geometry,t.material,matrices.length);mesh.frustumCulled=false;for(let i=0;i<matrices.length;i++)mesh.setMatrixAt(i,matrices[i]);mesh.instanceMatrix.needsUpdate=true;mesh.userData.sketchfabRoadAsset=true;next.add(mesh);triangles+=t.triangles*matrices.length;if(name==='street4')intersectionCount=matrices.length;else roadCount+=matrices.length;}
-  state.acceptedModels=Object.fromEntries(Object.entries(accepted).map(([name,items])=>[name,items.length]));if(!next.children.length)return null;return{group:next,base,roadCount,intersectionCount,triangles};}
- async function refresh(){if(dead||map.isMoving?.()||map.getZoom()<14.4)return;if(!T){void initialize();return;}const center=[map.getCenter().lng,map.getCenter().lat],features=collectFeatures(map),rows=collectRoadPieces(features,center,map,templates);state.mappedRoadFeatures=features.length;state.collectionProbe=rows.collectionProbe;state.sourceCandidates=rows.pieces.length;state.junctionCandidates=rows.junctionCount;const key=center.map(v=>v.toFixed(4)).join(':')+':'+Math.floor(map.getZoom()*2)+':'+rows.pieces.map(x=>[...x.a,...x.b].map(v=>v.toFixed(6)).join(',')+x.asset).join('|');if(key===lastKey)return;const run=++seq,built=createGroup(rows.pieces,center);if(dead||run!==seq||map.isMoving?.())return;if(!built){clearGroup();lastKey='';restoreDuplicateFallback();state.status='waiting-for-mapped-roads';return;}clearGroup();group=built.group;scene.add(group);anchor=center;anchorZ=built.base;lastKey=key;state.status='ready';state.roadInstances=built.roadCount;state.intersectionInstances=built.intersectionCount;state.junctions=rows.junctionCount;state.triangles=built.triangles;state.sourceCandidates=rows.pieces.length;state.terrainAnchored=true;state.sidewalksAttached=true;state.curbsAttached=true;state.model='Pack de Ruas LW3D v2 · continuous mapped centerlines';state.updatedAt=Date.now();
+  for(let ri=0;ri<rows.length;ri++){
+   if(ri%12===0){await new Promise(resolve=>setTimeout(resolve,0));if(dead||map.isMoving?.())return null;}
+   const row=rows[ri],t=templates[row.asset];if(!t)continue;
+   const A=toMerc(row.a),B=toMerc(row.b),dx=B[0]-A[0],dy=B[1]-A[1],span=Math.hypot(dx,dy),cos=Math.max(.12,Math.cos(row.q[1]*RAD));
+   if(span<.05)continue;
+   const sx=row.width/t.size.x,sz=span*cos/t.size.z,rx=-dy/span,ry=dx/span;
+   const coord=(x,z)=>{const f=z/t.size.z+.5,offset=x*sx/cos;return fromMerc([A[0]+dx*f+rx*offset,A[1]+dy*f+ry*offset]);};
+   const pa=samplePoint(coord(0,-t.size.z*.5),0),pb=samplePoint(coord(0,t.size.z*.5),0),qa=samplePoint(row.a,0),qb=samplePoint(row.b,0);
+   if(!pa||!pb||!qa||!qb){missing++;continue;}maxEndpointError=Math.max(maxEndpointError,pa.distanceTo(qa),pb.distanceTo(qb));
+   const g=t.geometry,attr=g.attributes.position,uv=g.attributes.uv,index=g.index,triangles=[];
+   const get=i=>[attr.getX(i),attr.getY(i),attr.getZ(i),uv?.getX(i)||0,uv?.getY(i)||0];
+   for(let i=0;i<(index?.count||attr.count);i+=3){const ix=j=>index?index.getX(i+j):i+j;subdivide(get(ix(0)),get(ix(1)),get(ix(2)),sx,sz,triangles);}
+   const pos=[],uvs=[];let valid=true;
+   for(const v of triangles){const q=coord(v[0],v[2]),point=samplePoint(q,v[1]);if(!point){valid=false;break;}pos.push(point.x,point.y,point.z);uvs.push(v[3],v[4]);}
+   if(!valid){missing++;continue;}
+   let batch=batches.get(row.asset);if(!batch){batch={pos:[],uvs:[]};batches.set(row.asset,batch);}
+   for(const v of pos)batch.pos.push(v);for(const v of uvs)batch.uvs.push(v);
+   accepted[row.asset]++;terrainConformedRows++;vertexCount+=pos.length/3;
+  }
+  const next=new T.Group();next.frustumCulled=false;let roadCount=0,intersectionCount=0,triangles=0;
+  for(const [name,batch] of batches){const t=templates[name],g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(batch.pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(batch.uvs,2));g.computeVertexNormals();g.computeBoundingSphere();
+   const mesh=new T.Mesh(g,t.material);mesh.frustumCulled=false;mesh.userData.bpTerrainRoadBatch=true;mesh.userData.sketchfabRoadAsset=true;next.add(mesh);triangles+=batch.pos.length/9;if(name==='street4')intersectionCount+=accepted[name];else roadCount+=accepted[name];}
+  state.acceptedModels=accepted;state.transformProbe={raw:true,base,alignment:'terrain-conforming source mesh',maxEndpointError};
+  state.maxEndpointError=maxEndpointError;state.terrainConforming=true;state.terrainVertexCount=vertexCount;state.terrainSamples=cache.size;state.terrainConformedRows=terrainConformedRows;state.missingTerrainRows=missing;state.minTerrainClearance=Number.isFinite(minClearance)?minClearance:null;state.terrainHeightRange=Number.isFinite(minHeight)?maxHeight-minHeight:0;state.sourceUVPreserved=true;state.maxSubdivisionEdgeMeters=MAX_EDGE_METERS;
+  if(!next.children.length)return null;return{group:next,base,roadCount,intersectionCount,triangles};
+ }
+ async function refresh(){if(refreshing){rerun=true;return;}if(dead||map.isMoving?.()||map.getZoom()<14.4)return;if(!T){void initialize();return;}const center=[map.getCenter().lng,map.getCenter().lat],features=collectFeatures(map),rows=collectRoadPieces(features,center,map,templates);state.mappedRoadFeatures=features.length;state.collectionProbe=rows.collectionProbe;state.sourceCandidates=rows.pieces.length;state.junctionCandidates=rows.junctionCount;const key=center.map(v=>v.toFixed(4)).join(':')+':'+Math.floor(map.getZoom()*2)+':'+terrainRevision+':'+rows.pieces.map(x=>[...x.a,...x.b].map(v=>v.toFixed(6)).join(',')+x.asset).join('|');if(key===lastKey)return;const run=++seq;refreshing=true;let built;try{built=await createGroup(rows.pieces,center);}catch(e){state.error=String(e).slice(0,180);restoreDuplicateFallback();}finally{refreshing=false;if(rerun){rerun=false;schedule();}}if(dead||run!==seq||map.isMoving?.()||map.getZoom()<14.4){built?.group.traverse(o=>{if(o.userData?.bpTerrainRoadBatch)o.geometry?.dispose();});return;}if(!built){clearGroup();lastKey='';restoreDuplicateFallback();state.status='waiting-for-mapped-roads';return;}clearGroup();group=built.group;scene.add(group);anchor=center;anchorZ=built.base;lastKey=key;state.status='ready';state.roadInstances=built.roadCount;state.intersectionInstances=built.intersectionCount;state.junctions=rows.junctionCount;state.triangles=built.triangles;state.sourceCandidates=rows.pieces.length;state.terrainAnchored=true;state.sidewalksAttached=true;state.curbsAttached=true;state.model='Pack de Ruas LW3D v2 · continuous mapped centerlines';state.updatedAt=Date.now();
   // One geometry owner per surface: source asphalt/sidewalk overlays create the floating
   // duplicate slabs visible beneath the Sketchfab modules, so keep them suppressed here.
-  disableDuplicateFallback();state.intersectionStrategy='source straight sections follow mapped edges and shared terrain endpoints';map.triggerRepaint();}
- function schedule(){if(dead||timer)return;timer=setTimeout(()=>{timer=0;if(map.getZoom()<14.4){if(group)clearGroup();restoreDuplicateFallback();state.status='standby';return;}void refresh();},350);}
- map.on('moveend',schedule);map.on('zoomend',schedule);map.on('sourcedata',e=>{if(['ofm','bpLivingWorld'].includes(e.sourceId)&&e.isSourceLoaded)schedule();});map.on('bpsurfacemaskready',()=>{if(state.status==='ready')disableDuplicateFallback();});map.on('style.load',()=>{lastKey='';if(state.status==='ready')disableDuplicateFallback();schedule();});map.once('remove',()=>{dead=true;seq++;clearTimeout(timer);map.off('moveend',schedule);map.off('zoomend',schedule);for(const [id,v] of Object.entries(oldVisibility))if(map.getLayer(id))try{map.setLayoutProperty(id,'visibility',v||'visible');}catch(_){}clearGroup();restoreDuplicateFallback();});void initialize();return state;
+  disableDuplicateFallback();state.intersectionStrategy='terrain-conforming source sections with native asphalt underlay at gaps';map.triggerRepaint();}
+ function schedule(){if(dead||timer)return;timer=setTimeout(()=>{timer=0;if(map.getZoom()<14.4){seq++;if(group)clearGroup();restoreDuplicateFallback();state.status='standby';return;}void refresh();},350);}
+ map.on('moveend',schedule);map.on('zoomend',schedule);map.on('sourcedata',e=>{if(['ofm','bpLivingWorld'].includes(e.sourceId)&&e.isSourceLoaded)schedule();else if(e.isSourceLoaded&&/dem|terrain/i.test(String(e.sourceId||''))){terrainRevision++;schedule();}});map.on('bpsurfacemaskready',()=>{if(state.status==='ready')disableDuplicateFallback();});map.on('style.load',()=>{lastKey='';if(state.status==='ready')disableDuplicateFallback();schedule();});map.once('remove',()=>{dead=true;seq++;clearTimeout(timer);map.off('moveend',schedule);map.off('zoomend',schedule);for(const [id,v] of Object.entries(oldVisibility))if(map.getLayer(id))try{map.setLayoutProperty(id,'visibility',v||'visible');}catch(_){}clearGroup();restoreDuplicateFallback();});void initialize();return state;
 }
