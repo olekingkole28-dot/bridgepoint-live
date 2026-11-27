@@ -35,7 +35,12 @@ jobs:
           found=0
           while IFS=$'\t' read -r run name; do
             if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
-            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then continue; fi
+            # A Pages deployment can succeed even if later live verification fails.
+            # Accept that candidate only if its deploy step succeeded; all live byte comparisons below still must pass.
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq 'any(.jobs[].steps[]?; .name == "Publish the preserved production snapshot" and .conclusion == "success")')" || continue
+              if [ "$deployed" != true ]; then continue; fi
+            fi
             rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
             mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
             if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
