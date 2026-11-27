@@ -1,6 +1,6 @@
 // Places the user's CC-BY Sketchfab street-pack meshes on mapped street geometry.
 // The meshes include the source pack's road, sidewalk, curb, and marking textures.
-import {attachRoadInfrastructure} from '/vendor/bp-road-infrastructure-v1.mjs?v=1';
+import {attachRoadInfrastructure} from '/vendor/bp-road-infrastructure-v1.mjs?v=2';
 const BASE='/assets/street-detail-v1/surfaces-v2/';
 const LAYER='bp-sketchfab-road-models-v1';
 const RAD=Math.PI/180,R=6378137;
@@ -127,6 +127,16 @@ export function attachSketchfabRoadModels(map,options={}){
     if(keep.length!==30||Math.abs(size.z-14.44555)>.05||Math.abs(size.x-9.42126)>.05){clean.dispose();throw Error('SOURCE_STRAIGHT_STREET_GEOMETRY_MISMATCH');}
     return clean;
   }
+  function removeBakedUtilityAndCenterPaint(material,name){
+    const original=material.map,image=original?.image;if(!image||!image.width||!image.height)return;
+    const cv=document.createElement('canvas');cv.width=image.width;cv.height=image.height;const ctx=cv.getContext('2d');ctx.drawImage(image,0,0);
+    const W=cv.width,H=cv.height,copy=(x,y,w,h,fromX,fromY)=>ctx.drawImage(image,Math.round(fromX*W),Math.round(fromY*H),Math.round(w*W),Math.round(h*H),Math.round(x*W),Math.round(y*H),Math.round(w*W),Math.round(h*H));
+    // Preserve the exact scan and curb UVs while removing the baked duplicate
+    // center paint and utility stamps. Actual mapped markings/utility models own these.
+    copy(0,.482,1,.035,0,.44);
+    if(name==='street2'){copy(.193,.147,.115,.10,.36,.147);copy(.795,.824,.13,.058,.51,.824);}
+    const texture=original.clone();texture.image=cv;texture.needsUpdate=true;material.map=texture;
+  }
   function makeTemplates(root){
    root.updateMatrixWorld(true);
    for(const name of ['street1','street2','street3','street4']){
@@ -143,7 +153,7 @@ export function attachSketchfabRoadModels(map,options={}){
       g.applyMatrix4(new T.Matrix4().makeRotationY(Math.PI/2));g.computeBoundingBox();box=g.boundingBox;size={x:box.max.x-box.min.x,y:box.max.y-box.min.y,z:box.max.z-box.min.z};
      }
      g.translate(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2);g.computeBoundingBox();g.computeBoundingSphere();
-     const material=mats[mi].clone();material.side=T.DoubleSide;material.transparent=false;material.depthTest=true;material.depthWrite=true;material.polygonOffset=true;material.polygonOffsetFactor=-2;material.polygonOffsetUnits=-4;material.needsUpdate=true;
+     const material=mats[mi].clone();material.side=T.DoubleSide;material.transparent=false;material.depthTest=true;material.depthWrite=true;material.polygonOffset=true;material.polygonOffsetFactor=-2;material.polygonOffsetUnits=-4;if(name==='street1'||name==='street2')removeBakedUtilityAndCenterPaint(material,name);material.needsUpdate=true;
      options.push({geometry:g,material,size,triangles:(g.index?.count||g.attributes.position.count)/3});
     });
     options.sort((a,b)=>b.triangles-a.triangles);

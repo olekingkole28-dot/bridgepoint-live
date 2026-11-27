@@ -1,6 +1,6 @@
 // BridgePoint real-source lane markings and utility access covers.
 // OSM/ODbL, NYC DEP public catch basin inventory. Never synthesize utility coordinates.
-const R=6378137,D=Math.PI/180,MIN=12.7,DETAIL=16,ASSET='/assets/street-detail-v1/storm_drain.glb.gz';
+const R=6378137,D=Math.PI/180,MIN=12.7,DETAIL=15,ASSET='/assets/street-detail-v1/storm_drain.glb.gz';
 const merc=q=>[R*q[0]*D,R*Math.asinh(Math.tan(Math.max(-85,Math.min(85,q[1]))*D))];
 const ll=p=>[p[0]/R/D,Math.atan(Math.sinh(p[1]/R))/D];
 const low=v=>String(v??'').toLowerCase(),clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -43,8 +43,8 @@ async function loadCell(c){
   return {points,ways,osm:osm.status,dep:dep?.status||'outside NYC'};
  })();cache.set(key,job);try{return await job;}catch(e){cache.delete(key);throw e;}
 }
-function lineWidthExpression(){return ['interpolate',['exponential',2],['zoom'],9,['*',.004,['match',['get','class'],'motorway',22,'trunk',17,'primary',14,'secondary',11,'tertiary',9,7]],22,['*',26.8,['match',['get','class'],'motorway',22,'trunk',17,'primary',14,'secondary',11,'tertiary',9,7]]];}
-function suppressCrosswalks(map){for(const l of map.getStyle()?.layers||[])if(l.type==='line'&&/crosswalk|crossing[-_].*marking/i.test(l.id))try{map.setLayoutProperty(l.id,'visibility','none');}catch(_){}}
+function lineWidthExpression(){const w=['case',['>', ['to-number',['get','width'],0],0],['min',60,['to-number',['get','width'],7]],['>', ['to-number',['get','lanes'],0],0],['*',3.25,['min',16,['to-number',['get','lanes'],2]]],['match',['get','class'],'motorway',22,'trunk',17,'primary',14,'secondary',11,'tertiary',9,'service',5,7]];return ['interpolate',['exponential',2],['zoom'],9,['*',.0065,w],22,['*',53.3,w]];}
+function suppressCrosswalks(map){for(const l of map.getStyle()?.layers||[])if(['line','fill','fill-extrusion'].includes(l.type)&&/crosswalk|crossing[-_].*marking/i.test(l.id))try{if(map.getLayoutProperty(l.id,'visibility')!=='none')map.setLayoutProperty(l.id,'visibility','none');}catch(_){}}
 function underlay(map){
  suppressCrosswalks(map);if(!map.getSource('ofm')||map.getLayer(UNDER))return;
  const transport=(map.getStyle()?.layers||[]).find(l=>l.source==='ofm'&&l['source-layer']==='transportation');if(!transport)return;
@@ -57,10 +57,10 @@ function nearestRoad(q,roads,max=12){
  if(d<max&&(!best||d<best.d))best={d,p,dx,dy,road,cos};}
  return best;
 }
-export function attachRoadInfrastructure(map,{network=true}={}){
+export function attachRoadInfrastructure(map,{network=true,fixtureRecords=null}={}){
  if(map.__BP_ROAD_INFRASTRUCTURE_V1__)return map.__BP_ROAD_INFRASTRUCTURE_V1__;
  const state=map.__BP_ROAD_INFRASTRUCTURE_V1__={status:'starting',verifiedUtilityOnly:true,source:'OSM + NYC DEP',drains:0,manholes:0,arrows:0,laneLines:0};window.__BP_ROAD_INFRASTRUCTURE_V1__=state;
- let T,scene,renderer,camera,objects=[],timer=0,dead=false,busy=false,dirty=true,lastKey='',lastFetch=0,records={ways:[],points:[]},drainTemplate=null,cover=null,roads=[];
+ let T,scene,renderer,camera,objects=[],timer=0,dead=false,busy=false,dirty=true,lastKey='',lastFetch=0,records=fixtureRecords||{ways:[],points:[]},drainTemplate=null,cover=null,roads=[];
  function clear(){for(const o of objects){scene?.remove(o);if(o.userData.disposeGeometry)o.geometry.dispose();o.dispose?.();}objects=[];}
  function getRoads(){const out=[];try{for(const f of map.querySourceFeatures('ofm',{sourceLayer:'transportation'})){const p=f.properties||{};if(!classes.includes(low(p.class))||['bridge','tunnel'].includes(low(p.brunnel)))continue;const lines=f.geometry?.type==='LineString'?[f.geometry.coordinates]:f.geometry?.type==='MultiLineString'?f.geometry.coordinates:[];for(const l of lines)for(let i=1;i<l.length;i++)out.push({a:l[i-1],b:l[i],p});}}catch(_){}return out.slice(0,8000);}
  function nativePoints(){const out=[];for(const [id,sl] of [['ofm','poi'],['bpLivingWorld',null],['ofm','transportation']])try{for(const f of map.querySourceFeatures(id,sl?{sourceLayer:sl}:{})){const kind=utilityKind(f.properties);if(kind&&f.geometry?.type==='Point')out.push({kind,q:f.geometry.coordinates,id:id+':'+f.id,source:id});}}catch(_){}return out;}
@@ -71,11 +71,17 @@ export function attachRoadInfrastructure(map,{network=true}={}){
   ctx.fillStyle='#242628';ctx.font='bold 32px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('BP INTEL',128,128);
   const tex=new T.CanvasTexture(canvas);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;
   const top=new T.MeshStandardMaterial({map:tex,color:0xffffff,metalness:.65,roughness:.68});const rim=new T.MeshStandardMaterial({color:0x45474a,metalness:.7,roughness:.72});
-  // Actual recessed, extruded letter grooves: dark shallow linework below rim level.
-  const grooves=new T.Group(),glyphs={B:[[[0,0],[0,1],[.65,1],[.85,.78],[.65,.53],[0,.53]],[[.65,.53],[.85,.25],[.65,0],[0,0]]],P:[[[0,0],[0,1],[.65,1],[.85,.78],[.65,.53],[0,.53]]],I:[[[.42,0],[.42,1]]],N:[[[0,0],[0,1],[.85,0],[.85,1]]],T:[[[0,1],[.85,1]],[[.425,1],[.425,0]]],E:[[[.85,1],[0,1],[0,0],[.85,0]],[[0,.5],[.65,.5]]],L:[[[0,1],[0,0],[.85,0]]]};
-  const lineMat=new T.MeshBasicMaterial({color:0x25272a});
-  let x=-.217;for(const ch of 'BP INTEL'){if(ch===' '){x+=.037;continue;}for(const path of glyphs[ch]||[])for(let i=1;i<path.length;i++){const a=path[i-1],b=path[i],dx=(b[0]-a[0])*.057,dz=(b[1]-a[1])*.075,mesh=new T.Mesh(new T.BoxGeometry(Math.hypot(dx,dz),.001,.003),lineMat);mesh.position.set(x+(a[0]+b[0])*.0285,.013,(1-(a[1]+b[1]))*.0375);mesh.rotation.y=-Math.atan2(-dz,dx);grooves.add(mesh);}x+=.057;}
-  return {geometry:g,material:[rim,top,rim],grooves};
+  // Cut real holes into a thin upper iron plate; dark backing sits 8 mm
+  // below it. Letter grooves are actual geometry rather than floating text.
+  const glyphs={B:['11110','10001','10001','11110','10001','10001','11110'],P:['11110','10001','10001','11110','10000','10000','10000'],I:['111','010','010','010','010','010','111'],N:['10001','11001','10101','10011','10001','10001','10001'],T:['11111','00100','00100','00100','00100','00100','00100'],E:['11111','10000','10000','11110','10000','10000','11111'],L:['10000','10000','10000','10000','10000','10000','11111']};
+  const shape=new T.Shape();shape.absarc(0,0,.31,0,Math.PI*2,false);
+  const text='BP INTEL',pitch=.0105,cell=.0088,total=[...text].reduce((n,ch)=>n+(ch===' '?3:glyphs[ch][0].length+1),0)-1;
+  let col=-total/2;for(const ch of text){if(ch===' '){col+=3;continue;}const glyph=glyphs[ch];for(let iy=0;iy<7;iy++)for(let ix=0;ix<glyph[iy].length;ix++)if(glyph[iy][ix]==='1'){const x=(col+ix)*pitch,y=(3-iy)*pitch,h=new T.Path();h.moveTo(x-cell/2,y-cell/2);h.lineTo(x-cell/2,y+cell/2);h.lineTo(x+cell/2,y+cell/2);h.lineTo(x+cell/2,y-cell/2);h.closePath();shape.holes.push(h);}col+=glyph[0].length+1;}
+  const plate=new T.ExtrudeGeometry(shape,{depth:.008,bevelEnabled:false,curveSegments:48});plate.rotateX(-Math.PI/2);plate.translate(0,.004,0);
+  const backing=new T.CylinderGeometry(.31,.31,.013,48);backing.translate(0,-.0065,0);
+  const plateMat=new T.MeshStandardMaterial({color:0x535559,roughness:.7,metalness:.65}),backMat=new T.MeshStandardMaterial({color:0x212325,roughness:.85,metalness:.4});
+  return {geometry:g,material:[rim,top,rim],plate,backing,plateMat,backMat,engravedHoles:shape.holes.length};
+
  }
  function install(){if(map.getLayer(LAYER))return;const before=(map.getStyle()?.layers||[]).find(l=>l.type==='symbol')?.id;
   map.addLayer({id:LAYER,type:'custom',renderingMode:'3d',onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,alpha:true,antialias:false});renderer.autoClear=false;renderer.outputColorSpace=T.SRGBColorSpace;camera=new T.Camera();scene=new T.Scene();scene.add(new T.HemisphereLight(0xe6f0ff,0x6b645d,2.2));const sun=new T.DirectionalLight(0xffffff,2);sun.position.set(10,40,20);scene.add(sun);},render(gl,args){if(!renderer||!scene||map.getZoom()<DETAIL||document.hidden)return;const m=args?.defaultProjectionData?.mainMatrix;if(!m)return;camera.projectionMatrix.fromArray(m);renderer.resetState();renderer.render(scene,camera);},onRemove(){clear();renderer?.dispose();renderer=null;scene=null;}},before);
@@ -93,26 +99,28 @@ export function attachRoadInfrastructure(map,{network=true}={}){
    const a=merc(q),side=Math.sign(match.dx*(a[1]-match.p[1])-match.dy*(a[0]-match.p[0]))||1;
    const angle=Math.atan2(match.dx,match.dy);let at=q;
    if(f.kind==='drain'){const len=Math.hypot(match.dx,match.dy),w=parseFloat(match.road.p.width)||widths[low(match.road.p.class)]||7,edge=w/2/match.cos;const snapped=ll([match.p[0]-side*match.dy/len*edge,match.p[1]+side*match.dx/len*edge]);if(Math.hypot(...merc(snapped).map((v,i)=>v-a[i]))*match.cos<=3)at=snapped;}
-   const mat=matrix(at,f.kind==='drain'?.47:.475);if(!mat)continue;mat.multiply(new T.Matrix4().makeRotationY(angle));if(f.kind==='drain')drains.push(mat);else covers.push(mat);
+   const mat=matrix(at,f.kind==='drain'?.335:.326);if(!mat)continue;mat.multiply(new T.Matrix4().makeRotationY(angle));if(f.kind==='drain')drains.push(mat);else covers.push(mat);
   }
   if(drainTemplate){const scale=.65/Math.max(drainTemplate.size.x,drainTemplate.size.z);for(const p of drainTemplate.parts)inst(p.g,p.m,drains.map(m=>m.clone().multiply(new T.Matrix4().makeScale(scale,Math.min(scale,.12/drainTemplate.size.y),scale))));}
-  inst(cover.geometry,cover.material,covers);
-  if(map.getZoom()>=19)for(const g of cover.grooves.children) {g.updateMatrix();inst(g.geometry,g.material,covers.map(m=>m.clone().multiply(g.matrix)));}
+  if(map.getZoom()>=19){inst(cover.backing,cover.backMat,covers);inst(cover.plate,cover.plateMat,covers);}else inst(cover.geometry,cover.material,covers);
+  state.engravedHoles=cover.engravedHoles;state.coverLOD=map.getZoom()>=19?'recessed BP INTEL geometry':'textured iron cover';
   state.drains=drainTemplate?drains.length:0;state.manholes=covers.length;
   // Lane counts and arrows use recorded OSM tags, not fictitious turn movements.
-  const white=[],yellow=[],arrow=[];
-  const stripe=(a,b,w,dest)=>{const A=merc(a),B=merc(b),dx=B[0]-A[0],dy=B[1]-A[1],span=Math.hypot(dx,dy),cc=Math.cos(a[1]*D);if(span*cc<.15)return;const mid=ll([(A[0]+B[0])/2,(A[1]+B[1])/2]),m=matrix(mid,.485);if(!m)return;dest.push(m.multiply(new T.Matrix4().makeRotationY(Math.atan2(dx,dy))).multiply(new T.Matrix4().makeScale(w,.003,span*cc)));};
-  for(const way of records.ways){const {spec,p,line}=way;if(!spec.count||line.length<2)continue;const width=parseFloat(p.width)||spec.count*3.2;
+  const white=[],yellow=[],arrow=[];const lineGeom=new T.BoxGeometry(1,1,1);
+  const stripe=(a,b,w,dest)=>{const A=merc(a),B=merc(b),dx=B[0]-A[0],dy=B[1]-A[1],span=Math.hypot(dx,dy),cc=Math.cos(a[1]*D);if(span*cc<.15)return;const mid=ll([(A[0]+B[0])/2,(A[1]+B[1])/2]),m=matrix(mid,.329);if(!m)return;dest.push(m.multiply(new T.Matrix4().makeRotationY(Math.atan2(dx,dy))).multiply(new T.Matrix4().makeScale(w,.003,span*cc)));};
+  const mapped=roads.filter(r=>laneSpecs(r.p).count).map(r=>({line:[r.a,r.b],p:r.p,spec:laneSpecs(r.p)}));
+  const wayRows=records.ways.length?records.ways:mapped;
+  for(const way of wayRows){const {spec,p,line}=way;if(!spec.count||line.length<2)continue;const width=parseFloat(p.width)||spec.count*3.2;
    for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i];if(!near(a)&&!near(b))continue;const A=merc(a),B=merc(b),dx=B[0]-A[0],dy=B[1]-A[1],len=Math.hypot(dx,dy),cc=Math.cos(a[1]*D);if(len*cc<1)continue;const pt=(f,off)=>ll([A[0]+f*dx-dy/len*off/cc,A[1]+f*dy+dx/len*off/cc]);
     for(let l=1;l<spec.count;l++){const off=width*(l/spec.count-.5),opp=!spec.one&&l===(parseInt(p['lanes:backward'])||Math.floor(spec.count/2));const dash=opp?len*cc:3,step=opp?len*cc:7;for(let t=0;t<len*cc;t+=step)stripe(pt(t/(len*cc),off),pt(Math.min(1,(t+dash)/(len*cc)),off),.105,opp?yellow:white);}
    }
-   for(const ar of spec.arrows){const end=ar.dir===1?line.length-1:0,start=ar.dir===1?end-1:1,A=merc(line[start]),B=merc(line[end]),dx=B[0]-A[0],dy=B[1]-A[1],len=Math.hypot(dx,dy),cc=Math.cos(line[end][1]*D);if(len*cc<2)continue;const f=Math.max(.1,1-7/(len*cc)),laneWidth=width/spec.count,off=spec.one?width*((ar.index+.5)/ar.count-.5):(ar.index+.5)*laneWidth;const q=ll([A[0]+dx*f+dy/len*off/cc,A[1]+dy*f-dx/len*off/cc]);if(!near(q))continue;const m=matrix(q,.487);if(!m)continue;m.multiply(new T.Matrix4().makeRotationY(Math.atan2(dx,dy)));arrow.push({m,turns:ar.turns});}
+   for(const ar of spec.arrows){const end=ar.dir===1?line.length-1:0,start=ar.dir===1?end-1:1,A=merc(line[start]),B=merc(line[end]),dx=B[0]-A[0],dy=B[1]-A[1],len=Math.hypot(dx,dy),cc=Math.cos(line[end][1]*D);if(len*cc<2)continue;const f=Math.max(.1,1-7/(len*cc)),laneWidth=width/spec.count,off=spec.one?width*((ar.index+.5)/ar.count-.5):(ar.index+.5)*laneWidth;const q=ll([A[0]+dx*f+dy/len*off/cc,A[1]+dy*f-dx/len*off/cc]);if(!near(q))continue;const m=matrix(q,.331);if(!m)continue;m.multiply(new T.Matrix4().makeRotationY(Math.atan2(dx,dy)));arrow.push({m,turns:ar.turns});}
   }
-  inst(new T.BoxGeometry(1,1,1),new T.MeshBasicMaterial({color:0xf5f5f2}),white);inst(new T.BoxGeometry(1,1,1),new T.MeshBasicMaterial({color:0xe5b34f}),yellow);
-  const mat=new T.MeshBasicMaterial({color:0xffffff,side:T.DoubleSide});for(const turn of ['through','left','right','slight_left','slight_right','reverse','merge_to_left','merge_to_right']){const list=arrow.filter(a=>a.turns.includes(turn)).map(a=>a.m);if(!list.length)continue;const side=turn.includes('left')?-1:turn.includes('right')?1:0;const shape=new T.Shape();shape.moveTo(-.08,-1.2);shape.lineTo(.08,-1.2);shape.lineTo(.08,.25);if(side){shape.lineTo(side*.55,.25);shape.lineTo(side*.55,.03);shape.lineTo(side*.95,.4);shape.lineTo(side*.55,.78);shape.lineTo(side*.55,.56);shape.lineTo(-.08,.56);}else{shape.lineTo(.08,.55);shape.lineTo(.35,.55);shape.lineTo(0,1.15);shape.lineTo(-.35,.55);shape.lineTo(-.08,.55);}shape.closePath();const g=new T.ShapeGeometry(shape);g.rotateX(-Math.PI/2);inst(g,mat,list);}
-  state.laneLines=white.length+yellow.length;state.arrows=arrow.length;state.status='ready';state.sourceStatus={osm:records.osm,nyc:records.dep};map.triggerRepaint();
+  inst(lineGeom,new T.MeshBasicMaterial({color:0xf5f5f2}),white);inst(lineGeom,new T.MeshBasicMaterial({color:0xe5b34f}),yellow);
+  const mat=new T.MeshBasicMaterial({color:0xffffff,side:T.DoubleSide});for(const turn of ['through','left','right','slight_left','slight_right','reverse','merge_to_left','merge_to_right']){const list=arrow.filter(a=>a.turns.includes(turn)).map(a=>a.m);if(!list.length)continue;const side=turn.includes('left')?-1:turn.includes('right')?1:0;const shape=new T.Shape();shape.moveTo(-.08,-1.2);shape.lineTo(.08,-1.2);shape.lineTo(.08,.25);if(side){shape.lineTo(side*.55,.25);shape.lineTo(side*.55,.03);shape.lineTo(side*.95,.4);shape.lineTo(side*.55,.78);shape.lineTo(side*.55,.56);shape.lineTo(-.08,.56);}else{shape.lineTo(.08,.55);shape.lineTo(.35,.55);shape.lineTo(0,1.15);shape.lineTo(-.35,.55);shape.lineTo(-.08,.55);}shape.closePath();const g=new T.ShapeGeometry(shape);g.rotateX(Math.PI/2);inst(g,mat,list);}
+  state.laneLines=white.length+yellow.length;state.arrows=arrow.length;state.status='ready';state.sourceStatus={osm:records.osm,nyc:records.dep};state.verifiedWays=wayRows.length;map.triggerRepaint();
  }
  async function update(){if(dead||busy||map.isMoving?.())return;underlay(map);if(map.getZoom()<DETAIL){state.status='overview';return;}busy=true;try{if(!T)await init();if(!map.getLayer(LAYER))install();const c=map.getCenter(),key=Math.floor(c.lng*100)+':'+Math.floor(c.lat*100);if(network&&key!==lastKey&&Date.now()-lastFetch>25000){lastFetch=Date.now();try{records=await loadCell([c.lng,c.lat]);lastKey=key;}catch(e){state.sourceError=String(e);}}if(!dead&&!map.isMoving?.())rebuild();}catch(e){state.error=String(e);state.status='error';}finally{busy=false;}}
  function schedule(){if(dead||timer)return;timer=setTimeout(()=>{timer=0;void update();},500);}
- map.on('moveend',schedule);map.on('zoomend',schedule);map.on('style.load',()=>{underlay(map);schedule();});map.on('sourcedata',e=>{if(e.isSourceLoaded&&['ofm','bpLivingWorld','dem'].includes(e.sourceId))schedule();});map.once('remove',()=>{dead=true;clearTimeout(timer);clear();});underlay(map);schedule();return state;
+ map.on('moveend',schedule);map.on('zoomend',schedule);map.on('style.load',()=>{underlay(map);schedule();});map.on('styledata',()=>{if(!dead)suppressCrosswalks(map);});map.on('sourcedata',e=>{if(e.isSourceLoaded&&['ofm','bpLivingWorld','dem'].includes(e.sourceId))schedule();});map.once('remove',()=>{dead=true;clearTimeout(timer);clear();});underlay(map);schedule();return state;
 }

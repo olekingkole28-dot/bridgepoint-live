@@ -92,7 +92,7 @@ export function attachStreetDetail(map){
   }catch(e){d.paverError=String(e).slice(0,150)}finally{paverPending=false;}}
  function points(){const c=map.getCenter(),all=[],seen=new Set();const sources=[['bpLivingWorld',null],['ofm','poi'],['bp-global-streetlights-overture-source-v2','infrastructure']];
   for(const [id,sl] of sources){if(!map.getSource(id))continue;let fs=[];try{fs=map.querySourceFeatures(id,sl?{sourceLayer:sl}:{})}catch(_){}
-   for(const f of fs.slice(0,6000)){if(f.geometry?.type!=='Point')continue;const p=f.properties||{},kind=sourceKind(p);if(!kind)continue;
+   for(const f of fs.slice(0,6000)){if(f.geometry?.type!=='Point')continue;const p=f.properties||{},kind=sourceKind(p);if(!kind||kind==='stormdrain'&&map.__BP_ROAD_INFRASTRUCTURE_V1__)continue;
     // Existing full streetlight renderer and tree renderer keep authority when active.
     if(kind==='light'&&map.getLayer('bp-global-streetlights-3d-v1'))continue;
     const q=f.geometry.coordinates;if(!q||!q.slice(0,2).every(Number.isFinite))continue;const x=(q[0]-c.lng)*111195*Math.cos(c.lat*Math.PI/180),y=(q[1]-c.lat)*111195,dist=Math.hypot(x,y);if(dist>(mobile?180:320))continue;
