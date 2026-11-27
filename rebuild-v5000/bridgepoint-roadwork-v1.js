@@ -1,7 +1,7 @@
 /* BridgePoint mapped roadwork and closure overlay.
  * Source: OpenStreetMap via Overpass API. Records are mapped reports, not a
  * complete live dispatch feed. Close-view barriers and cones use the
- * CC-BY-4.0 Street Props Sketchfab GLB already included in the street pack.
+ * CC-BY-4.0 Sketchfab Traffic Cones model included in the street pack.
  */
 (() => {
   'use strict';
@@ -11,8 +11,8 @@
   const OVERPASS = 'https://overpass-api.de/api/interpreter';
   const THREE_URL = '/vendor/three.module.js?v=169-local';
   const GLTF_URL = '/vendor/GLTFLoader.bundle.js?v=169-local';
-  const HELPERS_URL = '/vendor/bp-street-detail-v1.mjs?v=20261127-roadwork-models-v1';
-  const PROPS_URL = '/assets/street-detail-v1/props.glb.gz';
+  const HELPERS_URL = '/vendor/bp-street-detail-v1.mjs?v=20261127-roadwork-traffic-control-v2';
+  const TRAFFIC_CONTROL_URL = '/assets/street-detail-v1/sketchfab/traffic-control-models.glb.gz?v=20261127-traffic-control-v2';
   const SOURCE = 'bp-roadwork-v1-source';
   const LINE = 'bp-roadwork-v1-lines';
   const OUTLINE = 'bp-roadwork-v1-line-outline';
@@ -213,8 +213,9 @@
       const [three, gl, helpers] = await Promise.all([import(THREE_URL), import(GLTF_URL), import(HELPERS_URL)]);
       T = three.default || three;
       const loader = new gl.GLTFLoader();
-      const gltf = await helpers.loadStreetGLTF(loader, { url: PROPS_URL });
-      const roots = gltf.scenes || [gltf.scene];
+      const gltf = await helpers.loadStreetGLTF(loader, { url: TRAFFIC_CONTROL_URL });
+      const sourceRoot = gltf.scene || gltf.scenes?.[0];
+      if (!sourceRoot) throw Error('Sketchfab roadwork source scene missing');
       const cleanRoot = r => {
         const root = r.clone(true); root.updateMatrixWorld(true);
         for (const o of [...root.children]) if (/^(Camera|Light|Cube)$/i.test(o.name)) root.remove(o);
@@ -225,15 +226,16 @@
         });
         return root;
       };
-      barrierRoot = cleanRoot(roots[3]); coneRoot = cleanRoot(roots[4]);
-      if (!barrierRoot || !coneRoot) throw Error('Sketchfab barrier/cone scenes missing');
+      barrierRoot = cleanRoot(sourceRoot.getObjectByName?.('RoadworkBarrier'));
+      coneRoot = cleanRoot(sourceRoot.getObjectByName?.('TrafficCone'));
+      if (!barrierRoot || !coneRoot) throw Error('Sketchfab Traffic Cones barrier/cone meshes missing');
       const normalize = (root, height) => {
         const bounds = helpers.normalizedBounds(T, root); const scale = height / bounds.size.y;
         root.scale.setScalar(scale); root.position.set(-bounds.base.x * scale, -bounds.box.min.y * scale, -bounds.base.z * scale); root.updateMatrixWorld(true);
         return root;
       };
       barrierRoot = normalize(barrierRoot, .92); coneRoot = normalize(coneRoot, .72);
-      state.barrierModel = 'Street Props · barrier_1'; state.coneModel = 'Street Props · cone'; state.modelsLoaded = true;
+      state.barrierModel = 'Traffic Cones · RoadworkBarrier'; state.coneModel = 'Traffic Cones · TrafficCone'; state.modelsLoaded = true;
       installCustomLayer(); scheduleModels();
     })().catch(e => { modelJob = null; state.modelError = safe(e?.message || e, 180); throw e; });
     return modelJob;

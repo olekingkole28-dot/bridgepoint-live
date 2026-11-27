@@ -26,7 +26,7 @@
   const HIGH_DETAIL_ZOOM = 14.5;
   const MAX_ROAD_FEATURES = 720;
   const MAX_GLOBAL_ROADS = 520;
-  const MAX_MODEL_ROADS = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 24 : 48; } catch (_) { return 32; } })();
+  const MAX_MODEL_ROADS = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 64 : 128; } catch (_) { return 96; } })();
   const MOBILE = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches; } catch (_) { return false; } })();
   const MAX_MODEL_POINTS = MOBILE ? 96 : 160;
   const MAX_DOT_POINTS_PER_ROAD = MOBILE ? 64 : 112;
@@ -34,8 +34,8 @@
   const REBUILD_DEBOUNCE_MS = 280;
   const EMPTY = { type: 'FeatureCollection', features: [] };
   const MAX_DOT_VEHICLES = MOBILE ? 260 : 560;
-  const MAX_LOW_DETAIL_MODELS = MOBILE ? 32 : 64;
-  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 56 : 112;
+  const MAX_LOW_DETAIL_MODELS = MOBILE ? 64 : 128;
+  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 128 : 256;
 
   const state = {
     map: null, enabled: false, categories: { civilian: true, police: false, ambulance: false, fire: false },
@@ -1173,9 +1173,9 @@
       if(!candidate||candidate===path||candidate.key===path.key||!(candidate.length>8))continue;
       for(const entry of [{distance:0,direction:1},{distance:candidate.length,direction:-1}]){
         const p=interpolatePath(candidate,entry.distance);if(!p)continue;
-        const gap=Math.hypot(endpoint.local.x-p.local.x,endpoint.local.z-p.local.z);if(gap>8)continue;
+        const gap=Math.hypot(endpoint.local.x-p.local.x,endpoint.local.z-p.local.z);if(gap>14)continue;
         const heading={dx:p.dx*entry.direction,dz:p.dz*entry.direction},turn=angle(incoming,heading);if(turn>2.72)continue;
-        const score=gap+turn*12+(recent.has(candidate.key)?30:0);
+        const score=gap+turn*12+(recent.has(candidate.key)?100:0);
         if(!best||score<best.score)best={path:candidate,distance:entry.distance,direction:entry.direction,gap,heading,score};
       }
     }
@@ -1205,14 +1205,14 @@
     const dt=Math.max(0,Math.min(.08,Number(deltaSeconds)||0)),current=interpolatePath(vehicle.path,vehicle.distance);
     if(!current)return null;
     const cruise=Number(vehicle.cruiseSpeed)||Number(vehicle.speed)||8;let target=cruise;
-    let leaderGap=Infinity;
+    let leaderGap=Infinity,minimumGap=followGap;
     for(const other of state.vehicles||[]){
       if(other===vehicle||other.path!==vehicle.path||other.direction!==vehicle.direction)continue;
       let gap=(other.distance-vehicle.distance)*vehicle.direction;if(gap<0)gap+=vehicle.path.length;
-      if(gap>.1)leaderGap=Math.min(leaderGap,gap);
+      if(gap>.1&&gap<leaderGap){leaderGap=gap;const own=SPECS[vehicle.kind]?.length||4.8,lead=SPECS[other.kind]?.length||4.8;minimumGap=Math.max(followGap,(own+lead)*.5+2);}
     }
     const followGap=vehicle.kind==='semi-trailer'||vehicle.kind==='tractor-truck'||vehicle.kind==='box-truck'?22:vehicle.kind==='city-bus'?18:10;
-    if(leaderGap<followGap+cruise*2.1)target=Math.min(target,cruise*clamp((leaderGap-followGap)/Math.max(1,cruise*2.1),0,1));
+    if(Number.isFinite(leaderGap))target=Math.min(target,Math.sqrt(2*4.2*Math.max(0,leaderGap-minimumGap)));
     const stop=signalApproach(vehicle,current,now);
     if(stop){
       target=Math.min(target,Math.sqrt(2*3.7*stop.stopDistance));
@@ -1230,7 +1230,7 @@
       const fromYaw=Math.atan2(incoming.dx,incoming.dz),next=roadContinuation(vehicle,path,dir>0,incoming);
       if(next){
         vehicle.path=next.path;vehicle.distance=next.distance;vehicle.direction=next.direction;
-        vehicle.recentPathKeys=[...(vehicle.recentPathKeys||[]),path.key,next.path.key].slice(-4);
+        vehicle.recentPathKeys=[...(vehicle.recentPathKeys||[]),path.key,next.path.key].slice(-10);
         vehicle.turn={fromYaw,startDistance:vehicle.distance,direction:vehicle.direction,span:12};
         remaining=Math.max(0,remaining-next.gap);
       }else{
