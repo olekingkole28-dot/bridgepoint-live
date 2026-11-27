@@ -122,7 +122,7 @@ const signIndices={stop:0,yield:1,parking:2,oneway:3,warning:4};
 const nodeNames=(a,b)=>Array.from({length:(b-a)/2+1},(_,i)=>'Object_'+(a+i*2));
 export function attachTrafficFurniture(map,{provider}={}){
  if(!map||map.__BP_TRAFFIC_FURNITURE_V1__)return;
- const st=map.__BP_TRAFFIC_FURNITURE_V1__={status:'standby',objects:0,frames:0,drawCalls:0,triangleCount:0,source:'Overture worldwide infrastructure and road tiles',models:'Original CC-BY Sketchfab meshes',signalState:'illustrative simulation, not live',minRenderZoom:14,sourceCoverage:'mapped locations; road centerline and carriageway clearance placement, unmeasured offsets estimated'};window.__BP_TRAFFIC_FURNITURE_V1__=st;
+ const st=map.__BP_TRAFFIC_FURNITURE_V1__={status:'standby',objects:0,frames:0,drawCalls:0,triangleCount:0,source:'Overture worldwide infrastructure and road tiles',models:'Original CC-BY Sketchfab meshes',signalState:'illustrative simulation, not live',minRenderZoom:14,sourceCoverage:'mapped locations; road centerline and carriageway clearance placement, unmeasured offsets estimated'};window.__BP_TRAFFIC_FURNITURE_V1__=st;st.signalNodes=[];st.phaseAt=(axis,now=Date.now())=>{const t=(Math.floor(now/1000)%48+(axis?24:0))%48;return t<19?'green':t<23?'yellow':'red';};
  const mobile=Math.min(innerWidth,screen.width||innerWidth)<900||matchMedia('(pointer:coarse)').matches,cap=mobile?350:1100,triCap=mobile?420000:1300000;
  let T,loader,scene,camera,renderer,group,anchor,job,worker,gantryJob,helpersModule,prewarmed=false,timer=0,closed=false,dirty=true,busy=0,last='',lastFetch=0,lastCenter='',terrainRetry=0;
  const cache=new Map(),inflight=new Map(),templates=new Map();
@@ -215,7 +215,7 @@ export function attachTrafficFurniture(map,{provider}={}){
    const g=new T.Group();g.userData={phase,axis};for(const p of templates.get(name)){const mesh=new T.InstancedMesh(p.g,p.m,matrices.length);mesh.frustumCulled=false;for(let i=0;i<matrices.length;i++)mesh.setMatrixAt(i,matrices[i]);mesh.instanceMatrix.needsUpdate=true;g.add(mesh);}next.add(g);
   }
   if(group){scene.remove(group);group.traverse(o=>{if(o.isInstancedMesh)o.dispose();});}group=next;scene.add(group);anchor={q,z};last=key;
-  Object.assign(st,{status:'ready',objects:accepted.length,counts:types,triangleCount:triangles,triangleBudget:triCap,originalModels:true,localMeterAnchors:true,zoom:map.getZoom(),claimedSignLocations:claims,examples:accepted.slice(0,8).map(({kind,q,face,source,side,estimated,clearance,centerline})=>({kind,q,face,source,side,estimated,clearance,centerline})),roadClearanceVerified:accepted.filter(x=>Number.isFinite(x.clearance)&&x.clearance>=.85).length});
+  Object.assign(st,{status:'ready',objects:accepted.length,counts:types,triangleCount:triangles,triangleBudget:triCap,originalModels:true,localMeterAnchors:true,zoom:map.getZoom(),claimedSignLocations:claims,signalNodes:accepted.filter(x=>x.kind==='vehicle').map(x=>({id:x.id,q:x.source||x.q,face:x.face,axis:Math.abs(Math.cos(x.face*rad))<.707?1:0})),examples:accepted.slice(0,8).map(({kind,q,face,source,side,estimated,clearance,centerline})=>({kind,q,face,source,side,estimated,clearance,centerline})),roadClearanceVerified:accepted.filter(x=>Number.isFinite(x.clearance)&&x.clearance>=.85).length});
   map.triggerRepaint();
  }
  function schedule(delay=120){if(closed||timer)return;timer=setTimeout(()=>{timer=0;void pump();},delay);}
