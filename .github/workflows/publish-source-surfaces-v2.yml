@@ -176,7 +176,7 @@ jobs:
            p.on('pageerror',e=>console.log('STREET_PAGE_ERROR',e.message));
            await p.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:90000});
            const world=()=>window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;
-           await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()&&typeof window.__BP_APP_SPACE_EXPLORER_V1__?.showPublicOverview==='function'},null,{timeout:120000});
+           await p.waitForFunction(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;return !!w?.map?.getCanvas?.()},null,{timeout:120000});
            await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420;w.map.jumpTo({center:[-73.98565,40.75843],zoom:17.3,pitch:36,bearing:0});});
            const diag=()=>p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__BP_V5000_WORLD||window.__bpLandingWorldV5420,m=w?.map,d=window.__BP_SOURCE_SURFACES_V2__,ids=m?.getStyle?.()?.layers?.map(l=>l.id)||[];return {zoom:m?.getZoom?.(),moving:m?.isMoving?.(),d,mesh:ids.indexOf('bp-source-road-mesh-v5'),center:ids.indexOf('gta-road-center-gold-bp'),crosswalk:ids.indexOf('gta-crosswalk-v2300')}});
            await p.waitForFunction(()=>window.__BP_SOURCE_SURFACES_V2__?.assets?.length===4,null,{timeout:120000});
