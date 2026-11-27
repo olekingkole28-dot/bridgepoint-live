@@ -203,10 +203,10 @@ jobs:
             const elev=(px,py)=>{if(!map.getTerrain?.())return 0;const size=4,ix=Math.floor(px/size),iy=Math.floor(py/size),u=px/size-ix,v=py/size-iy,at=(a,b)=>{const k=a+':'+b;if(!terrain.has(k))terrain.set(k,map.queryTerrainElevation(ll([a*size,b*size]),{exaggerated:true}));return terrain.get(k)},a=at(ix,iy),b=at(ix+1,iy),c=at(ix,iy+1),e=at(ix+1,iy+1);return [a,b,c,e].every(Number.isFinite)?(a*(1-u)+b*u)*(1-v)+(c*(1-u)+e*u)*v:null;};
             const transform=(px,py,sx,sy,sz,yaw=0)=>{const z=elev(px,py);if(z===null)return null;const dx=px-x-CELL/2,dy=py-y-CELL/2,lx=ee.x*dx+nn.x*dy,lz=ee.z*dx+nn.z*dy,ly=z-base+.012;return new T.Matrix4().makeTranslation(lx,ly,lz).multiply(new T.Matrix4().makeRotationY(yaw)).multiply(new T.Matrix4().makeScale(sx,sy,sz));};
             const patchTpl=groundTemplates.patch,tuftTpl=groundTemplates.tuft,patchMatrices=[],tuftMatrices=[];
-            const pScale=(CELL*.485)/Math.max(patchTpl.size.x,patchTpl.size.z),pTall=Math.min(pScale,.16);
+            const pScale=(CELL*.68)/Math.max(patchTpl.size.x,patchTpl.size.z),pTall=Math.min(pScale,.16);
             const patchCornersInside=(px,py)=>{const hx=patchTpl.size.x*pScale*.5,hz=patchTpl.size.z*pScale*.5,pts=[[px-hx,py-hz],[px+hx,py-hz],[px+hx,py+hz],[px-hx,py+hz]];return area.some(a=>pts.every(q=>q[0]>=a.b[0]&&q[0]<=a.b[2]&&q[1]>=a.b[1]&&q[1]<=a.b[3]&&contains(a.p,q[0],q[1])));};
-            for(const fy of [.25,.75])for(const fx of [.25,.75]){const px=x+CELL*fx,py=y+CELL*fy;if(patchCornersInside(px,py)){const m=transform(px,py,pScale,pTall,pScale);if(m)patchMatrices.push(m);}}
-            const foliageLimit=mobile?1800:3200,step=.48/Math.max(.1,cos);let tuftCount=0;
+            for(const [fx,fy] of [[.34,.34],[.66,.66]]){const px=x+CELL*fx,py=y+CELL*fy;if(patchCornersInside(px,py)){const m=transform(px,py,pScale,pTall,pScale);if(m)patchMatrices.push(m);}}
+            const foliageLimit=mobile?160:280,step=.48/Math.max(.1,cos);let tuftCount=0;
             for(let iy=Math.ceil(y/step);iy*step<y+CELL&&tuftCount<foliageLimit;iy++)for(let ix=Math.ceil(x/step);ix*step<x+CELL&&tuftCount<foliageLimit;ix++){
              const px=ix*step+(hash(ix,iy)-.5)*step*.42,py=iy*step+(hash(iy,ix)-.5)*step*.42;if(px<x||px>=x+CELL||py<y||py>=y+CELL)continue;
              const inGrass=area.some(a=>px>=a.b[0]&&px<=a.b[2]&&py>=a.b[1]&&py<=a.b[3]&&contains(a.p,px,py));if(!inGrass)continue;
@@ -226,7 +226,7 @@ jobs:
            async function update(){if(dead||running||!T||!map.getStyle()?.layers?.length)return;const z=map.getZoom();if(z<MIN){if(last){map.getSource(SRC)?.setData(empty());clearMeshes();last='';d.status='standby';d.blades=0;d.weeds=0;d.drawCalls=0;}return;}install();if(!scene)return;
            const c=xy([map.getCenter().lng,map.getCenter().lat]),cx=Math.floor(c[0]/CELL),cy=Math.floor(c[1]/CELL),rad=z<15?3:z<17.5?4:3,key=[cx,cy,rad,z>=DETAIL,z>=19].join(':');if(key===last&&!dirty)return;dirty=false;running=true;last=key;
            try{const inp=inputs(),sig=[inp.grass.length,inp.verge.length,inp.blocked.length,inp.pave.length].join(':');const tiles=[];for(let j=-rad;j<=rad;j++)for(let i=-rad;i<=rad;i++)tiles.push({x:(cx+i)*CELL,y:(cy+j)*CELL,key:(cx+i)+':'+(cy+j),distance:Math.hypot(i,j)});tiles.sort((a,b)=>a.distance-b.distance);
-           const result=[],chosen=new Set(),meshLimit=mobile?5:9;
+           const result=[],chosen=new Set(),meshLimit=mobile?3:4;
            for(const tile of tiles){if(dead)return;let entry=cache.get(tile.key);if(!entry||entry.sig!==sig){entry={...clipTile(tile.x,tile.y,inp.grass,inp.blocked,inp.pave,inp.verge),sig};cache.set(tile.key,entry);if(cache.size>160)cache.delete(cache.keys().next().value);}
            for(const p of entry.grass)result.push(feature(p,'grass'));for(const p of entry.pave)result.push(feature(p,'pave'));
            if(z>=DETAIL&&tile.distance<=1.5&&chosen.size<meshLimit&&entry.grass.length){const mk=tile.key+':'+sig;let item=meshes.get(mk);if(!item){item=makeMesh(tile.x,tile.y,entry.grass,entry.verge,mk,inp.grass);if(item)meshes.set(mk,item);}if(item)chosen.add(mk);}
