@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/publish-ground-materials-v1.yml']
+    paths: ['.github/workflows/publish-ground-materials-v1.yml','street-detail-v1/install.py','street-detail-v1/sketchfab-road-models-v1.mjs','street-detail-v1/street-detail.mjs','street-detail-v1/source-assets/**']
 permissions:
   contents: read
   actions: read
