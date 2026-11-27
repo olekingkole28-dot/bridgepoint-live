@@ -126,7 +126,7 @@ jobs:
               ('Electricbox003 - Street Kitbash Collection','https://sketchfab.com/3d-models/electricbox003-street-kitbash-collection-e7c709ab760d4f1d9e2f167802cb59c0','experiment_studio'),
               ('Storm Drain','https://sketchfab.com/3d-models/storm-drain-af69c0127d1244a7951281733583fb0c','Scaniverse')]
           mpath=root/'manifest.json'; manifest=json.loads(mpath.read_text())
-          manifest['additional_sources']=additions;mpath.write_text(json.dumps(manifest,indent=2)+'\\n')
+          manifest['additional_sources']=additions;mpath.write_text(json.dumps(manifest,indent=2)+chr(10))
           entries=''.join('<li><a href="'+url+'">'+title+'</a> — '+author+' — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></li>' for title,url,author in additions)
           for p in (root/'credits.html',site/'street-credits.html'):
               s=p.read_text()
