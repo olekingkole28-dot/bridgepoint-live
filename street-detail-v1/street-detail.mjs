@@ -46,8 +46,11 @@ export function normalizedBounds(T,root){
  const v=new T.Vector3(),bottom=new T.Box3(),threshold=box.min.y+size.y*.06;root.traverse(o=>{const p=o.geometry?.attributes?.position;if(!o.isMesh||!p)return;for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);if(v.y<=threshold)bottom.expandByPoint(v);}});const base=bottom.isEmpty()?center:bottom.getCenter(new T.Vector3());return {box,center,size,base};
 }
 export function sourceKind(p={}){
- const a=String(p.asset_kind||'').toLowerCase(),c=String(p.class||'').toLowerCase(),s=String(p.subclass||'').toLowerCase(),am=String(p.amenity||'').toLowerCase(),highway=String(p.highway||'').toLowerCase(),sign=String(p.traffic_sign||'').toLowerCase(),adv=String(p.advertising||'').toLowerCase();
- const tags=[a,c,s,am,highway,sign,adv];const has=(...v)=>v.some(x=>tags.includes(x));
+ const a=String(p.asset_kind||'').toLowerCase(),c=String(p.class||'').toLowerCase(),s=String(p.subclass||'').toLowerCase(),am=String(p.amenity||'').toLowerCase(),highway=String(p.highway||'').toLowerCase(),sign=String(p.traffic_sign||'').toLowerCase(),adv=String(p.advertising||'').toLowerCase(),manMade=String(p.man_made||'').toLowerCase(),power=String(p.power||'').toLowerCase(),barrier=String(p.barrier||'').toLowerCase(),utility=String(p.utility||'').toLowerCase(),drain=String(p.drain||p.drainage||'').toLowerCase(),waterway=String(p.waterway||'').toLowerCase(),sewer=String(p.sewer||'').toLowerCase();
+ const tags=[a,c,s,am,highway,sign,adv,manMade,power,barrier,utility,drain,waterway,sewer];const has=(...v)=>v.some(x=>tags.includes(x));
+ if(['cone','traffic_cone'].includes(barrier)||has('traffic_cone','trafficcone'))return 'cone';
+ if(['street_cabinet','utility_pedestal','electric_box'].includes(manMade)||has('electricity_distribution_cabinet','power_transformer','utility_box')||['transformer','substation','minor_distribution'].includes(power)||(utility==='power'&&(c==='street_cabinet'||s==='street_cabinet')))return 'electricbox';
+ if(['drain','storm_drain'].includes(manMade)||['storm_drain','stormwater_drain','surface_drainage'].includes(drain)||waterway==='drain'||sewer==='stormwater'||has('storm_drain','stormwater_drain'))return 'stormdrain';
  if(has('streetlight','street_lamp'))return 'light';
  if(has('bench'))return 'bench';if(has('fire_hydrant','hydrant')||p.emergency==='fire_hydrant')return 'hydrant';if(has('post_box'))return 'mailbox';if(has('mailbox')&&p.residential===true)return 'mailboxlow';if(has('bus_stop','bus_shelter','shelter')&&(['yes','true'].includes(String(p.shelter).toLowerCase())||p.shelter===true||has('bus_shelter')||p.shelter_type==='public_transport'))return 'busshelter';if(has('waste_basket','waste_bin','trash_bin','waste_disposal'))return 'bin';
  if(has('billboard'))return 'billboard';if(has('stop','stop_sign','us:r1-1'))return 'stop';if(has('give_way','yield','yield_sign','us:r1-2'))return 'yield';
@@ -64,6 +67,7 @@ export function propAsset(kind,key){const h=hash(key);switch(kind){
  case'billboard':return{pack:'billboard',index:0,height:6};case'stop':return{pack:'signs',index:0,height:2.4};case'yield':return{pack:'signs',index:1,height:2.4};
  case'container':return{pack:'city',index:pick(h,2),height:2.59};case'barrier':return{pack:'props',index:3,height:0.9};
  case'deadfir':return{pack:'deadfir',index:pick(h,4),height:8};case'shrub':return{pack:'city',index:5,height:0.9};
+ case'cone':return{pack:'props',index:4,height:.75};case'electricbox':return{pack:'electricbox',index:0,height:1.35};case'stormdrain':return{pack:'storm_drain',index:0,height:.28};
  case'vehicle':return{pack:'vehicles',index:pick(h,11),length:4.5};default:return null;}}
 const LAYER='bp-source-street-details-v1';
 export function attachStreetDetail(map){

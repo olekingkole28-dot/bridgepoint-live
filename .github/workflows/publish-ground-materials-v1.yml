@@ -101,10 +101,44 @@ jobs:
                       p.write_text(s)
           print('SKETCHFAB_ASSET_WIRING_PASS')
           PY
+          python3 street-detail-v1/install.py "$SITE"
+          mkdir -p "$SITE/assets/street-detail-v1/surfaces-v2"
+          gzip -n -c street-detail-v1/surface-source/pack_de_ruas_lw3d_v2.glb > "$SITE/assets/street-detail-v1/surfaces-v2/pack-de-ruas.glb.gz"
+          cp street-detail-v1/source-assets/electricbox.glb.gz "$SITE/assets/street-detail-v1/electricbox.glb.gz"
+          cp street-detail-v1/source-assets/storm_drain.glb.gz "$SITE/assets/street-detail-v1/storm_drain.glb.gz"
+          cp street-detail-v1/sketchfab-road-models-v1.mjs "$SITE/vendor/bp-sketchfab-road-models-v1.mjs"
+          python3 - "$SITE/assets/street-detail-v1" "$SITE" <<'PY'
+          import gzip,json,sys
+          from pathlib import Path
+          root,site=map(Path,sys.argv[1:])
+          files={'surfaces-v2/pack-de-ruas.glb.gz':'Pack de Ruas LW3D v2','electricbox.glb.gz':'Electricbox003 - Street Kitbash Collection','storm_drain.glb.gz':'Storm Drain'}
+          for rel,title in files.items():
+              raw=gzip.decompress((root/rel).read_bytes())
+              assert raw[:4]==b'glTF' and len(raw)>1000,(rel,'invalid GLB')
+              n=int.from_bytes(raw[12:16],'little');doc=json.loads(raw[20:20+n])
+              assert title.lower() in doc.get('asset',{}).get('extras',{}).get('title','').lower(),(rel,'wrong source title')
+              assert 'CC-BY-4.0' in doc.get('asset',{}).get('extras',{}).get('license',''),(rel,'license check failed')
+              if 'pack-de-ruas' in rel:
+                  mats={m.get('name','').lower() for m in doc.get('materials',[])}
+                  assert {'street1','street2','street3','street4'}<=mats,('road meshes/materials missing',mats)
+          additions=[
+              ('Pack de Ruas LW3D v2','https://sketchfab.com/3d-models/pack-de-ruas-lw3d-v2-352e537b6cec45f4b5e7ff1580eeca5d','lael.eugenio'),
+              ('Electricbox003 - Street Kitbash Collection','https://sketchfab.com/3d-models/electricbox003-street-kitbash-collection-e7c709ab760d4f1d9e2f167802cb59c0','experiment_studio'),
+              ('Storm Drain','https://sketchfab.com/3d-models/storm-drain-af69c0127d1244a7951281733583fb0c','Scaniverse')]
+          mpath=root/'manifest.json'; manifest=json.loads(mpath.read_text())
+          manifest['additional_sources']=additions;mpath.write_text(json.dumps(manifest,indent=2)+'\\n')
+          entries=''.join('<li><a href="'+url+'">'+title+'</a> — '+author+' — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></li>' for title,url,author in additions)
+          for p in (root/'credits.html',site/'street-credits.html'):
+              s=p.read_text()
+              if 'Pack de Ruas LW3D v2' not in s:s=s.replace('</ul>',entries+'</ul>')
+              p.write_text(s)
+          print('SKETCHFAB_ROAD_PACK_AND_MAPPED_PROPS_VALID')
+          PY
           node --check "$SITE/bridgepoint-transportation-v1.js"
           node --check "$SITE/bridgepoint-drone-awareness-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-aircraft-visuals-v3.js"
           node --input-type=module --check < "$SITE/vendor/bp-street-detail-v1.mjs"
+          node --input-type=module --check < "$SITE/vendor/bp-sketchfab-road-models-v1.mjs"
           python3 - "$SITE/assets/street-detail-v1/sketchfab" <<'PY'
           import gzip,sys
           from pathlib import Path
@@ -132,6 +166,11 @@ jobs:
                   assert s.count("let bpGroundMaterialsAttached=false;")==1
                   s,n=re.subn(r"(/vendor/bp-ground-materials-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-sketchfab-environment-v3",s)
                   assert n==1, f"{base}: expected one ground module URL, got {n}"
+              road_anchor="map.on('idle',bpAttachGroundMaterials);"
+              road_hook="let bpSketchfabRoadModelsAttached=false;const bpAttachSketchfabRoadModels=()=>{if(bpSketchfabRoadModelsAttached||map.getZoom()<14.25)return;bpSketchfabRoadModelsAttached=true;import('/vendor/bp-sketchfab-road-models-v1.mjs?v=20261127-sketchfab-road-models-v1').then(m=>m.attachSketchfabRoadModels(map)).catch(e=>{bpSketchfabRoadModelsAttached=false;console.error('Sketchfab road meshes',e)});};map.on('moveend',bpAttachSketchfabRoadModels);map.on('zoomend',bpAttachSketchfabRoadModels);map.on('idle',bpAttachSketchfabRoadModels);"
+              if "bpSketchfabRoadModelsAttached" not in s:
+                  assert s.count(road_anchor)==1
+                  s=s.replace(road_anchor,road_anchor+" "+road_hook)
               p.write_text(s)
               for name in ('index.html','landing.js','app.js'):
                   p=base/name
@@ -144,7 +183,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/ground-build"
           cat > "$RUNNER_TEMP/ground-build/ground.mjs" <<'JS'
           import clipping from 'polygon-clipping';
-          const R=6378137,D=Math.PI/180,CELL=64,MIN=13.5,DETAIL=16.5;
+          const R=6378137,D=Math.PI/180,CELL=64,MIN=13.5,DETAIL=15.35;
           const TURL='/vendor/three.module.js?v=169-local',ASSET='/assets/street-detail-v1/sketchfab/',LOADER='/vendor/GLTFLoader.bundle.js?v=169-local',STREET='/vendor/bp-street-detail-v1.mjs?v=20261127-sketchfab-models',LAYER='bp-ground-grass-mesh-v1',SRC='bp-ground-material-tiles-v1',FILL='bp-ground-grass-fill-v1',PAVE='bp-ground-paving-fill-v1';
           const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
           const xy=q=>[R*q[0]*D,R*Math.asinh(Math.tan(clamp(q[1],-85.05112878,85.05112878)*D))];
@@ -203,16 +242,16 @@ jobs:
             const elev=(px,py)=>{if(!map.getTerrain?.())return 0;const size=4,ix=Math.floor(px/size),iy=Math.floor(py/size),u=px/size-ix,v=py/size-iy,at=(a,b)=>{const k=a+':'+b;if(!terrain.has(k))terrain.set(k,map.queryTerrainElevation(ll([a*size,b*size]),{exaggerated:true}));return terrain.get(k)},a=at(ix,iy),b=at(ix+1,iy),c=at(ix,iy+1),e=at(ix+1,iy+1);return [a,b,c,e].every(Number.isFinite)?(a*(1-u)+b*u)*(1-v)+(c*(1-u)+e*u)*v:null;};
             const transform=(px,py,sx,sy,sz,yaw=0)=>{const z=elev(px,py);if(z===null)return null;const dx=px-x-CELL/2,dy=py-y-CELL/2,lx=ee.x*dx+nn.x*dy,lz=ee.z*dx+nn.z*dy,ly=z-base+.012;return new T.Matrix4().makeTranslation(lx,ly,lz).multiply(new T.Matrix4().makeRotationY(yaw)).multiply(new T.Matrix4().makeScale(sx,sy,sz));};
             const patchTpl=groundTemplates.patch,tuftTpl=groundTemplates.tuft,patchMatrices=[],tuftMatrices=[];
-            const pScale=(CELL*.68)/Math.max(patchTpl.size.x,patchTpl.size.z),pTall=Math.min(pScale,.16);
+            const pScale=(CELL*.48)/Math.max(patchTpl.size.x,patchTpl.size.z),pTall=Math.min(pScale,.16);
             const patchCornersInside=(px,py)=>{const hx=patchTpl.size.x*pScale*.5,hz=patchTpl.size.z*pScale*.5,pts=[[px-hx,py-hz],[px+hx,py-hz],[px+hx,py+hz],[px-hx,py+hz]];return area.some(a=>pts.every(q=>q[0]>=a.b[0]&&q[0]<=a.b[2]&&q[1]>=a.b[1]&&q[1]<=a.b[3]&&contains(a.p,q[0],q[1])));};
-            for(const [fx,fy] of [[.34,.34],[.66,.66]]){const px=x+CELL*fx,py=y+CELL*fy;if(patchCornersInside(px,py)){const m=transform(px,py,pScale,pTall,pScale);if(m)patchMatrices.push(m);}}
-            const foliageLimit=mobile?160:280,step=.48/Math.max(.1,cos);let tuftCount=0;
+            for(const [fx,fy] of [[.25,.25],[.75,.25],[.25,.75],[.75,.75]]){const px=x+CELL*fx,py=y+CELL*fy;if(patchCornersInside(px,py)){const m=transform(px,py,pScale,pTall,pScale);if(m)patchMatrices.push(m);}}
+            const foliageLimit=mobile?360:600,step=.33/Math.max(.1,cos);let tuftCount=0;
             for(let iy=Math.ceil(y/step);iy*step<y+CELL&&tuftCount<foliageLimit;iy++)for(let ix=Math.ceil(x/step);ix*step<x+CELL&&tuftCount<foliageLimit;ix++){
              const px=ix*step+(hash(ix,iy)-.5)*step*.42,py=iy*step+(hash(iy,ix)-.5)*step*.42;if(px<x||px>=x+CELL||py<y||py>=y+CELL)continue;
              const inGrass=area.some(a=>px>=a.b[0]&&px<=a.b[2]&&py>=a.b[1]&&py<=a.b[3]&&contains(a.p,px,py));if(!inGrass)continue;
              const roadside=vergeArea.some(a=>px>=a.b[0]&&px<=a.b[2]&&py>=a.b[1]&&py<=a.b[3]&&contains(a.p,px,py));
              // Place source grass clumps densely on mapped grass boundaries and medians, with lighter fill where a broad 3D patch does not fit.
-             const mappedEdge=edgeArea.some(a=>edgeDistance(a.p,px,py)<4.25),odds=roadside?.78:mappedEdge?.46:patchMatrices.length?0:.18;
+             const mappedEdge=edgeArea.some(a=>edgeDistance(a.p,px,py)<4.25),odds=roadside?.86:mappedEdge?.70:patchMatrices.length?0:.28;
              if(hash(ix+301,iy+811)>odds)continue;
              const s=.105+hash(ix+19,iy+7)*.065,m=transform(px,py,s,s,s,hash(ix+7,iy+31)*Math.PI*2);if(m){tuftMatrices.push(m);tuftCount++;}
             }
@@ -226,7 +265,7 @@ jobs:
            async function update(){if(dead||running||!T||!map.getStyle()?.layers?.length)return;const z=map.getZoom();if(z<MIN){if(last){map.getSource(SRC)?.setData(empty());clearMeshes();last='';d.status='standby';d.blades=0;d.weeds=0;d.drawCalls=0;}return;}install();if(!scene)return;
            const c=xy([map.getCenter().lng,map.getCenter().lat]),cx=Math.floor(c[0]/CELL),cy=Math.floor(c[1]/CELL),rad=z<15?3:z<17.5?4:3,key=[cx,cy,rad,z>=DETAIL,z>=19].join(':');if(key===last&&!dirty)return;dirty=false;running=true;last=key;
            try{const inp=inputs(),sig=[inp.grass.length,inp.verge.length,inp.blocked.length,inp.pave.length].join(':');const tiles=[];for(let j=-rad;j<=rad;j++)for(let i=-rad;i<=rad;i++)tiles.push({x:(cx+i)*CELL,y:(cy+j)*CELL,key:(cx+i)+':'+(cy+j),distance:Math.hypot(i,j)});tiles.sort((a,b)=>a.distance-b.distance);
-           const result=[],chosen=new Set(),meshLimit=mobile?3:4;
+           const result=[],chosen=new Set(),meshLimit=mobile?4:6;
            for(const tile of tiles){if(dead)return;let entry=cache.get(tile.key);if(!entry||entry.sig!==sig){entry={...clipTile(tile.x,tile.y,inp.grass,inp.blocked,inp.pave,inp.verge),sig};cache.set(tile.key,entry);if(cache.size>160)cache.delete(cache.keys().next().value);}
            for(const p of entry.grass)result.push(feature(p,'grass'));for(const p of entry.pave)result.push(feature(p,'pave'));
            if(z>=DETAIL&&tile.distance<=1.5&&chosen.size<meshLimit&&entry.grass.length){const mk=tile.key+':'+sig;let item=meshes.get(mk);if(!item){item=makeMesh(tile.x,tile.y,entry.grass,entry.verge,mk,inp.grass);if(item)meshes.set(mk,item);}if(item)chosen.add(mk);}
@@ -252,12 +291,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           s=Path('street-detail-v1/verify.mjs').read_text()
-          s=s.replace("import * as T from","import {attachGroundMaterials} from '/vendor/bp-ground-materials-v1.mjs';\nimport * as T from")
+          s=s.replace("import * as T from","import {attachGroundMaterials} from '/vendor/bp-ground-materials-v1.mjs';\nimport {attachSketchfabRoadModels} from '/vendor/bp-sketchfab-road-models-v1.mjs';\nimport * as T from")
           a=s.index('const empty={');b=s.index('</script>',a)
-          s=s[:a]+"""const area=(x,y,w,h,props)=>({type:'Feature',geometry:{type:'Polygon',coordinates:[[[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]]]},properties:props});const center2=[-72.6502,41.56];const green=area(center2[0]-.002,center2[1]-.002,.004,.004,{class:'grass'});const verge=area(center2[0]-.0018,center2[1]-.00008,.0036,.00016,{class:'grass_verge',part:'grass_verge'});const block=area(center2[0]-.000035,center2[1]-.000035,.00007,.00007,{class:'building'});const pave=area(center2[0]+.00006,center2[1]+.00006,.00003,.00005,{surface:'paving_stones'});const style={version:8,sources:{bpLivingWorld:{type:'geojson',data:{type:'FeatureCollection',features:[green,verge,pave]}},exact:{type:'geojson',data:{type:'FeatureCollection',features:[block]}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#596252'}},{id:'source-probe',type:'fill',source:'bpLivingWorld',paint:{'fill-opacity':.001}},{id:'building-probe',type:'fill',source:'exact',paint:{'fill-opacity':.001}}]};const map=new maplibregl.Map({container:'map',style,center:center2,zoom:18.5,pitch:50,bearing:12,projection:'globe',antialias:false});window.testMap=map;map.once('load',()=>attachGroundMaterials(map));
+          s=s[:a]+"""const area=(x,y,ww,h,props)=>({type:'Feature',geometry:{type:'Polygon',coordinates:[[[x,y],[x+ww,y],[x+ww,y+h],[x,y+h],[x,y]]]},properties:props});const center2=[-72.6502,41.56];const green=area(center2[0]-.002,center2[1]-.002,.004,.004,{class:'grass'});const verge=area(center2[0]-.0018,center2[1]-.00008,.0036,.00016,{class:'grass_verge',part:'grass_verge'});const block=area(center2[0]-.000035,center2[1]-.000035,.00007,.00007,{class:'building'});const pave=area(center2[0]+.00006,center2[1]+.00006,.00003,.00005,{surface:'paving_stones'});const roadFeature=(a,b)=>({type:'Feature',geometry:{type:'LineString',coordinates:[a,b]},properties:{class:'residential',width:'7',lanes:'2'}});const roadFeatures=[roadFeature([center2[0]-.0008,center2[1]],center2),roadFeature(center2,[center2[0]+.0008,center2[1]]),roadFeature([center2[0],center2[1]-.0008],center2),roadFeature(center2,[center2[0],center2[1]+.0008])];const style={version:8,sources:{bpLivingWorld:{type:'geojson',data:{type:'FeatureCollection',features:[green,verge,pave]}},exact:{type:'geojson',data:{type:'FeatureCollection',features:[block]}},ofm:{type:'geojson',data:{type:'FeatureCollection',features:roadFeatures}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#596252'}},{id:'source-probe',type:'fill',source:'bpLivingWorld',paint:{'fill-opacity':.001}},{id:'building-probe',type:'fill',source:'exact',paint:{'fill-opacity':.001}},{id:'road-probe',type:'line',source:'ofm',paint:{'line-opacity':.001}}]};const map=new maplibregl.Map({container:'map',style,center:center2,zoom:18.5,pitch:50,bearing:12,projection:'globe',antialias:false});window.testMap=map;const nativeQuery=map.querySourceFeatures.bind(map);map.querySourceFeatures=(source,options={})=>source==='ofm'&&options.sourceLayer==='transportation'?roadFeatures:nativeQuery(source,options);map.once('load',()=>{attachGroundMaterials(map);attachSketchfabRoadModels(map)});
           """+s[b:]
           a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
-          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GROUND_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>{const d=window.__BP_GROUND_MATERIALS_V1__;return d?.grassPolygons>0&&d?.grassPatches>0&&d?.sketchfabTufts>0&&d?.drawCalls>0&&d?.pavingAsset&&d?.grassPatchAsset&&d?.grassTuftAsset},null,{timeout:60000});const state=await p.evaluate(()=>window.__BP_GROUND_MATERIALS_V1__);assert(state.localMeterAnchors&&state.triangles>0);const models=await p.evaluate(async()=>{const three=await import('/vendor/three.module.js?v=169-local'),T=three.default||three,street=await import('/vendor/bp-street-detail-v1.mjs?v=20261127-sketchfab-models'),api=await import('/vendor/GLTFLoader.bundle.js?v=169-local'),loader=new api.GLTFLoader();const [cars,bus,aircraft]=await Promise.all([street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/vehicles.glb.gz'}),street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/sketchfab/servicebus.glb.gz'}),street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/sketchfab/aircraft737.glb.gz'})]);return {carScenes:cars.scenes.length,busMeshes:(bus.scene||bus.scenes[0]).children.length,aircraftMeshes:(aircraft.scene||aircraft.scenes[0]).children.length,busSize:street.normalizedBounds(T,bus.scene||bus.scenes[0]).size.toArray(),aircraftSize:street.normalizedBounds(T,aircraft.scene||aircraft.scenes[0]).size.toArray()}});assert(models.carScenes>=10&&models.busMeshes>0&&models.aircraftMeshes>0);console.log('SKETCHFAB_VEHICLE_AIRCRAFT_LOAD_PASS',models);const clipped=await p.evaluate(()=>{const m=window.testMap,center=[-72.6502,41.56],p=m.project(center);return m.queryRenderedFeatures(p,{layers:['bp-ground-grass-fill-v1']}).length});assert.equal(clipped,0);console.log('SKETCHFAB_GRASS_PATCHES_TUFTS_PAVERS_BUILDING_MASK_PASS',state);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'ground-materials.png')});await p.evaluate(()=>window.testMap.jumpTo({zoom:10}));await p.waitForFunction(()=>window.__BP_GROUND_MATERIALS_V1__?.status==='standby');await p.close();\n"""+s[b:]
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GROUND_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>{const d=window.__BP_GROUND_MATERIALS_V1__,r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return d?.grassPolygons>0&&d?.grassPatches>0&&d?.sketchfabTufts>0&&d?.drawCalls>0&&d?.pavingAsset&&d?.grassPatchAsset&&d?.grassTuftAsset&&r?.status==='ready'&&r?.roadInstances>0&&r?.intersectionInstances>0},null,{timeout:60000});const state=await p.evaluate(()=>window.__BP_GROUND_MATERIALS_V1__);assert(state.localMeterAnchors&&state.triangles>0);const road=await p.evaluate(()=>window.__BP_SKETCHFAB_ROAD_MODELS_V1__);assert.deepEqual([...road.sourceMeshes].sort(),['street1','street2','street3','street4']);assert(road.sidewalksAttached&&road.curbsAttached&&road.terrainAnchored);console.log('SKETCHFAB_ROAD_SIDEWALK_CURB_MARKING_INTERSECTION_PASS',road);const models=await p.evaluate(async()=>{const three=await import('/vendor/three.module.js?v=169-local'),T=three.default||three,street=await import('/vendor/bp-street-detail-v1.mjs?v=20261127-sketchfab-models'),api=await import('/vendor/GLTFLoader.bundle.js?v=169-local'),loader=new api.GLTFLoader();const [cars,bus,aircraft]=await Promise.all([street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/vehicles.glb.gz'}),street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/sketchfab/servicebus.glb.gz'}),street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/sketchfab/aircraft737.glb.gz'})]);return {carScenes:cars.scenes.length,busMeshes:(bus.scene||bus.scenes[0]).children.length,aircraftMeshes:(aircraft.scene||aircraft.scenes[0]).children.length,busSize:street.normalizedBounds(T,bus.scene||bus.scenes[0]).size.toArray(),aircraftSize:street.normalizedBounds(T,aircraft.scene||aircraft.scenes[0]).size.toArray()}});assert(models.carScenes>=10&&models.busMeshes>0&&models.aircraftMeshes>0);console.log('SKETCHFAB_VEHICLE_AIRCRAFT_LOAD_PASS',models);const clipped=await p.evaluate(()=>{const m=window.testMap,center=[-72.6502,41.56],q=m.project(center);return m.queryRenderedFeatures(q,{layers:['bp-ground-grass-fill-v1']}).length});assert.equal(clipped,0);console.log('SKETCHFAB_GRASS_PATCHES_TUFTS_PAVERS_BUILDING_MASK_PASS',state);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'ground-materials.png')});await p.evaluate(()=>window.testMap.jumpTo({zoom:10}));await p.waitForFunction(()=>window.__BP_GROUND_MATERIALS_V1__?.status==='standby');await p.close();\n"""+s[b:]
           Path('street-detail-v1/verify-ground-generated.mjs').write_text(s)
           PY
           node street-detail-v1/verify-ground-generated.mjs
@@ -288,7 +327,7 @@ jobs:
           set -euo pipefail
           SITE="$RUNNER_TEMP/horizon-site"
           cd "$SITE"
-          for p in vendor/bp-ground-materials-v1.mjs assets/street-detail-v1/pavers.png assets/street-detail-v1/sketchfab/aircraft737.glb.gz assets/street-detail-v1/sketchfab/grass-patch.glb.gz assets/street-detail-v1/sketchfab/grass-tuft.glb.gz assets/street-detail-v1/sketchfab/realistic-grass-tile.jpg assets/street-detail-v1/sketchfab/servicebus.glb.gz bridgepoint-transportation-v1.js bridgepoint-aircraft-visuals-v3.js bridgepoint-drone-awareness-v1.js bridgepoint-transportation-loader-v1.js street-credits.html assets/street-detail-v1/credits.html assets/street-detail-v1/manifest.json vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs data/bp-nyc-bus-v1/* assets/street-detail-v1/busshelter.glb.gz vendor/bp-bus-models-v3.mjs bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+          for p in vendor/bp-ground-materials-v1.mjs vendor/bp-sketchfab-road-models-v1.mjs assets/street-detail-v1/surfaces-v2/pack-de-ruas.glb.gz assets/street-detail-v1/electricbox.glb.gz assets/street-detail-v1/storm_drain.glb.gz assets/street-detail-v1/pavers.png assets/street-detail-v1/sketchfab/aircraft737.glb.gz assets/street-detail-v1/sketchfab/grass-patch.glb.gz assets/street-detail-v1/sketchfab/grass-tuft.glb.gz assets/street-detail-v1/sketchfab/realistic-grass-tile.jpg assets/street-detail-v1/sketchfab/servicebus.glb.gz bridgepoint-transportation-v1.js bridgepoint-aircraft-visuals-v3.js bridgepoint-drone-awareness-v1.js bridgepoint-transportation-loader-v1.js street-credits.html assets/street-detail-v1/credits.html assets/street-detail-v1/manifest.json vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs data/bp-nyc-bus-v1/* assets/street-detail-v1/busshelter.glb.gz vendor/bp-bus-models-v3.mjs bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
             for i in 1 2 3 4 5 6; do
               if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?street=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
               if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
