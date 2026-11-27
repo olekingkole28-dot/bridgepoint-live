@@ -2,7 +2,7 @@
 // The meshes include the source pack's road, sidewalk, curb, and marking textures.
 const BASE='/assets/street-detail-v1/surfaces-v2/';
 const LAYER='bp-sketchfab-road-models-v1';
-const ROAD_MIN_ZOOM=11.5, MOBILE_ROAD_LIMIT=1800, DESKTOP_ROAD_LIMIT=3200;
+const ROAD_MIN_ZOOM=10.8, MOBILE_ROAD_LIMIT=1800, DESKTOP_ROAD_LIMIT=3200;
 const RAD=Math.PI/180,R=6378137;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lower=v=>String(v??'').toLowerCase();
@@ -22,7 +22,7 @@ function collectFeatures(map){const out=[],seen=new Set();const add=fs=>{for(con
  return out;
 }
 function collectRoadPieces(features,center,map,templates){
- const segmentKeys=new Set(),c=toMerc(center),cos=Math.max(.12,Math.cos(center[1]*RAD)),radius=map.getZoom()<12.5?5500:map.getZoom()<14.5?4000:map.getZoom()<17?2400:1400,canvas=map.getCanvas(),pieces=[],seenWays=new Set(),probes=[];
+ const segmentKeys=new Set(),c=toMerc(center),cos=Math.max(.12,Math.cos(center[1]*RAD)),radius=map.getZoom()<11.5?6500:map.getZoom()<12.5?5500:map.getZoom()<14.5?4000:map.getZoom()<17?2400:1400,canvas=map.getCanvas(),pieces=[],seenWays=new Set(),probes=[];
  for(const {line,properties:p} of features){
   const cls=lower(p.class).replace(/_link$/,''),probe={class:cls,vertices:line.length,piecesAdded:0},wayKey=lineSignature(line,cls);
   probes.push(probe);if(seenWays.has(wayKey)){probe.skip='duplicate';continue;}seenWays.add(wayKey);
@@ -84,7 +84,7 @@ export function attachSketchfabRoadModels(map,options={}){
    for(const [id,v] of Object.entries(oldVisibility))if(map.getLayer(id))try{map.setLayoutProperty(id,'visibility',v||'visible');}catch(_){}
    oldVisibility={};state.nativeAsphaltUnderlay=false;state.duplicateSurfaceSuppressed=false;state.suppressedFallbackLayers=[];state.sourceSurfaceFallback=true;
   }
-  function install(){if(map.getLayer(LAYER))return;layer={id:LAYER,type:'custom',renderingMode:'3d',onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});renderer.autoClear=false;renderer.info.autoReset=false;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NoToneMapping;camera=new T.Camera();scene=new T.Scene();scene.add(new T.HemisphereLight(0xe8f0f5,0x625e50,1.8));const sun=new T.DirectionalLight(0xffefd8,2);sun.position.set(-35,60,45);scene.add(sun);},render(gl,args){if(!renderer||!scene||!group||!group.children.length||map.getZoom()<ROAD_MIN_ZOOM||document.hidden)return;const raw=map.transform?.getMatrixForModel?.(anchor,anchorZ),matrix=args?.defaultProjectionData?.mainMatrix;if(!raw||!matrix)return;camera.projectionMatrix.fromArray(matrix).multiply(new T.Matrix4().fromArray(raw));renderer.resetState();renderer.info.reset();renderer.render(scene,camera);state.drawCalls=renderer.info.render.calls;state.triangles=renderer.info.render.triangles;state.frames=(state.frames||0)+1;},onRemove(){clearGroup();renderer?.dispose();renderer=null;scene=null;}};const before=['gta-road-label-major','gta-road-label-local','gta-context-building-footprints','gta-water-label'].find(id=>map.getLayer(id));map.addLayer(layer,before);}
+  function install(){if(map.getLayer(LAYER))return;layer={id:LAYER,type:'custom',renderingMode:'3d',onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});renderer.autoClear=false;renderer.info.autoReset=false;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NoToneMapping;applyRoadTextureQuality();camera=new T.Camera();scene=new T.Scene();scene.add(new T.HemisphereLight(0xe8f0f5,0x625e50,1.8));const sun=new T.DirectionalLight(0xffefd8,2);sun.position.set(-35,60,45);scene.add(sun);},render(gl,args){if(!renderer||!scene||!group||!group.children.length||map.getZoom()<ROAD_MIN_ZOOM||document.hidden)return;const raw=map.transform?.getMatrixForModel?.(anchor,anchorZ),matrix=args?.defaultProjectionData?.mainMatrix;if(!raw||!matrix)return;camera.projectionMatrix.fromArray(matrix).multiply(new T.Matrix4().fromArray(raw));renderer.resetState();renderer.info.reset();renderer.render(scene,camera);state.drawCalls=renderer.info.render.calls;state.triangles=renderer.info.render.triangles;state.frames=(state.frames||0)+1;},onRemove(){clearGroup();renderer?.dispose();renderer=null;scene=null;}};const before=['gta-road-label-major','gta-road-label-local','gta-context-building-footprints','gta-water-label'].find(id=>map.getLayer(id));map.addLayer(layer,before);}
  function clearGroup(){if(group&&scene){scene.remove(group);group.traverse(o=>{if(o.userData?.bpTerrainRoadBatch)o.geometry?.dispose();else if(o.isInstancedMesh)o.dispose?.();});}group=null;state.roadInstances=0;state.intersectionInstances=0;}
  function materialGeometry(mesh,materialIndex){
    let g=mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
@@ -127,6 +127,23 @@ export function attachSketchfabRoadModels(map,options={}){
     clean.computeBoundingBox();const size=clean.boundingBox.getSize(new T.Vector3());
     if(keep.length!==30||Math.abs(size.z-14.44555)>.05||Math.abs(size.x-9.42126)>.05){clean.dispose();throw Error('SOURCE_STRAIGHT_STREET_GEOMETRY_MISMATCH');}
     return clean;
+  }
+  // Preserve source image pixels/UVs; use anisotropic sampling for oblique
+  // views, trilinear mipmaps for distance and full-resolution magnification.
+  function applyRoadTextureQuality(){
+   const max=renderer.capabilities.getMaxAnisotropy(),quality={maxAnisotropy:max,textures:[]},seen=new Set();
+   for(const [name,t] of Object.entries(templates)){
+    for(const slot of ['map','normalMap','roughnessMap','metalnessMap','aoMap']){
+     const tex=t.material[slot];if(!tex||seen.has(tex))continue;seen.add(tex);
+     tex.anisotropy=Math.max(1,Math.min(16,max));tex.magFilter=T.LinearFilter;
+     const image=tex.image,canMip=!tex.isCompressedTexture&&!!image&&image.width>0&&image.height>0;
+     if(canMip){tex.generateMipmaps=true;tex.minFilter=T.LinearMipmapLinearFilter;}
+     else if(tex.mipmaps?.length>1)tex.minFilter=T.LinearMipmapLinearFilter;
+     tex.needsUpdate=true;
+     quality.textures.push({name,slot,width:image?.width||0,height:image?.height||0,anisotropy:tex.anisotropy,trilinear:tex.minFilter===T.LinearMipmapLinearFilter});
+    }
+   }
+   state.textureQuality=quality;
   }
   function makeTemplates(root){
    root.updateMatrixWorld(true);
