@@ -7,6 +7,14 @@ const T_URL = '/vendor/three.module.js?v=169-local';
 const GL_URL = '/vendor/GLTFLoader.bundle.js?v=169-local';
 const H_URL = '/vendor/bp-street-detail-v1.mjs?v=20261127-sketchfab-models';
 const MODEL_URL = '/assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz';
+const CITY_CATALOG_URL = '/assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz?v=20261127-city-building-variants-v1';
+const CITY_MODELS = {
+  BP_SquareTower: { x: 12.81, z: 12.57, y: 39.25 },
+  BP_CornerOffice: { x: 10.95, z: 5.61, y: 17.84 },
+  BP_NarrowTower: { x: 6.41, z: 12.73, y: 23.60 },
+  BP_MidriseBlock: { x: 12.71, z: 6.54, y: 16.03 },
+  BP_GlassTower: { x: 51.29, z: 35.98, y: 105.80 }
+};
 const LAYER = 'bp-sketchfab-building-models-v1';
 const D = Math.PI / 180;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -63,15 +71,20 @@ export function selectBuildingCandidates(features, center, cap = 4) {
   for (const f of features || []) {
     const p = f?.properties || {}, geo = footprint(f); if (!geo) continue;
     const width = Math.max(geo.width, geo.depth), depth = Math.min(geo.width, geo.depth), height = heightOf(p), aspect = width / Math.max(1, depth);
-    if (geo.area < 360 || width < 14 || width > 82 || depth < 12 || depth > 66 || height < 35 || height > 360 || aspect < 1.05 || aspect > 2.4) continue;
+    if (geo.area < 220 || width < 9 || width > 82 || depth < 8 || depth > 66 || height < 15 || height > 360 || aspect < .95 || aspect > 2.8) continue;
+    const model = height >= 90 ? 'BP_GlassTower' : Object.keys(CITY_MODELS).filter(x => x !== 'BP_GlassTower').map(id => {
+      const m = CITY_MODELS[id], sourceAspect = Math.max(m.x, m.z) / Math.min(m.x, m.z);
+      return { id, score: Math.abs(Math.log(aspect / sourceAspect)) * 1.8 + Math.abs(Math.log(height / m.y)) * .35 };
+    }).sort((a, b) => a.score - b.score)[0].id;
     const id = String(f.id ?? p.id ?? [geo.q[0].toFixed(5), geo.q[1].toFixed(5)].join(':'));
     if (seen.has(id)) continue; seen.add(id);
     const dx = (geo.q[0] - Number(center[0])) * 111320 * cos, dy = (geo.q[1] - Number(center[1])) * 111132;
-    const footprintFit = Math.abs(Math.log(Math.max(.01, aspect / 1.42)));
-    const heightFit = Math.abs(height - 108) / 108;
+    const source = CITY_MODELS[model], sourceAspect = Math.max(source.x, source.z) / Math.min(source.x, source.z);
+    const footprintFit = Math.abs(Math.log(Math.max(.01, aspect / sourceAspect)));
+    const heightFit = Math.abs(Math.log(height / source.y));
     const longAxisYaw = geo.width >= geo.depth ? geo.angle : geo.angle + Math.PI / 2;
-    found.push({ id, q: geo.q, width, depth, height, yaw: longAxisYaw, area: geo.area,
-      distance: Math.hypot(dx, dy), score: footprintFit * 2.2 + heightFit + Math.hypot(dx, dy) / 1800, name: String(p.name || p['addr:housenumber'] || ''), properties: p });
+    found.push({ id, q: geo.q, width, depth, height, yaw: longAxisYaw, area: geo.area, model,
+      distance: Math.hypot(dx, dy), score: footprintFit * 2.2 + heightFit * .45 + Math.hypot(dx, dy) / 1800, name: String(p.name || p['addr:housenumber'] || ''), properties: p });
   }
   return found.sort((a, b) => a.score - b.score).slice(0, cap);
 }
@@ -79,12 +92,14 @@ export function selectBuildingCandidates(features, center, cap = 4) {
 export function attachSketchfabBuildings(map, options = {}) {
   if (!map || map.__BP_SKETCHFAB_BUILDINGS_V1__) return map?.__BP_SKETCHFAB_BUILDINGS_V1__;
   const mobile = (() => { try { return matchMedia('(max-width: 760px), (pointer: coarse)').matches; } catch (_) { return innerWidth < 760; } })();
-  const cap = options.maxModels || (mobile ? 2 : 5);
-  const status = map.__BP_SKETCHFAB_BUILDINGS_V1__ = { status: 'loading-model', version: 1, model: 'Glass Building (low poly)', sourceGeometryCloned: true,
-    source: 'https://sketchfab.com/3d-models/glass-building-low-poly-38cab01ee5ae4fbf8a35b0360d2998cf', license: 'CC-BY-4.0', mappedFootprintPlacement: true,
+  const cap = options.maxModels || (mobile ? 6 : 18);
+  const status = map.__BP_SKETCHFAB_BUILDINGS_V1__ = { status: 'loading-models', version: 1, model: 'Full Gameready City Buildings + Glass Building', sourceGeometryCloned: true,
+    source: 'https://sketchfab.com/3d-models/full-gameready-city-buildings-retextured-5fad2351e34f4c069a2eec45cce0824c', license: 'CC-BY-4.0', mappedFootprintPlacement: true,
+    sources: ['Full Gameready City Buildings [retextured] · CC BY 4.0', 'Glass Building (low poly) · CC BY 4.0'], placementMode: 'source mesh variants fitted to mapped footprint dimensions and recorded heights',
     modelsPlaced: 0, candidates: 0, triangleCount: 0, tiles: 0, zoom: map.getZoom() };
   window.__BP_SKETCHFAB_BUILDINGS_V1__ = status;
-  let T, renderer, camera, scene, template, bounds, group = null, anchor = null, anchorZ = 0, busy = false, dead = false, timer = 0, lastKey = '', layersInstalled = false;
+  let T, renderer, camera, scene, group = null, anchor = null, anchorZ = 0, busy = false, dead = false, timer = 0, lastKey = '', layersInstalled = false;
+  const templates = new Map();
 
   const emptyGroup = () => { if (group && scene) scene.remove(group); group = null; status.modelsPlaced = 0; };
   function collect() {
@@ -134,12 +149,12 @@ export function attachSketchfabBuildings(map, options = {}) {
     if (dead || busy || map.isMoving?.()) return;
     const zoom = Number(map.getZoom()); status.zoom = zoom;
     if (zoom < 14.35) { emptyGroup(); status.status = 'standby'; return; }
-    if (!template || !scene || !map.getStyle()?.layers?.length) return;
+    if (!templates.size || !scene || !map.getStyle()?.layers?.length) return;
     busy = true;
     try {
       const c = map.getCenter(), center = [c.lng, c.lat], all = collect(), chosen = selectBuildingCandidates(all, center, cap);
-      status.candidates = all.length; status.selected = chosen.map(x => ({ id: x.id, name: x.name, q: x.q, size: [x.width, x.depth, x.height] }));
-      const key = chosen.map(x => x.id + ':' + x.q.map(y => Number(y).toFixed(5)).join(',')).join('|') + ':' + Math.floor(zoom * 2);
+      status.candidates = all.length; status.selected = chosen.map(x => ({ id: x.id, name: x.name, q: x.q, model: x.model, size: [x.width, x.depth, x.height] }));
+      const key = chosen.map(x => x.id + ':' + x.model + ':' + x.q.map(y => Number(y).toFixed(5)).join(',')).join('|') + ':' + Math.floor(zoom * 2);
       if (key === lastKey && group) { busy = false; return; }
       if (!chosen.length) { emptyGroup(); lastKey = key; status.status = 'waiting-for-matching-mapped-footprints'; busy = false; return; }
       const z = Number(map.queryTerrainElevation?.({ lng: c.lng, lat: c.lat }, { exaggerated: true }) ?? 0), baseRaw = map.transform?.getMatrixForModel?.(center, z);
@@ -149,7 +164,8 @@ export function attachSketchfabBuildings(map, options = {}) {
       for (const item of chosen) {
         const groundZ = Number(map.queryTerrainElevation?.({ lng: item.q[0], lat: item.q[1] }, { exaggerated: true }) ?? z);
         const raw = map.transform?.getMatrixForModel?.(item.q, groundZ); if (!raw) continue;
-        const root = template.clone(true), h = item.height || 108;
+        const source = templates.get(item.model); if (!source) continue;
+        const root = source.root.clone(true), bounds = source.bounds, h = item.height || 108;
         const modelLongAxisX = bounds.size.x >= bounds.size.z;
         const targetX = modelLongAxisX ? item.width : item.depth;
         const targetZ = modelLongAxisX ? item.depth : item.width;
@@ -165,7 +181,7 @@ export function attachSketchfabBuildings(map, options = {}) {
       }
       if (!next.children.length) { status.status = 'waiting-for-mapped-footprints'; busy = false; return; }
       emptyGroup(); group = next; scene.add(group); anchor = center; anchorZ = z; lastKey = key;
-      status.modelsPlaced = chosen.length; status.triangleCount = tris; status.status = 'ready'; status.exactSourceGeometry = true; status.terrainAnchored = true;
+      status.modelsPlaced = next.children.length; status.triangleCount = tris; status.status = 'ready'; status.exactSourceGeometry = true; status.terrainAnchored = true;
       map.triggerRepaint();
     } catch (e) { status.status = 'error'; status.error = String(e?.message || e).slice(0, 180); } finally { busy = false; }
   }
@@ -173,8 +189,19 @@ export function attachSketchfabBuildings(map, options = {}) {
   async function init() {
     const [three, gl, helper] = await Promise.all([import(T_URL), import(GL_URL), import(H_URL)]);
     T = three.default || three;
-    const loader = new gl.GLTFLoader(); const gltf = await helper.loadStreetGLTF(loader, { url: MODEL_URL });
-    const root = (gltf.scene || gltf.scenes?.[0])?.clone(true); if (!root) throw Error('Sketchfab building model scene missing');
+    const loader = new gl.GLTFLoader();
+    const [city, glass] = await Promise.all([
+      helper.loadStreetGLTF(loader, { url: CITY_CATALOG_URL }),
+      helper.loadStreetGLTF(loader, { url: MODEL_URL })
+    ]);
+    const cityRoot = city.scene || city.scenes?.[0], cityNodes = new Map();
+    cityRoot?.traverse(o => { if (CITY_MODELS[o.name]) cityNodes.set(o.name, o); });
+    for (const name of Object.keys(CITY_MODELS).filter(x => x !== 'BP_GlassTower')) {
+      const source = cityNodes.get(name); if (!source) throw Error('Mapped city building source missing: ' + name);
+      const root = source.clone(true); root.updateMatrixWorld(true); root.traverse(o => { if (o.isMesh) { const mats = Array.isArray(o.material) ? o.material : [o.material]; for (const m of mats) if (m) { m.side = T.DoubleSide; m.needsUpdate = true; } } });
+      templates.set(name, { root, bounds: helper.normalizedBounds(T, root) });
+    }
+    const root = (glass.scene || glass.scenes?.[0])?.clone(true); if (!root) throw Error('Sketchfab glass building model scene missing');
     const discard = []; root.traverse(o => { if (/^(Camera|Light|Cube)$/i.test(o.name)) discard.push(o); });
     for (const o of discard) o.parent?.remove(o);
     root.traverse(o => {
@@ -191,7 +218,8 @@ export function attachSketchfabBuildings(map, options = {}) {
         m.needsUpdate = true;
       }
     });
-    root.updateMatrixWorld(true); bounds = helper.normalizedBounds(T, root); template = root; installLayer();
+    root.updateMatrixWorld(true); templates.set('BP_GlassTower', { root, bounds: helper.normalizedBounds(T, root) });
+    status.templateModels = [...templates.keys()]; installLayer();
   }
   map.on('moveend', schedule); map.on('zoomend', schedule); map.on('sourcedata', e => { if (/building/i.test(String(e.sourceId || ''))) schedule(); });
   map.on('style.load', () => { layersInstalled = false; installLayer(); lastKey = ''; schedule(); });

@@ -468,10 +468,30 @@
         "source": "https://sketchfab.com/3d-models/traffic-cones-e03b1d2dfdc0416bb8324d15573ea60c",
         "title": "Traffic Cones"
       },
-      "sha256": "d2357d930d8e618fd336e4af241d335442a85492a79f44a09b3b3f434ace8319",
+      "sha256": "631218147cc9f946b674b8fc62bed41375f158b7929a43863556ad86e288ea8a",
       "bytes": 4455876,
       "published_file": "sketchfab/traffic-control-models.glb.gz",
       "note": "Filtered source geometry for roadside barriers and cones; original 4096px textures resized to 1024px for street-scale streaming."
+    },
+    {
+      "id": "mapped-city-building-variants",
+      "file": "mapped-city-buildings.glb",
+      "scenes": [
+        "BP_SquareTower",
+        "BP_CornerOffice",
+        "BP_NarrowTower",
+        "BP_MidriseBlock"
+      ],
+      "credit": {
+        "author": "mortalityrexotable (https://sketchfab.com/mortalityrexotable)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/full-gameready-city-buildings-retextured-5fad2351e34f4c069a2eec45cce0824c",
+        "title": "Full Gameready City Buildings [retextured]"
+      },
+      "sha256": "711e35855dd0bbc35587d7b0dc0f41e55294d6a12ddd8fa207fa0b252627a87d",
+      "bytes": 3106672,
+      "published_file": "buildings/mapped-city-buildings.glb.gz",
+      "note": "Four source mesh geometries cloned from the Sketchfab city pack and fitted to mapped footprint dimensions/heights. Their placement is representative, not identity-matched to the real buildings."
     }
   ],
   "building_models": [
