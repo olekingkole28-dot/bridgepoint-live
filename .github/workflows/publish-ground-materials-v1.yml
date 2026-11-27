@@ -1,4 +1,4 @@
-name: BridgePoint Global ground materials and dense grass V1
+name: BridgePoint mapped grass, verge weeds and paving V2
 on:
   workflow_dispatch:
   push:
@@ -59,13 +59,18 @@ jobs:
           for base in (site,site/'app'):
               p=base/'world-v2300-map.js';s=p.read_text()
               a="map.on('zoomend',bpAttachTreeRendererFromViewport);"
-              assert s.count(a)==1
-              s=s.replace(a,a+"\n let bpGroundMaterialsAttached=false;const bpAttachGroundMaterials=()=>{if(bpGroundMaterialsAttached||map.getZoom()<13.5)return;bpGroundMaterialsAttached=true;import('/vendor/bp-ground-materials-v1.mjs').then(m=>m.attachGroundMaterials(map)).catch(e=>{bpGroundMaterialsAttached=false;console.warn('Ground materials',e)});};map.on('move',bpAttachGroundMaterials);map.on('moveend',bpAttachGroundMaterials);map.on('idle',bpAttachGroundMaterials);")
+              if "let bpGroundMaterialsAttached=false;" not in s:
+                  assert s.count(a)==1
+                  s=s.replace(a,a+"\n let bpGroundMaterialsAttached=false;const bpAttachGroundMaterials=()=>{if(bpGroundMaterialsAttached||map.getZoom()<13.5)return;bpGroundMaterialsAttached=true;import('/vendor/bp-ground-materials-v1.mjs?v=20261127-connected-ground-v2').then(m=>m.attachGroundMaterials(map)).catch(e=>{bpGroundMaterialsAttached=false;console.warn('Ground materials',e)});};map.on('move',bpAttachGroundMaterials);map.on('moveend',bpAttachGroundMaterials);map.on('idle',bpAttachGroundMaterials);")
+              else:
+                  assert s.count("let bpGroundMaterialsAttached=false;")==1
+                  s,n=re.subn(r"(/vendor/bp-ground-materials-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-connected-ground-v2",s)
+                  assert n==1, f"{base}: expected one ground module URL, got {n}"
               p.write_text(s)
               for name in ('index.html','landing.js','app.js'):
                   p=base/name
                   if p.exists():
-                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261126-ground-material-v1',s)
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261127-connected-ground-v2',s)
                       if s!=n:p.write_text(n)
           assert (site/'assets/street-detail-v1/pavers.png').stat().st_size>0
           print('GROUND_MATERIALS_SCOPED_PATCH_PASS')
@@ -92,9 +97,9 @@ jobs:
           function roadWidth(f){const p=f.properties||{},w=parseFloat(p.width||p.width_m);if(Number.isFinite(w)&&w>0&&w<80)return w;const c=lower(p.class),sub=lower(p.subclass);if(['path','footway','sidewalk','cycleway','steps','pedestrian'].includes(c)||['footway','sidewalk','cycleway'].includes(sub))return 2.4;return ({motorway:22,trunk:17,primary:13,secondary:10,tertiary:8,minor:6,residential:6,service:4,track:3,rail:4})[c]||5;}
           function roadBlocks(f,out){if(['bridge','tunnel'].includes(tag(f,'brunnel')))return;for(const line of lines(f))for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<.01)continue;const r=(roadWidth(f)/2+.35)/Math.max(.1,Math.cos(ll(a)[1]*D)),nx=-dy/len*r,ny=dx/len*r,ex=dx/len*r,ey=dy/len*r;out.push([[[a[0]-ex+nx,a[1]-ey+ny],[b[0]+ex+nx,b[1]+ey+ny],[b[0]+ex-nx,b[1]+ey-ny],[a[0]-ex-nx,a[1]-ey-ny],[a[0]-ex+nx,a[1]-ey+ny]]]);}}
           function records(fs){return fs.map(p=>({p,b:bbox(p)})).filter(o=>o.b.every(Number.isFinite));}
-          function clipTile(x,y,grass,blocked,pave){const rect=square(x,y),box=[x,y,x+CELL,y+CELL];const inside=arr=>arr.filter(o=>overlaps(o.b,box)).flatMap(o=>{try{return clipping.intersection(o.p,rect)}catch(_){return []}});
-           const greens=inside(grass),pavings=inside(pave),blocks=inside(blocked);if(!greens.length&&!pavings.length)return {grass:[],pave:[]};
-           try{let g=greens.length?clipping.union(...greens):[];if(g.length&&(blocks.length||pavings.length))g=clipping.difference(g,...blocks,...pavings);let p=pavings.length?clipping.union(...pavings):[];return {grass:g,pave:p};}catch(_){return {grass:[],pave:[]}}
+          function clipTile(x,y,grass,blocked,pave,verge=[]){const rect=square(x,y),box=[x,y,x+CELL,y+CELL];const inside=arr=>arr.filter(o=>overlaps(o.b,box)).flatMap(o=>{try{return clipping.intersection(o.p,rect)}catch(_){return []}});
+           const greens=inside(grass),pavings=inside(pave),verges=inside(verge),blocks=inside(blocked);if(!greens.length&&!pavings.length)return {grass:[],pave:[],verge:[]};
+           try{let g=greens.length?clipping.union(...greens):[];if(g.length&&(blocks.length||pavings.length))g=clipping.difference(g,...blocks,...pavings);let p=pavings.length?clipping.union(...pavings):[];let v=verges.length?clipping.union(...verges):[];if(v.length&&(blocks.length||pavings.length))v=clipping.difference(v,...blocks,...pavings);if(v.length&&g.length)v=clipping.intersection(v,g);return {grass:g,pave:p,verge:v};}catch(_){return {grass:[],pave:[],verge:[]}}
           }
           function ringContains(r,x,y){let inside=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
           const contains=(p,x,y)=>ringContains(p[0],x,y)&&!p.slice(1).some(r=>ringContains(r,x,y));
@@ -102,15 +107,15 @@ jobs:
           function hash(x,y){let h=Math.imul(x|0,374761393)+Math.imul(y|0,668265263)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967296;}
           function makeGrassTexture(){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#496b32';g.fillRect(0,0,256,256);for(let i=0;i<18000;i++){let x=hash(i,13)*256,y=hash(i,29)*256,v=hash(i,53);g.fillStyle=['#243d1c','#41652a','#597d36','#729148','#8a9c56'][Math.floor(v*5)];g.fillRect(x,y,1+hash(i,21)*2,1+hash(i,37)*3);}return g.getImageData(0,0,256,256);}
           export async function attachGroundMaterials(map){
-           if(map.__BP_GROUND_MATERIALS_V1__)return;const d=map.__BP_GROUND_MATERIALS_V1__={status:'standby',tiles:0,blades:0,drawCalls:0,source:'mapped grass/sidewalk/landcover polygons; procedural blades; supplied paving texture'};window.__BP_GROUND_MATERIALS_V1__=d;
+           if(map.__BP_GROUND_MATERIALS_V1__)return;const d=map.__BP_GROUND_MATERIALS_V1__={status:'standby',tiles:0,blades:0,weeds:0,drawCalls:0,source:'mapped grass, medians and sidewalk verges; procedural turf blades and broadleaf weeds; supplied paving texture'};window.__BP_GROUND_MATERIALS_V1__=d;
            let T=null,renderer=null,camera=null,scene=null,material=null,timer=0,dead=false,last='',running=false,dirty=true,cache=new Map(),meshes=new Map(),visibleKeys=new Set(),paver=null,loading=false;
            const mobile=innerWidth<=900||Number(navigator.deviceMemory||4)<=3;
            function source(id,sl){try{return map.getSource(id)?map.querySourceFeatures(id,sl?{sourceLayer:sl}:{}):[]}catch(_){return []}}
-           function inputs(){const cover=source('ofm','landcover'),use=source('ofm','landuse'),side=source('bpSidewalk3D'),base=source('bpLivingWorld'),all=[...cover,...use,...side,...base],grass=[],pave=[],blocked=[];
-           for(const f of all){if(isGrass(f))grass.push(...polys(f));else if(isPave(f)&&tag(f,'part')!=='sidewalk_slab')pave.push(...polys(f));else if(['sidewalk_slab','curb','parking','road','paved','asphalt','concrete'].includes(tag(f,'part'))||['parking','asphalt','concrete','paved'].includes(tag(f,'surface'))||tag(f,'class')==='parking')blocked.push(...polys(f));}
+           function inputs(){const cover=source('ofm','landcover'),use=source('ofm','landuse'),side=source('bpSidewalk3D'),base=source('bpLivingWorld'),all=[...cover,...use,...side,...base],grass=[],verge=[],pave=[],blocked=[];
+           for(const f of all){if(isGrass(f)){const p=polys(f);grass.push(...p);if(tag(f,'part')==='grass_verge'||tag(f,'class')==='grass_verge'||tag(f,'subclass')==='grass_verge')verge.push(...p);}else if(isPave(f)&&tag(f,'part')!=='sidewalk_slab')pave.push(...polys(f));else if(['sidewalk_slab','curb','parking','road','paved','asphalt','concrete'].includes(tag(f,'part'))||['parking','asphalt','concrete','paved'].includes(tag(f,'surface'))||tag(f,'class')==='parking')blocked.push(...polys(f));}
            for(const f of [...source('ofm','water'),...source('ofm','building'),...source('bpBuildings','buildings'),...source('bpCityStructures','buildings'),...source('exact'),...source('bpRoad3D')])blocked.push(...polys(f));
            for(const f of source('ofm','transportation'))roadBlocks(f,blocked);
-           return {grass:records(grass),blocked:records(blocked),pave:records(pave)};
+           return {grass:records(grass),verge:records(verge),blocked:records(blocked),pave:records(pave)};
            }
            async function init(){if(loading||dead)return;loading=true;try{T=await import(TURL);if(dead)return;install();schedule();}catch(e){d.error=String(e);d.status='error'}finally{loading=false}}
            function before(){return ['gta-road-major-shadow','gta-road-major','gta-context-building-footprints','gta-water-label'].find(id=>map.getLayer(id))}
@@ -123,29 +128,42 @@ jobs:
            if(map.getLayer(LAYER)||!T)return;
            map.addLayer({id:LAYER,type:'custom',renderingMode:'3d',onAdd(m,gl){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});renderer.autoClear=false;renderer.info.autoReset=false;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NoToneMapping;camera=new T.Camera();scene=new T.Scene();material=new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide});},render(gl,args){if(!renderer||!scene||map.getZoom()<DETAIL||document.hidden)return;const matrix=args?.defaultProjectionData?.mainMatrix;if(!matrix)return;renderer.resetState();renderer.info.reset();for(const [id,item] of meshes){if(!visibleKeys.has(id))continue;const raw=map.transform?.getMatrixForModel?.(item.anchor,item.z);if(!raw)continue;camera.projectionMatrix.fromArray(matrix).multiply(new T.Matrix4().fromArray(raw));scene.add(item.mesh);renderer.render(scene,camera);scene.remove(item.mesh);}d.drawCalls=renderer.info.render.calls;d.triangles=renderer.info.render.triangles;d.localMeterAnchors=true;},onRemove(){for(const v of meshes.values())v.mesh.geometry.dispose();meshes.clear();material?.dispose();renderer?.dispose();renderer=null;scene=null;}},map.getLayer('gta-water-label')?'gta-water-label':undefined);
            }
-           function makeMesh(x,y,mask,id,step,limit){const anchor=ll([x+CELL/2,y+CELL/2]),base=map.getTerrain?.()?map.queryTerrainElevation(anchor,{exaggerated:true}):0;if(!Number.isFinite(base))return null;
-           const scale=Math.cos(anchor[1]*D),positions=[],colors=[],terrain=new Map(),shade=new T.Color(),geo=new T.BufferGeometry();let blades=0;
+           function makeMesh(x,y,mask,vergeMask,id,step,limit){const anchor=ll([x+CELL/2,y+CELL/2]),base=map.getTerrain?.()?map.queryTerrainElevation(anchor,{exaggerated:true}):0;if(!Number.isFinite(base))return null;
+           const scale=Math.cos(anchor[1]*D),positions=[],colors=[],terrain=new Map(),shade=new T.Color(),geo=new T.BufferGeometry();let blades=0,weeds=0;
            const elev=(px,py)=>{if(!map.getTerrain?.())return 0;const size=4,ix=Math.floor(px/size),iy=Math.floor(py/size),u=px/size-ix,v=py/size-iy,at=(a,b)=>{const k=a+':'+b;if(!terrain.has(k))terrain.set(k,map.queryTerrainElevation(ll([a*size,b*size]),{exaggerated:true}));return terrain.get(k)},a=at(ix,iy),b=at(ix+1,iy),c=at(ix,iy+1),e=at(ix+1,iy+1);return [a,b,c,e].every(Number.isFinite)?(a*(1-u)+b*u)*(1-v)+(c*(1-u)+e*u)*v:null;};
            const raw=map.transform?.getMatrixForModel?.(anchor,base),east=map.transform?.getMatrixForModel?.(ll([x+CELL/2+1,y+CELL/2]),base),north=map.transform?.getMatrixForModel?.(ll([x+CELL/2,y+CELL/2+1]),base);if(!raw||!east||!north)return null;
            const inv=new T.Matrix4().fromArray(raw).invert(),ev=new T.Matrix4().fromArray(east).premultiply(inv),nv=new T.Matrix4().fromArray(north).premultiply(inv),ee=new T.Vector3().setFromMatrixPosition(ev),nn=new T.Vector3().setFromMatrixPosition(nv);
-           const area=mask.map(p=>({p,b:bbox(p)}));const spacing=step/Math.max(.1,scale);
+           const area=mask.map(p=>({p,b:bbox(p)})),vergeArea=vergeMask.map(p=>({p,b:bbox(p)}));const spacing=step/Math.max(.1,scale);
            for(let iy=Math.ceil(y/spacing);iy*spacing<y+CELL&&blades<limit;iy++)for(let ix=Math.ceil(x/spacing);ix*spacing<x+CELL&&blades<limit;ix++){let px=ix*spacing+(hash(ix,iy)-.5)*spacing*.65,py=iy*spacing+(hash(iy,ix)-.5)*spacing*.65;if(px<x||px>=x+CELL||py<y||py>=y+CELL||!area.some(a=>px>=a.b[0]&&px<=a.b[2]&&py>=a.b[1]&&py<=a.b[3]&&contains(a.p,px,py)))continue;const z=elev(px,py);if(z===null)continue;
            const dx=px-x-CELL/2,dy=py-y-CELL/2,lx=ee.x*dx+nn.x*dy,lz=ee.z*dx+nn.z*dy,ly=z-base+.016,angle=hash(ix,iy+5)*Math.PI*2,h=.09+hash(ix+9,iy)*.16,w=.022+hash(ix,iy-9)*.025;
            shade.setHSL(.23+hash(ix,iy+13)*.055,.40+hash(ix+17,iy)*.24,.22+hash(iy,ix+33)*.14);
            for(let k=0;k<2;k++){const a=angle+k*Math.PI/2,ux=Math.cos(a)*w,uz=Math.sin(a)*w,bx=Math.sin(a)*h*.27,bz=Math.cos(a)*h*.27;positions.push(lx-ux,ly,lz-uz,lx+ux,ly,lz+uz,lx+bx,ly+h,lz+bz);for(let v=0;v<3;v++)colors.push(shade.r*(v===2?1.27:.76),shade.g*(v===2?1.27:.76),shade.b*(v===2?1.27:.76));}
-           blades+=2;}
-           if(!blades)return null;geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.computeBoundingSphere();const mesh=new T.Mesh(geo,material);mesh.frustumCulled=false;return {mesh,anchor,z:base,blades};
+           blades+=2;
+           const roadside=vergeArea.some(a=>px>=a.b[0]&&px<=a.b[2]&&py>=a.b[1]&&py<=a.b[3]&&contains(a.p,px,py));
+           if(hash(ix+137,iy+193)<(roadside ? 0.085 : 0.004)){
+            const leafHeight=.055+hash(ix+11,iy+31)*.08,leafLength=.045+hash(ix+47,iy+73)*.065,leafWidth=.018+hash(ix+83,iy+101)*.022,phase=hash(ix+127,iy+157)*Math.PI*2,rootY=ly+.012;
+            for(let k=0;k<3;k++){
+             const a=phase+k*Math.PI*2/3,ux=Math.cos(a),uz=Math.sin(a),pxSide=-uz*leafWidth*.5,pzSide=ux*leafWidth*.5;
+             const x0=lx+ux*.006,z0=lz+uz*.006,x1=lx+ux*leafLength*.52+pxSide,z1=lz+uz*leafLength*.52+pzSide,x2=lx+ux*leafLength,z2=lz+uz*leafLength,x3=lx+ux*leafLength*.52-pxSide,z3=lz+uz*leafLength*.52-pzSide;
+             const y1=rootY+leafHeight*.58,tipY=rootY+leafHeight;
+             shade.setHSL(.235+hash(ix+k*19,iy+211)*.045,.50+hash(ix+223,iy+k*7)*.20,.20+hash(ix+k*5,iy+229)*.12);
+             positions.push(x0,rootY,z0,x1,y1,z1,x2,tipY,z2,x0,rootY,z0,x2,tipY,z2,x3,y1,z3);
+             for(let v=0;v<6;v++)colors.push(shade.r,shade.g,shade.b);
+            }
+            weeds++;
+           }}
+           if(!blades)return null;geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.computeBoundingSphere();const mesh=new T.Mesh(geo,material);mesh.frustumCulled=false;return {mesh,anchor,z:base,blades,weeds};
            }
            function clearMeshes(){for(const item of meshes.values())item.mesh.geometry.dispose();meshes.clear();visibleKeys.clear();}
-           async function update(){if(dead||running||!T||!map.getStyle()?.layers?.length)return;const z=map.getZoom();if(z<MIN){if(last){map.getSource(SRC)?.setData(empty());clearMeshes();last='';d.status='standby';d.blades=0;d.drawCalls=0;}return;}install();if(!scene)return;
+           async function update(){if(dead||running||!T||!map.getStyle()?.layers?.length)return;const z=map.getZoom();if(z<MIN){if(last){map.getSource(SRC)?.setData(empty());clearMeshes();last='';d.status='standby';d.blades=0;d.weeds=0;d.drawCalls=0;}return;}install();if(!scene)return;
            const c=xy([map.getCenter().lng,map.getCenter().lat]),cx=Math.floor(c[0]/CELL),cy=Math.floor(c[1]/CELL),rad=z<15?3:z<17.5?4:3,key=[cx,cy,rad,z>=DETAIL,z>=19].join(':');if(key===last&&!dirty)return;dirty=false;running=true;last=key;
-           try{const inp=inputs(),sig=[inp.grass.length,inp.blocked.length,inp.pave.length].join(':');const tiles=[];for(let j=-rad;j<=rad;j++)for(let i=-rad;i<=rad;i++)tiles.push({x:(cx+i)*CELL,y:(cy+j)*CELL,key:(cx+i)+':'+(cy+j),distance:Math.hypot(i,j)});tiles.sort((a,b)=>a.distance-b.distance);
+           try{const inp=inputs(),sig=[inp.grass.length,inp.verge.length,inp.blocked.length,inp.pave.length].join(':');const tiles=[];for(let j=-rad;j<=rad;j++)for(let i=-rad;i<=rad;i++)tiles.push({x:(cx+i)*CELL,y:(cy+j)*CELL,key:(cx+i)+':'+(cy+j),distance:Math.hypot(i,j)});tiles.sort((a,b)=>a.distance-b.distance);
            const result=[],chosen=new Set(),meshLimit=mobile?5:9,perTile=mobile?26000:42000,step=z>=19?.13:.22;
-           for(const tile of tiles){if(dead)return;let entry=cache.get(tile.key);if(!entry||entry.sig!==sig){entry={...clipTile(tile.x,tile.y,inp.grass,inp.blocked,inp.pave),sig};cache.set(tile.key,entry);if(cache.size>160)cache.delete(cache.keys().next().value);}
+           for(const tile of tiles){if(dead)return;let entry=cache.get(tile.key);if(!entry||entry.sig!==sig){entry={...clipTile(tile.x,tile.y,inp.grass,inp.blocked,inp.pave,inp.verge),sig};cache.set(tile.key,entry);if(cache.size>160)cache.delete(cache.keys().next().value);}
            for(const p of entry.grass)result.push(feature(p,'grass'));for(const p of entry.pave)result.push(feature(p,'pave'));
-           if(z>=DETAIL&&tile.distance<=1.5&&chosen.size<meshLimit&&entry.grass.length){const mk=tile.key+':'+sig+':'+step;let item=meshes.get(mk);if(!item){item=makeMesh(tile.x,tile.y,entry.grass,mk,step,perTile);if(item)meshes.set(mk,item);}if(item)chosen.add(mk);}
+           if(z>=DETAIL&&tile.distance<=1.5&&chosen.size<meshLimit&&entry.grass.length){const mk=tile.key+':'+sig+':'+step;let item=meshes.get(mk);if(!item){item=makeMesh(tile.x,tile.y,entry.grass,entry.verge,mk,step,perTile);if(item)meshes.set(mk,item);}if(item)chosen.add(mk);}
            if(result.length&&tiles.indexOf(tile)%8===7)await new Promise(r=>setTimeout(r,0));}
-           for(const [id,item] of meshes)if(!chosen.has(id)){item.mesh.geometry.dispose();meshes.delete(id);}visibleKeys=chosen;map.getSource(SRC)?.setData({type:'FeatureCollection',features:result});d.tiles=tiles.length;d.grassPolygons=result.filter(f=>f.properties.kind==='grass').length;d.pavedPolygons=result.filter(f=>f.properties.kind==='pave').length;d.blades=[...meshes.values()].reduce((a,b)=>a+b.blades,0);d.status=result.length?'ready':'waiting-for-mapped-surface';map.triggerRepaint();
+           for(const [id,item] of meshes)if(!chosen.has(id)){item.mesh.geometry.dispose();meshes.delete(id);}visibleKeys=chosen;map.getSource(SRC)?.setData({type:'FeatureCollection',features:result});d.tiles=tiles.length;d.grassPolygons=result.filter(f=>f.properties.kind==='grass').length;d.pavedPolygons=result.filter(f=>f.properties.kind==='pave').length;d.blades=[...meshes.values()].reduce((a,b)=>a+b.blades,0);d.weeds=[...meshes.values()].reduce((a,b)=>a+b.weeds,0);d.status=result.length?'ready':'waiting-for-mapped-surface';map.triggerRepaint();
            }catch(e){d.status='error';d.error=String(e).slice(0,200);dirty=true;}finally{running=false;}
            }
            function schedule(){if(dead||timer||map.getZoom()<MIN&&!last)return;timer=setTimeout(()=>{timer=0;if(!T){init();return}update()},220);}
@@ -171,7 +189,7 @@ jobs:
           s=s[:a]+"""const area=(x,y,w,h,props)=>({type:'Feature',geometry:{type:'Polygon',coordinates:[[[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]]]},properties:props});const center2=[-72.6502,41.56];const green=area(center2[0]-.00025,center2[1]-.00025,.0005,.0005,{class:'grass'});const block=area(center2[0]-.000035,center2[1]-.000035,.00007,.00007,{class:'building'});const pave=area(center2[0]+.00006,center2[1]+.00006,.00003,.00005,{surface:'paving_stones'});const style={version:8,sources:{bpLivingWorld:{type:'geojson',data:{type:'FeatureCollection',features:[green,pave]}},exact:{type:'geojson',data:{type:'FeatureCollection',features:[block]}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#596252'}},{id:'source-probe',type:'fill',source:'bpLivingWorld',paint:{'fill-opacity':.001}},{id:'building-probe',type:'fill',source:'exact',paint:{'fill-opacity':.001}}]};const map=new maplibregl.Map({container:'map',style,center:center2,zoom:18.5,pitch:50,bearing:12,projection:'globe',antialias:false});window.testMap=map;map.once('load',()=>attachGroundMaterials(map));
           """+s[b:]
           a=s.index("try{const p=await browser.newPage");b=s.index("}finally{await browser.close()",a)
-          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GROUND_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>{const d=window.__BP_GROUND_MATERIALS_V1__;return d?.grassPolygons>0&&d?.blades>100&&d?.drawCalls>0&&d?.pavingAsset},null,{timeout:60000});const state=await p.evaluate(()=>window.__BP_GROUND_MATERIALS_V1__);assert(state.localMeterAnchors&&state.triangles>0);const clipped=await p.evaluate(()=>{const m=window.testMap,center=[-72.6502,41.56],p=m.project(center);return m.queryRenderedFeatures(p,{layers:['bp-ground-grass-fill-v1']}).length});assert.equal(clipped,0);console.log('GROUND_DENSE_BLADES_PAVERS_BUILDING_MASK_PASS',state);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'ground-materials.png')});await p.evaluate(()=>window.testMap.jumpTo({zoom:10}));await p.waitForFunction(()=>window.__BP_GROUND_MATERIALS_V1__?.status==='standby');await p.close();\n"""+s[b:]
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('GROUND_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');await p.waitForFunction(()=>{const d=window.__BP_GROUND_MATERIALS_V1__;return d?.grassPolygons>0&&d?.blades>100&&d?.weeds>0&&d?.drawCalls>0&&d?.pavingAsset},null,{timeout:60000});const state=await p.evaluate(()=>window.__BP_GROUND_MATERIALS_V1__);assert(state.localMeterAnchors&&state.triangles>0);const clipped=await p.evaluate(()=>{const m=window.testMap,center=[-72.6502,41.56],p=m.project(center);return m.queryRenderedFeatures(p,{layers:['bp-ground-grass-fill-v1']}).length});assert.equal(clipped,0);console.log('GROUND_DENSE_BLADES_WEEDS_PAVERS_BUILDING_MASK_PASS',state);await p.screenshot({path:path.join(process.env.RUNNER_TEMP,'ground-materials.png')});await p.evaluate(()=>window.testMap.jumpTo({zoom:10}));await p.waitForFunction(()=>window.__BP_GROUND_MATERIALS_V1__?.status==='standby');await p.close();\n"""+s[b:]
           Path('street-detail-v1/verify-ground-generated.mjs').write_text(s)
           PY
           node street-detail-v1/verify-ground-generated.mjs
