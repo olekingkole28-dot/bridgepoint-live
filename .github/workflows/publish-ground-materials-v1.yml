@@ -119,7 +119,7 @@ jobs:
           import gzip,json,sys
           from pathlib import Path
           root,site=map(Path,sys.argv[1:])
-          files={'surfaces-v2/pack-de-ruas.glb.gz':'Pack de Ruas LW3D v2','electricbox.glb.gz':'Electricbox003 - Street Kitbash Collection','storm_drain.glb.gz':'Storm Drain','buildings/glass-building-low-poly.glb.gz':'Glass Building (low poly)'}
+          files={'surfaces-v2/pack-de-ruas.glb.gz':'Pack de Ruas LW3D v2','electricbox.glb.gz':'Electricbox003 - Street Kitbash Collection','storm_drain.glb.gz':'Storm Drain','buildings/glass-building-low-poly.glb.gz':'Glass Building (low poly)','sketchfab/traffic-control-models.glb.gz':'Traffic Cones'}
           for rel,title in files.items():
               raw=gzip.decompress((root/rel).read_bytes())
               assert raw[:4]==b'glTF' and len(raw)>1000,(rel,'invalid GLB')
@@ -133,7 +133,8 @@ jobs:
               ('Pack de Ruas LW3D v2','https://sketchfab.com/3d-models/pack-de-ruas-lw3d-v2-352e537b6cec45f4b5e7ff1580eeca5d','lael.eugenio'),
               ('Electricbox003 - Street Kitbash Collection','https://sketchfab.com/3d-models/electricbox003-street-kitbash-collection-e7c709ab760d4f1d9e2f167802cb59c0','experiment_studio'),
               ('Storm Drain','https://sketchfab.com/3d-models/storm-drain-af69c0127d1244a7951281733583fb0c','Scaniverse'),
-              ('Glass Building (low poly)','https://sketchfab.com/3d-models/glass-building-low-poly-38cab01ee5ae4fbf8a35b0360d2998cf','mohamed ouartassi')]
+              ('Glass Building (low poly)','https://sketchfab.com/3d-models/glass-building-low-poly-38cab01ee5ae4fbf8a35b0360d2998cf','mohamed ouartassi'),
+              ('Traffic Cones','https://sketchfab.com/3d-models/traffic-cones-e03b1d2dfdc0416bb8324d15573ea60c','NotAnotherApocalypticCo.')]
           mpath=root/'manifest.json'; manifest=json.loads(mpath.read_text())
           manifest['additional_sources']=additions;manifest['vehicle_catalog']={'title':'54 Vehicle Pack','published_file':'sketchfab/vehicles-all.glb.gz','scene_count':59,'author':'PorscheAaron','license':'CC-BY-4.0','source':'https://sketchfab.com/3d-models/54-vehicle-pack-10575d5318f244e5987d45239dbc6247','note':'59 independent source meshes; road vehicle profile filter excludes non-road vehicles when simulating road traffic.'};mpath.write_text(json.dumps(manifest,indent=2)+chr(10))
           entries=''.join('<li><a href="'+url+'">'+title+'</a> — '+author+' — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></li>' for title,url,author in additions)
@@ -155,9 +156,13 @@ jobs:
           import gzip,json,struct,sys
           from pathlib import Path
           root=Path(sys.argv[1])
-          for name in ('grass-patch.glb.gz','grass-tuft.glb.gz','aircraft737.glb.gz','servicebus.glb.gz','vehicles-all.glb.gz'):
+          for name in ('grass-patch.glb.gz','grass-tuft.glb.gz','aircraft737.glb.gz','servicebus.glb.gz','vehicles-all.glb.gz','traffic-control-models.glb.gz'):
               raw=gzip.decompress((root/name).read_bytes())
               assert raw[:4]==b'glTF' and len(raw)>1000,(name,'invalid GLB')
+              if name=='traffic-control-models.glb.gz':
+                  n=int.from_bytes(raw[12:16],'little');doc=json.loads(raw[20:20+n])
+                  assert {'RoadworkBarrier','TrafficCone'}<={x.get('name') for x in doc.get('nodes',[])},'mapped roadwork Sketchfab models missing'
+                  assert 'CC-BY-4.0' in doc.get('asset',{}).get('extras',{}).get('license',''),'roadwork asset attribution/license missing'
           vehicle_raw=gzip.decompress((root/'vehicles-all.glb.gz').read_bytes())
           vehicle_json_len=int.from_bytes(vehicle_raw[12:16],'little')
           vehicle_doc=json.loads(vehicle_raw[20:20+vehicle_json_len])

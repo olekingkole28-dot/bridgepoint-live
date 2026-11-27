@@ -454,6 +454,24 @@
       "published_file": "sketchfab/aircraft737.glb.gz",
       "bytes": 218506,
       "sha256": "dd26c0cd1c6194c18e1b745d686a497d1a191cb748955b1847ac0dc47562472a"
+    },
+    {
+      "id": "traffic-control-models",
+      "file": "traffic-control-models.glb",
+      "scenes": [
+        "RoadworkBarrier",
+        "TrafficCone"
+      ],
+      "credit": {
+        "author": "NotAnotherApocalypticCo. (https://sketchfab.com/notanotherapocalypticco)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/traffic-cones-e03b1d2dfdc0416bb8324d15573ea60c",
+        "title": "Traffic Cones"
+      },
+      "sha256": "d2357d930d8e618fd336e4af241d335442a85492a79f44a09b3b3f434ace8319",
+      "bytes": 4455876,
+      "published_file": "sketchfab/traffic-control-models.glb.gz",
+      "note": "Filtered source geometry for roadside barriers and cones; original 4096px textures resized to 1024px for street-scale streaming."
     }
   ],
   "building_models": [
