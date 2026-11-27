@@ -60,8 +60,9 @@ jobs:
           export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
           mkdir -p "$BP_TEST"
           npm install --prefix "$BP_TEST" playwright esbuild polygon-clipping@0.15.7 earcut@3.0.2 pngjs@7.0.0
+          test -s "$SITE/vendor/three.module.js"
           cp street-detail-v1/source-surfaces-v2.mjs "$BP_TEST/source-surfaces.mjs"
-          "$BP_TEST/node_modules/.bin/esbuild" "$BP_TEST/source-surfaces.mjs" --bundle --format=esm --platform=browser --target=es2022 --outfile="$BP_TEST/bp-source-surfaces-v2.mjs"
+          "$BP_TEST/node_modules/.bin/esbuild" "$BP_TEST/source-surfaces.mjs" --bundle --format=esm --platform=browser --target=es2022 '--external:/vendor/*' --outfile="$BP_TEST/bp-source-surfaces-v2.mjs"
           python3 - "$SITE" "$BP_TEST" <<'PY'
           import sys,hashlib
           from pathlib import Path
