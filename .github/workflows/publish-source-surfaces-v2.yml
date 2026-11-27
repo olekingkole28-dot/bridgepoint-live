@@ -127,8 +127,9 @@ jobs:
                   guard=guard.replace(paint_anchor,paint+'\n   let oceanFill=\'unavailable\';')
               effective_line="const effectiveVisibility=blenderWorldEnabled||closeZoomSurfaces?'none':'visible';"
               if effective_line not in guard:
-                  guard,n=re.subn(r"const effectiveVisibility\\s*=\\s*[^;]+;",effective_line,guard,count=1)
-                  assert n==1, f'{rel}: raster visibility expression count {n}'
+                  previous_effective="const effectiveVisibility=targetVisibility;"
+                  assert guard.count(previous_effective)==1, f'{rel}: previous raster visibility expression count {guard.count(previous_effective)}'
+                  guard=guard.replace(previous_effective,effective_line,1)
               water_line="if(map.getPaintProperty('gta-water','fill-opacity')!==0)map.setPaintProperty('gta-water','fill-opacity',0);"
               if water_line in guard:
                   guard=guard.replace(water_line,"const surfaceWaterOpacity=closeZoomSurfaces?0.92:0;if(map.getPaintProperty('gta-water','fill-opacity')!==surfaceWaterOpacity)map.setPaintProperty('gta-water','fill-opacity',surfaceWaterOpacity);",1)
