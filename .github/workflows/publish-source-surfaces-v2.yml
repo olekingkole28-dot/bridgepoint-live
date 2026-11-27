@@ -109,7 +109,7 @@ jobs:
               """)
               else:
                   assert s.count("let bpSourceSurfacesAttached=false;")==1
-              s,n=re.subn(r"(/vendor/bp-source-surfaces-v2\\.mjs\\?v=)[^'\"\\s]+",r"\\g<1>20261127-connected-street-surfaces-v3",s)
+              s,n=re.subn(r"(/vendor/bp-source-surfaces-v2\.mjs\?v=)[^'\"\s]+",r"\g<1>20261127-connected-street-surfaces-v3",s)
               assert n==1, f"{rel}: expected one source-surface module URL, got {n}"
               s=s.replace('/vendor/bp-traffic-furniture-v1.mjs?v=20261126-traffic-v3','/vendor/bp-traffic-furniture-v1.mjs?v=20261126-surface-alignment-v2')
               p.write_text(s);allowed.add(rel)
