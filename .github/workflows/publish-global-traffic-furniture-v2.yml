@@ -71,14 +71,15 @@ jobs:
           for rel,source in [('vendor/bp-traffic-furniture-v1.mjs',Path('street-detail-v1/traffic-furniture.mjs')),('vendor/bp-traffic-overture-v2.mjs',test/'bp-traffic-overture-v2.mjs')]:
               (site/rel).write_bytes(source.read_bytes());allowed.add(rel)
           for rel in ('world-v2300-map.js','app/world-v2300-map.js'):
-              p=site/rel;s=p.read_text();assert s.count('bpTrafficFurnitureAttached||map.getZoom()<12.1')==1
-              s=s.replace('bpTrafficFurnitureAttached||map.getZoom()<12.1','bpTrafficFurnitureAttached||map.getZoom()<11.6').replace('/vendor/bp-traffic-furniture-v1.mjs?v=20261126-traffic-v1','/vendor/bp-traffic-furniture-v1.mjs?v=20261126-traffic-v2')
+              p=site/rel;s=p.read_text();assert s.count('bpTrafficFurnitureAttached||map.getZoom()<12.1')+s.count('bpTrafficFurnitureAttached||map.getZoom()<11.6')==1
+              s=s.replace('bpTrafficFurnitureAttached||map.getZoom()<12.1','bpTrafficFurnitureAttached||map.getZoom()<11.6').replace('/vendor/bp-traffic-furniture-v1.mjs?v=20261126-traffic-v1','/vendor/bp-traffic-furniture-v1.mjs?v=20261127-signal-vehicle-sync-v3').replace('/vendor/bp-traffic-furniture-v1.mjs?v=20261126-traffic-v2','/vendor/bp-traffic-furniture-v1.mjs?v=20261127-signal-vehicle-sync-v3')
               p.write_text(s);allowed.add(rel)
           for rel in ('index.html','app/index.html','landing.js','app.js'):
-              p=site/rel;s=p.read_text();n=s.replace('20261126-traffic-v1','20261126-traffic-v2')
+              p=site/rel;s=p.read_text();n=s.replace('20261126-traffic-v1','20261127-signal-vehicle-sync-v3').replace('20261126-traffic-v2','20261127-signal-vehicle-sync-v3')
               if s!=n:p.write_text(n);allowed.add(rel)
           rel='assets/street-detail-v1/traffic-credits.html';p=site/rel;s=p.read_text()
-          p.write_text(s+'<p>Infrastructure and road tiles: <a href="https://overturemaps.org/">Overture Maps Foundation</a>, 2026-10-21.0. OSM-derived data licensed ODbL. Approach orientation and roadside pole placement are estimates.</p>');allowed.add(rel)
+          if('Infrastructure and road tiles:' not in s:p.write_text(s+'<p>Infrastructure and road tiles: <a href="https://overturemaps.org/">Overture Maps Foundation</a>, 2026-10-21.0. OSM-derived data licensed ODbL. Approach orientation and roadside pole placement are estimates.</p>')
+          allowed.add(rel)
           after=hashes();assert before.keys()<=after.keys();assert {p for p in after if before.get(p)!=after[p]}==allowed
           print('TRAFFIC_V2_SCOPE_PASS',sorted(allowed))
           PY
