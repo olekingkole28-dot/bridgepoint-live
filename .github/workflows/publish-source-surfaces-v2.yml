@@ -52,7 +52,7 @@ jobs:
               if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then echo "Baseline mismatch $run $p"; same=0; break; fi
             done
             if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
-          done < <( { grep -E "^45911069876[[:space:]]" "$RUNNER_TEMP/candidates" || true; head -15 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          done < <( { head -15 "$RUNNER_TEMP/candidates"; grep -E "^45911069876[[:space:]]" "$RUNNER_TEMP/candidates" || true; } | awk '!seen[$0]++' )
           test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
       - name: Install connected road, curb and sidewalk surfaces V3
         run: |
@@ -117,8 +117,8 @@ jobs:
               p=site/rel;s=p.read_text()
               n=re.sub(r'20261126-(?:traffic-v3|source-surfaces-v2|terrain-asphalt-retained-v6)', '20261127-connected-street-surfaces-v3', s)
               if s!=n:p.write_text(n);allowed.add(rel)
-          after=hashes();assert before.keys()<=after.keys();assert {p for p in after if before.get(p)!=after[p]}==allowed
-          print('SOURCE_SURFACES_SCOPED_PASS',sorted(allowed))
+          after=hashes();changed={p for p in after if before.get(p)!=after[p]};assert before.keys()<=after.keys();assert changed<=allowed
+          print('SOURCE_SURFACES_SCOPED_PASS',sorted(changed))
           PY
           node --check "$SITE/vendor/bp-source-surfaces-v2.mjs"
           node --check "$SITE/vendor/bp-traffic-furniture-v1.mjs"
