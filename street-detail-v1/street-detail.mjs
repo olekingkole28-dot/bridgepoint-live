@@ -48,12 +48,19 @@ export function normalizedBounds(T,root){
 export function sourceKind(p={}){
  const a=String(p.asset_kind||'').toLowerCase(),c=String(p.class||'').toLowerCase(),s=String(p.subclass||'').toLowerCase(),am=String(p.amenity||'').toLowerCase(),highway=String(p.highway||'').toLowerCase(),sign=String(p.traffic_sign||'').toLowerCase(),adv=String(p.advertising||'').toLowerCase(),manMade=String(p.man_made||'').toLowerCase(),power=String(p.power||'').toLowerCase(),barrier=String(p.barrier||'').toLowerCase(),utility=String(p.utility||'').toLowerCase(),drain=String(p.drain||p.drainage||'').toLowerCase(),waterway=String(p.waterway||'').toLowerCase(),sewer=String(p.sewer||'').toLowerCase();
  const tags=[a,c,s,am,highway,sign,adv,manMade,power,barrier,utility,drain,waterway,sewer];const has=(...v)=>v.some(x=>tags.includes(x));
+ const signText=[sign,p['traffic_sign:forward'],p['traffic_sign:backward'],p.sign,p.sign_type].filter(Boolean).join(' ').toLowerCase();
+ const signHas=(re)=>re.test(signText);
  if(['cone','traffic_cone'].includes(barrier)||has('traffic_cone','trafficcone'))return 'cone';
  if(['street_cabinet','utility_pedestal','electric_box'].includes(manMade)||has('electricity_distribution_cabinet','power_transformer','utility_box')||['transformer','substation','minor_distribution'].includes(power)||(utility==='power'&&(c==='street_cabinet'||s==='street_cabinet')))return 'electricbox';
  if(['drain','storm_drain'].includes(manMade)||['storm_drain','stormwater_drain','surface_drainage'].includes(drain)||waterway==='drain'||sewer==='stormwater'||has('storm_drain','stormwater_drain'))return 'stormdrain';
  if(has('streetlight','street_lamp'))return 'light';
  if(has('bench'))return 'bench';if(has('fire_hydrant','hydrant')||p.emergency==='fire_hydrant')return 'hydrant';if(has('post_box'))return 'mailbox';if(has('mailbox')&&p.residential===true)return 'mailboxlow';if(has('bus_stop','bus_shelter','shelter')&&(['yes','true'].includes(String(p.shelter).toLowerCase())||p.shelter===true||has('bus_shelter')||p.shelter_type==='public_transport'))return 'busshelter';if(has('waste_basket','waste_bin','trash_bin','waste_disposal'))return 'bin';
- if(has('billboard'))return 'billboard';if(has('stop','stop_sign','us:r1-1'))return 'stop';if(has('give_way','yield','yield_sign','us:r1-2'))return 'yield';
+ if(has('billboard'))return 'billboard';
+ if(has('stop','stop_sign','us:r1-1')||signHas(/(?:^|[^a-z0-9])(?:stop|stop[_ -]?sign|r1[-_:]?1)(?:$|[^a-z0-9])/))return 'stop';
+ if(has('give_way','yield','yield_sign','us:r1-2')||signHas(/(?:^|[^a-z0-9])(?:give[_ -]?way|yield|r1[-_:]?2)(?:$|[^a-z0-9])/))return 'yield';
+ if(has('oneway','one_way','one-way','us:r6-1','us:r6-2')||signHas(/(?:^|[^a-z0-9])(?:one[_ -]?way|r6[-_:]?[12])(?:$|[^a-z0-9])/))return 'oneway';
+ if(has('crossing','pedestrian_crossing','pedestrian','us:w11-2')||signHas(/(?:^|[^a-z0-9])(?:pedestrian|crossing|w11[-_:]?2)(?:$|[^a-z0-9])/))return 'crossing';
+ if(has('parking_sign','us:r7-1','us:r7-8','us:r7-201')||signHas(/(?:^|[^a-z0-9])(?:parking|r7[-_:]?(?:1|8|201))(?:$|[^a-z0-9])/))return 'parkingsign';
  if(has('shipping_container','container'))return 'container';if(has('bollard','barrier','block','traffic_barrier'))return 'barrier';
  if(has('dead_fir')||(has('dead_tree')||String(p.denotation||'').toLowerCase()==='dead')&&/fir|abies|picea/.test(String(p.species||p.genus||'').toLowerCase()))return 'deadfir';
  if(has('shrub','bush'))return 'shrub';
@@ -64,7 +71,7 @@ export function sourceKind(p={}){
 export function propAsset(kind,key){const h=hash(key);switch(kind){
  case'light':return {pack:h%5===0?'city':'lights',index:h%5===0?2:pick(h,8),height:8};
  case'bench':return{pack:h%2?'benchback':'props',index:0,height:0.9};case'hydrant':return{pack:'hydrant',index:0,height:0.85};case'mailbox':return{pack:'mailbox',index:0,height:1.1};case'mailboxlow':return{pack:'mailboxlow',index:0,height:1.1};case'busshelter':return{pack:'busshelter',index:0,height:2.4};case'bin':return{pack:h%2?'props':'city',index:h%2?1:3,height:1.1};
- case'billboard':return{pack:'billboard',index:0,height:6};case'stop':return{pack:'signs',index:0,height:2.4};case'yield':return{pack:'signs',index:1,height:2.4};
+ case'billboard':return{pack:'billboard',index:0,height:6};case'stop':return{pack:'signs',index:0,height:2.4};case'yield':return{pack:'signs',index:1,height:2.4};case'parkingsign':return{pack:'signs',index:2,height:2.4};case'oneway':return{pack:'signs',index:3,height:2.4};case'crossing':return{pack:'signs',index:4,height:2.4};
  case'container':return{pack:'city',index:pick(h,2),height:2.59};case'barrier':return{pack:'props',index:3,height:0.9};
  case'deadfir':return{pack:'deadfir',index:pick(h,4),height:8};case'shrub':return{pack:'city',index:5,height:0.9};
  case'cone':return{pack:'props',index:4,height:.75};case'electricbox':return{pack:'electricbox',index:0,height:1.35};case'stormdrain':return{pack:'storm_drain',index:0,height:.28};
@@ -93,7 +100,7 @@ export function attachStreetDetail(map){
     const px=map.project(q);const canvas=map.getCanvas();if(px.x< -60||px.y< -60||px.x>canvas.clientWidth+60||px.y>canvas.clientHeight+60)continue;
     let z=0;try{if(map.getTerrain?.()){z=map.queryTerrainElevation(q,{exaggerated:true});if(!Number.isFinite(z))continue}}catch(_){continue}
     const spec=propAsset(kind,id2);if(!spec)continue;const height=Number(p.height_m||p.render_height_m||p.pole_height_m);if(kind==='light'&&height>=3&&height<=35)spec.height=height;
-    const bearing=Number(p.bearing??p.direction??p.azimuth);all.push({key:id2,q,z,kind,spec,dist,yaw:Number.isFinite(bearing)?(90-bearing)*Math.PI/180:0});
+    let bearing=Number(p.bearing??p.azimuth??p.direction_deg);if(!Number.isFinite(bearing)){const d=String(p.direction||p['traffic_sign:direction']||'').toLowerCase().replace(/[ _-]+/g,'');bearing=({north:0,northeast:45,east:90,southeast:135,south:180,southwest:225,west:270,northwest:315})[d];}all.push({key:id2,q,z,kind,spec,dist,yaw:Number.isFinite(bearing)?(90-bearing)*Math.PI/180:0});
    }
   }return all.sort((a,b)=>a.dist-b.dist).slice(0,cap);}
  async function template(spec){const key=spec.pack+'|'+spec.index;if(!templates.has(key)){const job=(async()=>{const gltf=await loadStreetGLTF(loader,{url:BASE+spec.pack+'.glb.gz'}),root=gltf.scenes[spec.index];if(!root)throw Error('MISSING_SCENE');const bounds=normalizedBounds(T,root),parts=[];let triangles=0;
