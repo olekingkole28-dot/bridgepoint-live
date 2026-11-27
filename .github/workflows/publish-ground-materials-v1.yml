@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/publish-ground-materials-v1.yml','street-detail-v1/install.py','street-detail-v1/sketchfab-road-models-v1.mjs','street-detail-v1/street-detail.mjs','street-detail-v1/source-assets/**','rebuild-v5000/bridgepoint-transportation-v1.js']
+    paths: ['.github/workflows/publish-ground-materials-v1.yml','street-detail-v1/install.py','street-detail-v1/sketchfab-road-models-v1.mjs','street-detail-v1/street-detail.mjs','street-detail-v1/source-assets/**','street-detail-v1/sketchfab/**','street-detail-v1/building-assets/**','street-detail-v1/manifest.json','rebuild-v5000/bridgepoint-transportation-v1.js','rebuild-v5000/bridgepoint-transportation-loader-v1.js','rebuild-v5000/bridgepoint-roadwork-v1.js','rebuild-v5000/bridgepoint-sketchfab-buildings-v1.mjs']
 permissions:
   contents: read
   actions: read
@@ -59,6 +59,11 @@ jobs:
           cp street-detail-v1/credits.html "$SITE/assets/street-detail-v1/credits.html"
           cp rebuild-v5000/bridgepoint-transportation-v1.js "$SITE/bridgepoint-transportation-v1.js"
           cp rebuild-v5000/bridgepoint-transportation-v1.js "$SITE/app/bridgepoint-transportation-v1.js"
+          cp rebuild-v5000/bridgepoint-transportation-loader-v1.js "$SITE/bridgepoint-transportation-loader-v1.js"
+          cp rebuild-v5000/bridgepoint-transportation-loader-v1.js "$SITE/app/bridgepoint-transportation-loader-v1.js"
+          cp rebuild-v5000/bridgepoint-roadwork-v1.js "$SITE/bridgepoint-roadwork-v1.js"
+          cp rebuild-v5000/bridgepoint-roadwork-v1.js "$SITE/app/bridgepoint-roadwork-v1.js"
+          cp rebuild-v5000/bridgepoint-sketchfab-buildings-v1.mjs "$SITE/vendor/bp-sketchfab-buildings-v1.mjs"
           cp street-detail-v1/aircraft-visuals-v3.js "$SITE/bridgepoint-aircraft-visuals-v3.js"
           cp street-detail-v1/aircraft-visuals-v3.js "$SITE/app/bridgepoint-aircraft-visuals-v3.js"
           cp street-detail-v1/street-detail.mjs "$SITE/vendor/bp-street-detail-v1.mjs"
@@ -70,7 +75,7 @@ jobs:
           for base in (site,site/'app'):
               p=base/'bridgepoint-transportation-loader-v1.js'
               if p.exists():
-                  s=p.read_text();s,n=re.subn(r"const MODULE_SRC = '[^']+'", "const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=20261127-connected-traffic-signals-v6'", s);assert n==1
+                  s=p.read_text();s,n=re.subn(r"const MODULE_SRC = '[^']+'", "const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=20261127-roadwork-closure-routing-v7'", s);assert n==1
                   p.write_text(s)
               p=base/'bridgepoint-drone-awareness-v1.js'
               if p.exists():
@@ -91,7 +96,8 @@ jobs:
                   if p.exists():
                       s=p.read_text()
                       s=s.replace('aircraftlock=aircraft-lights-cloudwake-v20261125-v10','aircraftlock=sketchfab-fixed-wing-v20261127-v11')
-                      s=s.replace('bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models','bridgepoint-transportation-loader-v1.js?v=20261127-connected-traffic-signals-v6')
+                      s=s.replace('bridgepoint-transportation-loader-v1.js?v=4-global-pmtiles-stable-models','bridgepoint-transportation-loader-v1.js?v=20261127-roadwork-closure-routing-v7')
+                      s=re.sub(r'bridgepoint-transportation-loader-v1\.js(?:\?v=[^\'"\s<>]+)?', 'bridgepoint-transportation-loader-v1.js?v=20261127-roadwork-closure-routing-v7', s)
                       p.write_text(s)
               for rel in ('vendor/bp-street-detail-v1.mjs','app/vendor/bp-street-detail-v1.mjs'):
                   p=site/rel
@@ -102,6 +108,8 @@ jobs:
           print('SKETCHFAB_ASSET_WIRING_PASS')
           PY
           python3 street-detail-v1/install.py "$SITE"
+          mkdir -p "$SITE/assets/street-detail-v1/buildings"
+          cp street-detail-v1/building-assets/glass-building-low-poly.glb.gz "$SITE/assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz"
           mkdir -p "$SITE/assets/street-detail-v1/surfaces-v2"
           gzip -n -c street-detail-v1/surface-source/pack_de_ruas_lw3d_v2.glb > "$SITE/assets/street-detail-v1/surfaces-v2/pack-de-ruas.glb.gz"
           cp street-detail-v1/source-assets/electricbox.glb.gz "$SITE/assets/street-detail-v1/electricbox.glb.gz"
@@ -111,7 +119,7 @@ jobs:
           import gzip,json,sys
           from pathlib import Path
           root,site=map(Path,sys.argv[1:])
-          files={'surfaces-v2/pack-de-ruas.glb.gz':'Pack de Ruas LW3D v2','electricbox.glb.gz':'Electricbox003 - Street Kitbash Collection','storm_drain.glb.gz':'Storm Drain'}
+          files={'surfaces-v2/pack-de-ruas.glb.gz':'Pack de Ruas LW3D v2','electricbox.glb.gz':'Electricbox003 - Street Kitbash Collection','storm_drain.glb.gz':'Storm Drain','buildings/glass-building-low-poly.glb.gz':'Glass Building (low poly)'}
           for rel,title in files.items():
               raw=gzip.decompress((root/rel).read_bytes())
               assert raw[:4]==b'glTF' and len(raw)>1000,(rel,'invalid GLB')
@@ -124,9 +132,10 @@ jobs:
           additions=[
               ('Pack de Ruas LW3D v2','https://sketchfab.com/3d-models/pack-de-ruas-lw3d-v2-352e537b6cec45f4b5e7ff1580eeca5d','lael.eugenio'),
               ('Electricbox003 - Street Kitbash Collection','https://sketchfab.com/3d-models/electricbox003-street-kitbash-collection-e7c709ab760d4f1d9e2f167802cb59c0','experiment_studio'),
-              ('Storm Drain','https://sketchfab.com/3d-models/storm-drain-af69c0127d1244a7951281733583fb0c','Scaniverse')]
+              ('Storm Drain','https://sketchfab.com/3d-models/storm-drain-af69c0127d1244a7951281733583fb0c','Scaniverse'),
+              ('Glass Building (low poly)','https://sketchfab.com/3d-models/glass-building-low-poly-38cab01ee5ae4fbf8a35b0360d2998cf','mohamed ouartassi')]
           mpath=root/'manifest.json'; manifest=json.loads(mpath.read_text())
-          manifest['additional_sources']=additions;mpath.write_text(json.dumps(manifest,indent=2)+chr(10))
+          manifest['additional_sources']=additions;manifest['vehicle_catalog']={'title':'54 Vehicle Pack','published_file':'sketchfab/vehicles-all.glb.gz','scene_count':59,'author':'PorscheAaron','license':'CC-BY-4.0','source':'https://sketchfab.com/3d-models/54-vehicle-pack-10575d5318f244e5987d45239dbc6247','note':'59 independent source meshes; road vehicle profile filter excludes non-road vehicles when simulating road traffic.'};mpath.write_text(json.dumps(manifest,indent=2)+chr(10))
           entries=''.join('<li><a href="'+url+'">'+title+'</a> — '+author+' — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></li>' for title,url,author in additions)
           for p in (root/'credits.html',site/'street-credits.html'):
               s=p.read_text()
@@ -135,17 +144,26 @@ jobs:
           print('SKETCHFAB_ROAD_PACK_AND_MAPPED_PROPS_VALID')
           PY
           node --check "$SITE/bridgepoint-transportation-v1.js"
+          node --check "$SITE/bridgepoint-transportation-loader-v1.js"
+          node --check "$SITE/bridgepoint-roadwork-v1.js"
+          node --input-type=module --check < "$SITE/vendor/bp-sketchfab-buildings-v1.mjs"
           node --check "$SITE/bridgepoint-drone-awareness-v1.js"
           node --input-type=module --check < "$SITE/bridgepoint-aircraft-visuals-v3.js"
           node --input-type=module --check < "$SITE/vendor/bp-street-detail-v1.mjs"
           node --input-type=module --check < "$SITE/vendor/bp-sketchfab-road-models-v1.mjs"
           python3 - "$SITE/assets/street-detail-v1/sketchfab" <<'PY'
-          import gzip,sys
+          import gzip,json,struct,sys
           from pathlib import Path
           root=Path(sys.argv[1])
-          for name in ('grass-patch.glb.gz','grass-tuft.glb.gz','aircraft737.glb.gz','servicebus.glb.gz'):
+          for name in ('grass-patch.glb.gz','grass-tuft.glb.gz','aircraft737.glb.gz','servicebus.glb.gz','vehicles-all.glb.gz'):
               raw=gzip.decompress((root/name).read_bytes())
               assert raw[:4]==b'glTF' and len(raw)>1000,(name,'invalid GLB')
+          vehicle_raw=gzip.decompress((root/'vehicles-all.glb.gz').read_bytes())
+          vehicle_json_len=int.from_bytes(vehicle_raw[12:16],'little')
+          vehicle_doc=json.loads(vehicle_raw[20:20+vehicle_json_len])
+          assert len(vehicle_doc.get('scenes',[]))>=50,'full Sketchfab vehicle scene catalog missing'
+          building_raw=gzip.decompress((root.parent/'buildings/glass-building-low-poly.glb.gz').read_bytes())
+          assert building_raw[:4]==b'glTF' and len(building_raw)>1000,'glass building GLB missing or invalid'
           print('SKETCHFAB_GLTF_ASSETS_VALID')
           PY
       - name: Install automatic mapped ground materials
@@ -171,6 +189,14 @@ jobs:
               if "bpSketchfabRoadModelsAttached" not in s:
                   assert s.count(road_anchor)==1
                   s=s.replace(road_anchor,road_anchor+" "+road_hook)
+              building_anchor="map.on('idle',bpAttachSketchfabRoadModels);"
+              building_hook="let bpSketchfabBuildingsAttached=false;const bpAttachSketchfabBuildings=()=>{if(bpSketchfabBuildingsAttached||map.getZoom()<13.6)return;bpSketchfabBuildingsAttached=true;import('/vendor/bp-sketchfab-buildings-v1.mjs?v=20261127-sketchfab-building-copy-v1').then(m=>m.attachSketchfabBuildings(map)).catch(e=>{bpSketchfabBuildingsAttached=false;console.warn('Sketchfab building models',e)});};map.on('moveend',bpAttachSketchfabBuildings);map.on('zoomend',bpAttachSketchfabBuildings);map.on('idle',bpAttachSketchfabBuildings);"
+              if "bpSketchfabBuildingsAttached" not in s:
+                  assert s.count(building_anchor)==1
+                  s=s.replace(building_anchor,building_anchor+" "+building_hook)
+              else:
+                  s,n=re.subn(r"(/vendor/bp-sketchfab-buildings-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-sketchfab-building-copy-v1",s)
+                  assert n==1, f"{base}: building model module URL missing"
               p.write_text(s)
               for name in ('index.html','landing.js','app.js'):
                   p=base/name
@@ -327,7 +353,7 @@ jobs:
           set -euo pipefail
           SITE="$RUNNER_TEMP/horizon-site"
           cd "$SITE"
-          for p in vendor/bp-ground-materials-v1.mjs vendor/bp-sketchfab-road-models-v1.mjs assets/street-detail-v1/surfaces-v2/pack-de-ruas.glb.gz assets/street-detail-v1/electricbox.glb.gz assets/street-detail-v1/storm_drain.glb.gz assets/street-detail-v1/pavers.png assets/street-detail-v1/sketchfab/aircraft737.glb.gz assets/street-detail-v1/sketchfab/grass-patch.glb.gz assets/street-detail-v1/sketchfab/grass-tuft.glb.gz assets/street-detail-v1/sketchfab/realistic-grass-tile.jpg assets/street-detail-v1/sketchfab/servicebus.glb.gz bridgepoint-transportation-v1.js bridgepoint-aircraft-visuals-v3.js bridgepoint-drone-awareness-v1.js bridgepoint-transportation-loader-v1.js street-credits.html assets/street-detail-v1/credits.html assets/street-detail-v1/manifest.json vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs data/bp-nyc-bus-v1/* assets/street-detail-v1/busshelter.glb.gz vendor/bp-bus-models-v3.mjs bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
+          for p in vendor/bp-ground-materials-v1.mjs vendor/bp-sketchfab-road-models-v1.mjs vendor/bp-sketchfab-buildings-v1.mjs bridgepoint-roadwork-v1.js assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz assets/street-detail-v1/surfaces-v2/pack-de-ruas.glb.gz assets/street-detail-v1/electricbox.glb.gz assets/street-detail-v1/storm_drain.glb.gz assets/street-detail-v1/pavers.png assets/street-detail-v1/sketchfab/aircraft737.glb.gz assets/street-detail-v1/sketchfab/grass-patch.glb.gz assets/street-detail-v1/sketchfab/grass-tuft.glb.gz assets/street-detail-v1/sketchfab/realistic-grass-tile.jpg assets/street-detail-v1/sketchfab/servicebus.glb.gz bridgepoint-transportation-v1.js bridgepoint-aircraft-visuals-v3.js bridgepoint-drone-awareness-v1.js bridgepoint-transportation-loader-v1.js street-credits.html assets/street-detail-v1/credits.html assets/street-detail-v1/manifest.json vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs data/bp-nyc-bus-v1/* assets/street-detail-v1/busshelter.glb.gz vendor/bp-bus-models-v3.mjs bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-street-detail-v1.mjs world-v2300-map.js app/world-v2300-map.js world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js world-v2300-water.js app/world-v2300-water.js index.html app/index.html; do
             for i in 1 2 3 4 5 6; do
               if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?street=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
               if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi

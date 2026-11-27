@@ -3,12 +3,11 @@
  */
 (() => {
   'use strict';
-  if (window.__BP_TRANSPORTATION_LOADER_V1__) return;
+  const control = window.__BP_TRANSPORTATION_LOADER_V1__ || (window.__BP_TRANSPORTATION_LOADER_V1__ = {});
 
-  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=4-global-pmtiles-stable-models';
-  const control = window.__BP_TRANSPORTATION_LOADER_V1__ = {
-    version: 1, loading: false, loaded: false
-  };
+  const MODULE_SRC = '/bridgepoint-transportation-v1.js?v=20261127-roadwork-closure-routing-v7';
+  const ROADWORK_SRC = '/bridgepoint-roadwork-v1.js?v=20261127-roadwork-visible-area-v1';
+  control.version = 2; control.loading = !!control.loading; control.loaded = !!control.loaded;
 
   function mountButton() {
     const dock = document.querySelector('#bpv-dock-actions');
@@ -107,9 +106,75 @@
     return true;
   }
 
-  if (!mountButton() && typeof MutationObserver !== 'undefined' && document.documentElement) {
+  function mountRoadworkButton() {
+    const dock = document.querySelector('#bpv-dock-actions');
+    if (!dock) return false;
+    if (dock.querySelector('.bp-roadwork-v1-launcher')) return true;
+    const group = document.createElement('section');
+    group.className = 'bpv-command-group bp-roadwork-v1-launcher';
+    group.dataset.bpvCommandSection = 'roadwork';
+    group.setAttribute('aria-label', 'Mapped roadwork and road closures');
+    const heading = document.createElement('div');
+    heading.className = 'bpv-command-heading';
+    const icon = document.createElement('span');
+    icon.className = 'bpv-command-heading-icon';
+    icon.textContent = '⚠';
+    const copy = document.createElement('span');
+    const title = document.createElement('b');
+    title.textContent = 'ROADWORK';
+    const subtitle = document.createElement('small');
+    subtitle.textContent = 'Mapped closures · 3D barriers at street zoom';
+    copy.append(title, subtitle); heading.append(icon, copy);
+    const grid = document.createElement('div');
+    grid.className = 'bpv-command-grid';
+    grid.dataset.bpvCommandGrid = 'roadwork';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'bpv-command-btn bp-roadwork-v1-toggle';
+    button.setAttribute('aria-pressed', 'false');
+    button.title = 'Show mapped construction and road closures for the visible area';
+    const buttonIcon = document.createElement('span');
+    buttonIcon.className = 'bpv-command-icon'; buttonIcon.setAttribute('aria-hidden', 'true'); buttonIcon.textContent = '⚠';
+    const label = document.createElement('span');
+    label.className = 'bpv-command-label'; label.textContent = 'Roadwork';
+    button.append(buttonIcon, label);
+    const setActive = on => {
+      button.classList.toggle('active', !!on);
+      button.setAttribute('aria-pressed', String(!!on));
+      label.textContent = on ? 'Roadwork · ON' : 'Roadwork';
+      button.title = on ? 'Hide mapped roadwork and closures' : 'Show mapped roadwork and closures for the visible area';
+    };
+    button.addEventListener('click', () => {
+      const current = window.__BP_ROADWORK_V1__;
+      if (current && typeof current.toggle === 'function') { setActive(current.toggle()); return; }
+      button.disabled = true; label.textContent = 'Loading roadwork…';
+      const script = document.createElement('script');
+      script.async = true; script.src = ROADWORK_SRC;
+      script.onload = () => {
+        const api = window.__BP_ROADWORK_V1__;
+        if (!api || typeof api.enable !== 'function') {
+          button.disabled = false; label.textContent = 'Roadwork · Retry';
+          button.title = 'The roadwork layer did not initialize. Press to retry.'; return;
+        }
+        api.enable(); setActive(true); button.disabled = false;
+      };
+      script.onerror = () => {
+        button.disabled = false; label.textContent = 'Roadwork · Retry';
+        button.title = 'The roadwork module could not be downloaded. Press to retry.';
+      };
+      document.head.appendChild(script);
+    });
+    grid.appendChild(button); group.append(heading, grid);
+    const transport = dock.querySelector('.bp-transportation-v1-launcher,.bp-transportation-v1-group');
+    if (transport && transport.parentElement === dock) dock.insertBefore(group, transport.nextSibling);
+    else dock.appendChild(group);
+    return true;
+  }
+  function mountAll() { const a = mountButton(); const b = mountRoadworkButton(); return a && b; }
+
+  if (!mountAll() && typeof MutationObserver !== 'undefined' && document.documentElement) {
     const observer = new MutationObserver(() => {
-      if (mountButton()) observer.disconnect();
+      if (mountAll()) observer.disconnect();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }

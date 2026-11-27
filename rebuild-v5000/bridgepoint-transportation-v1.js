@@ -33,9 +33,9 @@
   const DOT_UPDATE_MS = 380;
   const REBUILD_DEBOUNCE_MS = 280;
   const EMPTY = { type: 'FeatureCollection', features: [] };
-  const MAX_DOT_VEHICLES = MOBILE ? 180 : 360;
-  const MAX_LOW_DETAIL_MODELS = MOBILE ? 24 : 48;
-  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 24 : 48;
+  const MAX_DOT_VEHICLES = MOBILE ? 260 : 560;
+  const MAX_LOW_DETAIL_MODELS = MOBILE ? 32 : 64;
+  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 56 : 112;
 
   const state = {
     map: null, enabled: false, categories: { civilian: true, police: false, ambulance: false, fire: false },
@@ -378,6 +378,46 @@
     return 'road';
   }
 
+  function pointToSegmentMeters(point,a,b){
+    const lat=(point[1]+a[1]+b[1])/3*Math.PI/180,scaleX=111320*Math.cos(lat),scaleY=111132;
+    const px=point[0]*scaleX,py=point[1]*scaleY,ax=a[0]*scaleX,ay=a[1]*scaleY,bx=b[0]*scaleX,by=b[1]*scaleY;
+    const dx=bx-ax,dy=by-ay,t=clamp(((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1),0,1);
+    return Math.hypot(px-ax-dx*t,py-ay-dy*t);
+  }
+
+  function overlapsMappedClosure(coordinates,closures){
+    if(!Array.isArray(coordinates)||coordinates.length<2||!Array.isArray(closures)||!closures.length)return false;
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const p of coordinates){minX=Math.min(minX,p[0]);maxX=Math.max(maxX,p[0]);minY=Math.min(minY,p[1]);maxY=Math.max(maxY,p[1]);}
+    const margin=.00014,segments=[];
+    for(const closure of closures){
+      const path=closure.coordinates||[];if(path.length<2)continue;
+      let ax=Infinity,ay=Infinity,bx=-Infinity,by=-Infinity;
+      for(const p of path){ax=Math.min(ax,p[0]);bx=Math.max(bx,p[0]);ay=Math.min(ay,p[1]);by=Math.max(by,p[1]);}
+      if(bx<minX-margin||ax>maxX+margin||by<minY-margin||ay>maxY+margin)continue;
+      for(let i=1;i<path.length;i++){
+        const a=path[i-1],b=path[i],sx=Math.min(a[0],b[0]),ex=Math.max(a[0],b[0]),sy=Math.min(a[1],b[1]),ey=Math.max(a[1],b[1]);
+        if(ex<minX-margin||sx>maxX+margin||ey<minY-margin||sy>maxY+margin)continue;
+        segments.push({a,b,minX:sx,maxX:ex,minY:sy,maxY:ey});
+      }
+    }
+    if(!segments.length)return false;
+    let run=0,maxRun=0;
+    for(let i=1;i<coordinates.length;i++){
+      const a=coordinates[i-1],b=coordinates[i],length=metersApart(a,b),steps=Math.max(1,Math.ceil(length/6)),step=length/steps;
+      for(let j=0;j<steps;j++){
+        const q=(j+.5)/steps,p=[a[0]+(b[0]-a[0])*q,a[1]+(b[1]-a[1])*q];
+        let nearest=Infinity;
+        for(const seg of segments){
+          if(p[0]<seg.minX-margin||p[0]>seg.maxX+margin||p[1]<seg.minY-margin||p[1]>seg.maxY+margin)continue;
+          const d=pointToSegmentMeters(p,seg.a,seg.b);if(d<nearest)nearest=d;if(nearest<4)break;
+        }
+        if(nearest<=4.5){run+=step;maxRun=Math.max(maxRun,run);}else run=0;
+      }
+    }
+    return maxRun>=22;
+  }
+
   function sourceRoadFeatures(map, zoom = 0) {
     const style = map.getStyle?.();
     const localSourceIds = [...new Set([
@@ -397,7 +437,7 @@
         for (const line of featureLines(feature)) {
           const clean = cleanLine(line);
           if (clean.length < 2) continue;
-          const first = clean[0], last = clean[clean.length - 1];
+          if (overlapsMappedClosure(clean, map.__BP_ROADWORK_CLOSED_PATHS__ || [])) continue;\n          const first = clean[0], last = clean[clean.length - 1];
           const fwd = [Math.round(first[0]*100000),Math.round(first[1]*100000),Math.round(last[0]*100000),Math.round(last[1]*100000)];
           const rev = [Math.round(last[0]*100000),Math.round(last[1]*100000),Math.round(first[0]*100000),Math.round(first[1]*100000)];
           const endpoints = fwd.join(':') < rev.join(':') ? fwd : rev;
@@ -780,7 +820,7 @@
         ]);
         const loader=new loaderApi.GLTFLoader();
         const [cars,bus]=await Promise.all([
-          street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/vehicles.glb.gz'}),
+          street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/sketchfab/vehicles-all.glb.gz'}),
           street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/sketchfab/servicebus.glb.gz'})
         ]);
         const catalog=(gltf)=>gltf.scenes.map(root=>{
@@ -788,9 +828,15 @@
           const bounds=street.normalizedBounds(T,root);
           return {root,bounds,size:bounds.size};
         });
-        const carScenes=catalog(cars),busScenes=catalog(bus);
-        if(carScenes.length<2||!busScenes.length)throw new Error('SKETCHFAB_VEHICLE_SCENES_MISSING');
-        return {cars:carScenes,bus:busScenes,source:'Sketchfab 54 Vehicle Pack and Service Bus Pack'};
+        const allCarScenes=catalog(cars),busScenes=catalog(bus);
+        const carScenes=allCarScenes.filter(({size})=>{
+          const height=Math.max(.01,size.y),long=Math.max(size.x,size.z),short=Math.max(.01,Math.min(size.x,size.z));
+          const horizontalAspect=long/short,profile=long/height;
+          return profile>1.25&&horizontalAspect>1.08&&horizontalAspect<6.5;
+        });
+        if(carScenes.length<8||!busScenes.length)throw new Error('SKETCHFAB_ROAD_VEHICLE_SCENES_MISSING');
+        state.vehicleCatalog={sourceScenes:allCarScenes.length,roadVehicleModels:carScenes.length,busModels:busScenes.length};
+        return {cars:carScenes,bus:busScenes,source:'Sketchfab 54 Vehicle Pack full road-vehicle scene catalog and Service Bus Pack'};
       })().catch(error=>{state.sketchfabVehiclePromise=null;throw error});
     }
     return state.sketchfabVehiclePromise;

@@ -455,5 +455,26 @@
       "bytes": 218506,
       "sha256": "dd26c0cd1c6194c18e1b745d686a497d1a191cb748955b1847ac0dc47562472a"
     }
-  ]
+  ],
+  "building_models": [
+    {
+      "id": "glass-building-low-poly",
+      "published_file": "buildings/glass-building-low-poly.glb.gz",
+      "title": "Glass Building (low poly)",
+      "author": "mohamed ouartassi",
+      "license": "CC-BY-4.0",
+      "source": "https://sketchfab.com/3d-models/glass-building-low-poly-38cab01ee5ae4fbf8a35b0360d2998cf",
+      "placement": "Exact source mesh/material geometry cloned and fitted to mapped building footprints and recorded heights at close zoom.",
+      "note": "The model is an illustrative source asset, not a claim that the source mesh depicts the real building at that footprint."
+    }
+  ],
+  "vehicle_catalog": {
+    "title": "54 Vehicle Pack",
+    "published_file": "sketchfab/vehicles-all.glb.gz",
+    "scene_count": 59,
+    "author": "PorscheAaron",
+    "license": "CC-BY-4.0",
+    "source": "https://sketchfab.com/3d-models/54-vehicle-pack-10575d5318f244e5987d45239dbc6247",
+    "note": "Independent source meshes are normalized into scenes. Road simulation filters out models with non-road vehicle proportions."
+  }
 }
