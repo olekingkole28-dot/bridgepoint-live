@@ -168,14 +168,14 @@ export function attachSketchfabRoadModels(map,options={}){
   else if(max===bc){const m=midpoint(b,c);subdivide(a,b,m,sx,sz,out,depth+1);subdivide(a,m,c,sx,sz,out,depth+1);}
   else{const m=midpoint(c,a);subdivide(a,b,m,sx,sz,out,depth+1);subdivide(m,b,c,sx,sz,out,depth+1);}
  }
- async function createGroup(rows,center,onPartial,valid){
+ async function createGroup(rows,center,onPartial,isBuildCurrent){
   const hasTerrain=!!map.getTerrain?.(),sample=typeof options.terrainSampler==='function'?options.terrainSampler:q=>hasTerrain?map.queryTerrainElevation({lng:q[0],lat:q[1]},{exaggerated:true}):0;
   const base=sample(center);if(!Number.isFinite(base)){state.transformProbe={finiteBase:false};return null;}
   const raw=map.transform?.getMatrixForModel?.(center,base);if(!raw){state.transformProbe={raw:false,base};return null;}
   const inv=new T.Matrix4().fromArray(raw).invert(),accepted={street1:0,street2:0,street3:0,street4:0},batches=new Map(),cache=new Map();
   let maxEndpointError=0,minClearance=Infinity,minHeight=Infinity,maxHeight=-Infinity,missing=0,vertexCount=0,terrainConformedRows=0;
   const next=new T.Group();next.frustumCulled=false;let triangles=0,firstBatch=true;
-  function flush(){for(const [name,batch] of batches){const t=templates[name],g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(batch.pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(batch.uvs,2));g.computeVertexNormals();g.computeBoundingSphere();const mesh=new T.Mesh(g,t.material);mesh.frustumCulled=false;mesh.userData.bpTerrainRoadBatch=true;mesh.userData.sketchfabRoadAsset=true;next.add(mesh);triangles+=batch.pos.length/9;}batches.clear();const count=accepted.street1+accepted.street2+accepted.street3;if(next.children.length&&onPartial)onPartial({group:next,base,roadCount:count,intersectionCount:accepted.street4,triangles},firstBatch);firstBatch=false;}
+  function flush(){for(const [name,batch] of batches){const t=templates[name],g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(batch.pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(batch.uvs,2));g.computeVertexNormals();g.computeBoundingSphere();const mesh=new T.Mesh(g,t.material);mesh.frustumCulled=false;mesh.userData.bpTerrainRoadBatch=true;mesh.userData.sketchfabRoadAsset=true;next.add(mesh);triangles+=batch.pos.length/9;}batches.clear();const count=accepted.street1+accepted.street2+accepted.street3;if(next.children.length&&onPartial){onPartial({group:next,base,roadCount:count,intersectionCount:accepted.street4,triangles},firstBatch);firstBatch=false;}}
   function discard(){if(group===next)return;next.traverse(o=>{if(o.userData?.bpTerrainRoadBatch)o.geometry?.dispose();});}
   function samplePoint(q,sourceY){
    const k=q.map(v=>v.toFixed(8)).join(',');
@@ -188,7 +188,7 @@ export function attachSketchfabRoadModels(map,options={}){
    return point;
   }
   for(let ri=0;ri<rows.length;ri++){
-   if(ri%12===0){await new Promise(resolve=>setTimeout(resolve,0));if(!valid()){discard();return null;}}
+   if(ri%12===0){await new Promise(resolve=>setTimeout(resolve,0));if(!isBuildCurrent()){discard();return null;}}
    if(ri===48||ri>0&&ri%192===0){flush();}
    const row=rows[ri],t=templates[row.asset];if(!t)continue;
    const A=toMerc(row.a),B=toMerc(row.b),dx=B[0]-A[0],dy=B[1]-A[1],span=Math.hypot(dx,dy),cos=Math.max(.12,Math.cos(row.q[1]*RAD));
@@ -200,9 +200,9 @@ export function attachSketchfabRoadModels(map,options={}){
    const g=t.geometry,attr=g.attributes.position,uv=g.attributes.uv,index=g.index,triangles=[];
    const get=i=>[attr.getX(i),attr.getY(i),attr.getZ(i),uv?.getX(i)||0,uv?.getY(i)||0];
    for(let i=0;i<(index?.count||attr.count);i+=3){const ix=j=>index?index.getX(i+j):i+j;subdivide(get(ix(0)),get(ix(1)),get(ix(2)),sx,sz,triangles);}
-   const pos=[],uvs=[];let valid=true;
-   for(const v of triangles){const q=coord(v[0],v[2]),point=samplePoint(q,v[1]);if(!point){valid=false;break;}pos.push(point.x,point.y,point.z);uvs.push(v[3],v[4]);}
-   if(!valid){missing++;continue;}
+   const pos=[],uvs=[];let rowValid=true;
+   for(const v of triangles){const q=coord(v[0],v[2]),point=samplePoint(q,v[1]);if(!point){rowValid=false;break;}pos.push(point.x,point.y,point.z);uvs.push(v[3],v[4]);}
+   if(!rowValid){missing++;continue;}
    let batch=batches.get(row.asset);if(!batch){batch={pos:[],uvs:[]};batches.set(row.asset,batch);}
    for(const v of pos)batch.pos.push(v);for(const v of uvs)batch.uvs.push(v);
    accepted[row.asset]++;terrainConformedRows++;vertexCount+=pos.length/3;
