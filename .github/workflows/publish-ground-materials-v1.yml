@@ -211,6 +211,9 @@ jobs:
               if "bpSketchfabRoadModelsAttached" not in s:
                   assert s.count(road_anchor)==1
                   s=s.replace(road_anchor,road_anchor+" "+road_hook)
+              else:
+                  s,n=re.subn(r"(/vendor/bp-sketchfab-road-models-v1\.mjs)(?:\?v=[^'\"\s]+)?",r"\g<1>?v=20261127-road-source-alignment-v4",s)
+                  assert n==1, f"{base}: road model module URL missing"
               building_anchor="map.on('idle',bpAttachSketchfabRoadModels);"
               building_hook="let bpSketchfabBuildingsAttached=false;const bpAttachSketchfabBuildings=()=>{if(bpSketchfabBuildingsAttached||map.getZoom()<13.6)return;bpSketchfabBuildingsAttached=true;import('/vendor/bp-sketchfab-buildings-v1.mjs?v=20261127-building-legacy-suppression-v2').then(m=>m.attachSketchfabBuildings(map)).catch(e=>{bpSketchfabBuildingsAttached=false;console.warn('Sketchfab building models',e)});};map.on('moveend',bpAttachSketchfabBuildings);map.on('zoomend',bpAttachSketchfabBuildings);map.on('idle',bpAttachSketchfabBuildings);"
               if "bpSketchfabBuildingsAttached" not in s:
