@@ -1,6 +1,6 @@
 /* BridgePoint Transportation Simulation v4 · GLOBAL ROADS + STABLE VEHICLE LOD.
- * Uses the existing OpenFreeMap road geometries and BridgePoint's existing 3D map.
- * Global moving dots stay active; curve-preserving road paths drive progressively detailed 3D vehicles.
+ * Uses mapped OpenFreeMap road geometries and Sketchfab vehicle scenes on the existing 3D map.
+ * Global moving dots stay active; source vehicle meshes follow mapped road centerlines at close zoom.
  * All moving civilian and emergency vehicles in this module are simulated.
  * No actual vehicle GPS, dispatch, patient, officer, home or private-property data is used.
  * No private-car GPS, police AVL, EMS AVL, fire dispatch or incident feed is used.
@@ -9,7 +9,7 @@
   'use strict';
   if (window.__BP_TRANSPORTATION_V1__) return;
 
-  const VERSION = 4;
+  const VERSION = 5;
   const THREE_URL = '/vendor/three.module.js?v=169-local';
   const ROAD_SOURCE = 'ofm';
   const ROAD_SOURCE_LAYER = 'transportation';
@@ -40,6 +40,7 @@
   const state = {
     map: null, enabled: false, categories: { civilian: true, police: false, ambulance: false, fire: false },
     threePromise: null, THREE: null, renderer: null, scene: null, camera: null, customLayer: null,
+    sketchfabVehiclePromise: null,
     anchor: null, anchorElevation: null, paths: [], vehicles: [], lastDotAt: 0, lastFrameAt: 0,
     raf: 0, dotTimer: 0, waitTimer: 0, modelBuildTimer: 0, modelBuildToken: 0,
     rebuildTimer: 0, rebuilding: false, pendingRebuild: false, statusNode: null,
@@ -769,138 +770,56 @@
     return { bodyGeometry, glassGeometry, interiorGeometry, detailGeometry };
   }
 
-  function makeVehicleLowLod(T, item) {
-    const kind = item.kind;
-    const spec = SPECS[kind] || SPECS.sedan;
-    const group = new T.Group();
-    const wheelPivots = [];
-    const flashMeshes = [];
-    const materials = [];
-    let paint = 0x238eaf;
-    if (kind === 'police') paint = 0xf2f4f5;
-    if (kind === 'ambulance') paint = 0xf5f7f6;
-    if (kind === 'fire') paint = 0xb9252d;
-    const material = (color, roughness = .58, metalness = .16, emissive = 0x000000) => {
-      const m = new T.MeshStandardMaterial({ color, roughness, metalness, emissive, emissiveIntensity: emissive ? .75 : 0 });
-      materials.push(m);
-      return m;
-    };
-    const box = (w, h, l, x, y, z, color) => {
-      const mesh = new T.Mesh(new T.BoxGeometry(w, h, l), material(color));
-      mesh.position.set(x, y, z);
-      group.add(mesh);
-      return mesh;
-    };
-    const L = spec.length, W = spec.width, H = spec.height, R = spec.radius;
-    const heavy = ['semi-trailer', 'tractor-truck', 'box-truck', 'city-bus', 'fire'].includes(kind);
-    box(W * .96, Math.max(.35, H * .24), L * .9, 0, H * .3, 0, paint);
-    if (kind === 'semi-trailer') {
-      box(W * .94, H * .62, L * .56, 0, H * .62, -L * .18, paint);
-      box(W * .82, H * .52, L * .25, 0, H * .55, L * .32, paint);
-    } else if (heavy) {
-      box(W * .9, H * .58, L * .54, 0, H * .62, -L * .12, paint);
-      box(W * .82, H * .48, L * .27, 0, H * .55, L * .31, paint);
-    } else {
-      box(W * .75, H * .4, L * .44, 0, H * .66, -.02, kind === 'sports-car' ? 0x243d50 : paint);
+  async function loadSketchfabVehiclePack(T) {
+    if(!state.sketchfabVehiclePromise){
+      state.sketchfabVehiclePromise=(async()=>{
+        const [street,loaderApi]=await Promise.all([
+          import('/vendor/bp-street-detail-v1.mjs?v=20261127-sketchfab-models'),
+          import('/vendor/GLTFLoader.bundle.js?v=169-local')
+        ]);
+        const loader=new loaderApi.GLTFLoader();
+        const [cars,bus]=await Promise.all([
+          street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/vehicles.glb.gz'}),
+          street.loadStreetGLTF(loader,{url:'/assets/street-detail-v1/sketchfab/servicebus.glb.gz'})
+        ]);
+        const catalog=(gltf)=>gltf.scenes.map(root=>{
+          root.updateMatrixWorld(true);
+          const bounds=street.normalizedBounds(T,root);
+          return {root,bounds,size:bounds.size};
+        });
+        const carScenes=catalog(cars),busScenes=catalog(bus);
+        if(carScenes.length<2||!busScenes.length)throw new Error('SKETCHFAB_VEHICLE_SCENES_MISSING');
+        return {cars:carScenes,bus:busScenes,source:'Sketchfab 54 Vehicle Pack and Service Bus Pack'};
+      })().catch(error=>{state.sketchfabVehiclePromise=null;throw error});
     }
-    box(W * .62, Math.max(.24, H * .15), .07, 0, H * .68, L * .46, 0x8bc9df);
-    box(W * .62, .07, .12, 0, H * .22, L * .47, 0xfff0c1);
-    box(W * .62, .07, .12, 0, H * .22, -L * .47, 0xc9313b);
-
-    const axlePositions = heavy ? [-L * .31, -L * .16, L * .3] : [-L * .3, L * .3];
-    for (const z of axlePositions) {
-      for (const x of [-W * .51, W * .51]) {
-        const pivot = new T.Group();
-        pivot.position.set(x, R, z);
-        const tire = new T.Mesh(new T.CylinderGeometry(R, R, .16, 8), material(0x171b1e, .9, .02));
-        tire.rotation.z = Math.PI / 2;
-        pivot.add(tire);
-        group.add(pivot);
-        wheelPivots.push(pivot);
-      }
-    }
-    if (['police', 'ambulance', 'fire'].includes(kind)) {
-      box(W * .58, .08, .2, 0, H + .06, .02, 0x172a38);
-      const colors = kind === 'fire' ? [0xff3a34, 0xffe5a3] : [0x2385ff, 0xff334b];
-      colors.forEach((color, phase) => {
-        const lampMaterial = material(color, .2, .12, color);
-        const lamp = new T.Mesh(new T.BoxGeometry(W * .2, .1, .12), lampMaterial);
-        lamp.position.set(phase ? W * .15 : -W * .15, H + .11, .02);
-        group.add(lamp);
-        flashMeshes.push({ mesh: lamp, material: lampMaterial, phase });
-      });
-    }
-    return { group, wheelPivots, flashMeshes, spec, materials };
+    return state.sketchfabVehiclePromise;
   }
 
-  function makeVehicle(T, item) {
-    const kind = item.kind;
-    const spec = SPECS[kind] || SPECS.sedan;
-    let paint = 0x258aa9;
-    if (kind === 'police') paint = 0xf0f3f5;
-    if (kind === 'ambulance') paint = 0xf4f6f5;
-    if (kind === 'fire') paint = 0xb9252d;
-    const shell = addVehicleShell(T, kind, spec, paint);
-    const group = new T.Group();
-    const bodyMaterial = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .48, metalness: .36 });
-    const glassMaterial = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .16, metalness: .12, transparent: true, opacity: .52, depthWrite: false, side: T.DoubleSide });
-    const interiorMaterial = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .82, metalness: .08 });
-    const detailMaterial = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .38, metalness: .3, emissive: 0x121a20, emissiveIntensity: .12 });
-    const meshes = [
-      new T.Mesh(shell.bodyGeometry, bodyMaterial),
-      new T.Mesh(shell.glassGeometry, glassMaterial),
-      new T.Mesh(shell.interiorGeometry, interiorMaterial),
-      new T.Mesh(shell.detailGeometry, detailMaterial)
-    ];
-    for (const mesh of meshes) { mesh.frustumCulled = false; group.add(mesh); }
-    const radius = spec.radius;
-    const tireMaterial = new T.MeshStandardMaterial({ color: 0x171b1e, roughness: .9, metalness: .05 });
-    const hubMaterial = new T.MeshStandardMaterial({ color: 0x9ba8ae, roughness: .35, metalness: .8 });
-    const wheelPivots = [];
-    let wheelPositions;
-    if (kind === 'semi-trailer') {
-      wheelPositions = [];
-      for (const z of [5.1, 3.65, .2, -4.9, -6.15]) {
-        wheelPositions.push([-spec.width * .51, z], [spec.width * .51, z]);
-      }
-    } else if (kind === 'tractor-truck' || kind === 'box-truck' || kind === 'city-bus' || kind === 'fire') {
-      wheelPositions = [];
-      for (const z of [-spec.length * .32, -spec.length * .23, spec.length * .28]) wheelPositions.push([-spec.width * .51, z], [spec.width * .51, z]);
-    } else {
-      wheelPositions = [
-        [-spec.width * .51, -spec.length * .3], [spec.width * .51, -spec.length * .3],
-        [-spec.width * .51, spec.length * .3], [spec.width * .51, spec.length * .3]
-      ];
-    }
-    for (const [x, z] of wheelPositions) {
-      const pivot = new T.Group();
-      pivot.position.set(x, radius, z);
-      const tire = new T.Mesh(new T.CylinderGeometry(radius, radius, .2, 16), tireMaterial);
-      tire.rotation.z = Math.PI / 2;
-      const hub = new T.Mesh(new T.CylinderGeometry(radius * .47, radius * .47, .215, 12), hubMaterial);
-      hub.rotation.z = Math.PI / 2;
-      hub.position.x = x < 0 ? -.105 : .105;
-      pivot.add(tire, hub);
-      group.add(pivot);
-      wheelPivots.push(pivot);
-    }
-    const flashMeshes = [];
-    if (['police', 'ambulance', 'fire'].includes(kind)) {
-      const bar = new T.Group();
-      bar.position.set(0, spec.height + .12, .05);
-      const housing = new T.Mesh(new T.BoxGeometry(spec.width * .56, .09, .24), new T.MeshStandardMaterial({ color: 0x151e2b, roughness: .38, metalness: .3 }));
-      bar.add(housing);
-      const colors = kind === 'police' ? [0x1e75ff, 0xff334b] : kind === 'ambulance' ? [0x1e75ff, 0xff334b] : [0xff2d2d, 0xffe3a1];
-      for (let i = 0; i < 2; i++) {
-        const material = new T.MeshStandardMaterial({ color: colors[i], emissive: colors[i], emissiveIntensity: 1.3, roughness: .18 });
-        const lamp = new T.Mesh(new T.BoxGeometry(spec.width * .24, .11, .18), material);
-        lamp.position.set(i ? spec.width * .14 : -spec.width * .14, .015, 0);
-        bar.add(lamp); flashMeshes.push({ mesh: lamp, material, phase: i });
-      }
-      group.add(bar);
-    }
-    return { group, wheelPivots, flashMeshes, spec, materials: [bodyMaterial, glassMaterial, interiorMaterial, detailMaterial, tireMaterial, hubMaterial] };
+  function makeSketchfabVehicle(T,item,pack){
+    const kind=item.kind,spec=SPECS[kind]||SPECS.sedan;
+    const scenes=kind==='city-bus'?pack.bus:pack.cars;
+    const sourceIndex=kind==='city-bus'?0:(stableHash(String(item.id||kind))%scenes.length);
+    const source=scenes[sourceIndex];if(!source)throw new Error('SKETCHFAB_VEHICLE_SCENE_MISSING');
+    const root=source.root.clone(true);
+    root.updateMatrixWorld(true);
+    const box=new T.Box3().setFromObject(root,true),center=box.getCenter(new T.Vector3()),size=box.getSize(new T.Vector3());
+    const horizontal=Math.max(size.x,size.z),scale=spec.length/Math.max(.01,horizontal);
+    if(!Number.isFinite(scale)||scale<=0)throw new Error('SKETCHFAB_VEHICLE_SCALE_INVALID');
+    const centered=new T.Group();
+    centered.position.set(-center.x,-box.min.y,-center.z);
+    centered.add(root);
+    const model=new T.Group();
+    // Road heading is +Z. Rotate the uploaded bus so its long axis sits on the road, then retain real source proportions.
+    if(kind==='city-bus')model.scale.set(Math.min(scale,2.6/Math.max(.01,size.x)),scale,scale);
+    else{if(size.x>size.z)model.rotation.y=-Math.PI/2;model.scale.setScalar(scale);}
+    model.add(centered);
+    const group=new T.Group();group.name='Sketchfab '+(kind==='city-bus'?'Service Bus Pack':'54 Vehicle Pack')+' '+kind;
+    group.add(model);
+    return {group,wheelPivots:[],flashMeshes:[],spec,materials:[],sharedAsset:true,sourceModel:kind==='city-bus'?'servicebus':'vehicles'};
   }
+
+  function makeVehicleLowLod(T,item,pack){return makeSketchfabVehicle(T,item,pack)}
+  function makeVehicle(T,item,pack){return makeSketchfabVehicle(T,item,pack)}
 
   function seedRandom(seed) {
     let value = (Math.abs(Number(seed) || 1) % 2147483646) + 1;
@@ -1027,8 +946,8 @@
         list.forEach(item => materials.add(item));
       }
     });
-    geometries.forEach(item => item.dispose?.());
-    materials.forEach(item => item.dispose?.());
+    if(!visual.sharedAsset){geometries.forEach(item => item.dispose?.());
+    materials.forEach(item => item.dispose?.());}
     (visual.materials || []).forEach(item => { if (!materials.has(item)) item.dispose?.(); });
     delete vehicle.visual;
   }
@@ -1168,13 +1087,15 @@
     }
   }
 
-  function makeVisualFleet(T,candidates,lod,previousVehicles=[]){
+  async function makeVisualFleet(T,candidates,lod,previousVehicles=[],token=state.modelBuildToken){
     if(!state.scene||!state.enabled)return;
+    const pack=await loadSketchfabVehiclePack(T);
+    if(!state.enabled||state.modelBuildToken!==token||!state.scene)return;
     const limit=lod==='high'?MAX_HIGH_DETAIL_MODELS:MAX_LOW_DETAIL_MODELS;
     const selected=candidates.slice(0,limit),retained=new Set(),staged=[];
     for(const item of selected){
       if(item.visual&&item.visualLod===lod){retained.add(item.visual);continue;}
-      try{const visual=lod==='high'?makeVehicle(T,item):makeVehicleLowLod(T,item);staged.push({item,visual})}
+      try{const visual=lod==='high'?makeVehicle(T,item,pack):makeVehicleLowLod(T,item,pack);staged.push({item,visual})}
       catch(error){console.warn('BridgePoint Transportation vehicle LOD',error)}
     }
     // Attach every replacement before retiring old meshes to prevent flashing during LOD swaps.
@@ -1388,7 +1309,7 @@
         if(!state.enabled||state.map!==map||token!==state.modelBuildToken)return true;
         if(!installModelLayer(map,THREE))throw new Error('The shared 3D vehicle layer could not be attached.');
         if(!state.enabled||token!==state.modelBuildToken)return true;
-        makeVisualFleet(THREE,state.vehicles,targetLod,previousVehicles);
+        await makeVisualFleet(THREE,state.vehicles,targetLod,previousVehicles,token);
         setStatus('SIMULATED · '+state.vehicles.length.toLocaleString()+
           ' moving vehicles continuously follow mapped roads. '+targetLod.toUpperCase()+
           ' 3D models · remaining vehicles stay visible as dots. Not live GPS.');
@@ -1540,7 +1461,7 @@
       enabled: state.enabled, simulationOnly: true, mapReady: !!state.map,
       roadSegments: state.diagnostics.roads, roadLengthM: state.diagnostics.roadLengthM,
       vehicles: state.diagnostics.vehicles, dots: state.diagnostics.dots,
-      modelLod: state.modelLod, skippedTerrainSamples: state.diagnostics.skippedTerrain,
+      modelLod: state.modelLod, vehicleModels: state.sketchfabVehiclePromise?'Sketchfab pack':'not-loaded', skippedTerrainSamples: state.diagnostics.skippedTerrain,
       zoom: state.diagnostics.zoom, categories: { ...state.categories },
       lastRebuildAt: state.lastRebuildAt, lastError: state.lastError
     }),

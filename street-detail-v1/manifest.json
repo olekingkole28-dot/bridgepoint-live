@@ -1,0 +1,459 @@
+{
+  "version": 1,
+  "note": "Mapped source-backed street trees, props, sidewalks, pavers and traffic visual proxies. Moving cars and buses follow mapped road geometry as simulation only; positions are not live GPS. Sketchfab models are embedded in the BridgePoint experience with attribution and license-specific restrictions.",
+  "packs": [
+    {
+      "id": "oak",
+      "file": "oak.glb",
+      "scenes": [
+        "Big_oak_tree__001",
+        "Large_oak_tree_002",
+        "Sapling_oak_tree_001",
+        "Small_oak_tree__003"
+      ],
+      "credit": {
+        "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/oak-trees-pack-17var-lods-seasons-gameready-a5e4e64f9f1d4089bdcc6170a9333393",
+        "title": "Oak trees pack (17var, LODs, seasons, gameready)"
+      },
+      "sha256": "9a0cf47a6f5dbcfa00f4a437b2ab8af95e5b38baa464b6f1559ab0e4e42b1416",
+      "bytes": 907996,
+      "published_file": "oak.glb.gz"
+    },
+    {
+      "id": "maple",
+      "file": "maple.glb",
+      "scenes": [
+        "Acer_Sapling_1",
+        "Acer_large_2",
+        "Acer_medium_3",
+        "Acer_small_3"
+      ],
+      "credit": {
+        "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/maple-trees-pack-lowpoly-game-ready-lods-b5d2833c258f4054a01ee2b4ef85adf0",
+        "title": "Maple trees pack (lowpoly, game ready, LODs)"
+      },
+      "sha256": "9471ac84a594890a661b84deb3fb5716b7c04ba88b9c19ee187ea85e0e82af69",
+      "bytes": 662736,
+      "published_file": "maple.glb.gz"
+    },
+    {
+      "id": "pine",
+      "file": "pine.glb",
+      "scenes": [
+        "Pine_big_1",
+        "Pine_large_3",
+        "Pine_sapling_2",
+        "Pine_small_3"
+      ],
+      "credit": {
+        "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/pine-trees-pack-lowpoly-game-ready-lods-e1e9c07b8e2e445c943fec660beefba2",
+        "title": "Pine trees pack (lowpoly, game ready, LODs)"
+      },
+      "sha256": "1a04ea1570623955b05f000ad0c9fe748b2855c124ea8e3589938c5794121ba0",
+      "bytes": 558772,
+      "published_file": "pine.glb.gz"
+    },
+    {
+      "id": "fir",
+      "file": "fir.glb",
+      "scenes": [
+        "Large tree_1",
+        "Medium tree_1",
+        "Small tree_1",
+        "Small tree_3"
+      ],
+      "credit": {
+        "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/realistic-fir-trees-pack-lods-gameready-f58e8b6d733e4b0586e5b7db847b89e7",
+        "title": "Realistic fir trees pack (LODS, gameready)"
+      },
+      "sha256": "039b78f24280fec7b6c661fd43e2f18a5980814d702d933e667e7b6e56c4dd90",
+      "bytes": 523048,
+      "published_file": "fir.glb.gz"
+    },
+    {
+      "id": "deadfir",
+      "file": "deadfir.glb",
+      "scenes": [
+        "dead_fir_1",
+        "dead_fir_10",
+        "dead_fir_24",
+        "dead_fir_41"
+      ],
+      "credit": {
+        "author": "Sereib (https://sketchfab.com/Sereib)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/64-dead-fir-trees-pack-low-poly-ab6b2d95c6a4463eae46347ffc226c79",
+        "title": "64 Dead Fir Trees Pack (low-Poly)"
+      },
+      "sha256": "11e775c7e91fb6d94f5e1c42619f3e4cfe66e0598f34c27bac56b9e08eb19e66",
+      "bytes": 1560640,
+      "published_file": "deadfir.glb.gz"
+    },
+    {
+      "id": "palm",
+      "file": "palm.glb",
+      "scenes": [
+        "M_Palm_P2_31",
+        "M_Palm_P2_19",
+        "M_Palm_P2_11",
+        "M_Palm_P2_3"
+      ],
+      "credit": {
+        "author": "Next Spring (https://sketchfab.com/NextSpring)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/realistic-palm-tree-2-free-d05c8ffb6ec64a7184c4b673e21f7224",
+        "title": "Realistic Palm Tree 2 Free"
+      },
+      "sha256": "9564e4d08b4ef5038ffd686aa0bb23d56504a7ac4458f544b2d0d03016e3498b",
+      "bytes": 485408,
+      "published_file": "palm.glb.gz"
+    },
+    {
+      "id": "rally",
+      "file": "rally.glb",
+      "scenes": [
+        "Plane (spring)_2",
+        "Beech (spring)_3",
+        "Birch (spring)_4",
+        "Walnut (spring)_7",
+        "Willow (spring)_14",
+        "Hazel (spring)_20",
+        "Bush (spring)_22",
+        "Plane (summer)_29",
+        "Beech (summer)_30",
+        "Birch (summer)_31",
+        "Walnut (summer)_34",
+        "Willow (summer)_41",
+        "Hazel (summer)_47",
+        "Bush (summer)_49",
+        "Plane (autumn)_56",
+        "Beech (autumn)_57",
+        "Birch (autumn)_58",
+        "Walnut (autumn)_61",
+        "Willow (autumn)_68",
+        "Hazel (autumn)_74",
+        "Bush (autumn)_76"
+      ],
+      "credit": {
+        "author": "deni_spa (https://sketchfab.com/deni_spa)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/gravel-rally-tree-pack-27-trees-3-seasons-65da19fc1a4449a988f8dbaf2513ae59",
+        "title": "Gravel Rally tree pack (27 trees, 3 seasons)"
+      },
+      "sha256": "eade28b05e71cdb884a4caaac879fc75b855a69914e10215458984d4795d6f88",
+      "bytes": 12106672,
+      "published_file": "rally.glb.gz"
+    },
+    {
+      "id": "city",
+      "file": "city.glb",
+      "scenes": [
+        "c20_Low",
+        "c40_Low",
+        "p_lamp_Low",
+        "pr_bin_Low",
+        "pr_oldtree_Low",
+        "tr_bush_Low",
+        "pr_fence_Low"
+      ],
+      "credit": {
+        "author": "xFORTUNAx (https://sketchfab.com/xFORTUNAx)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/city-pack-trees-props-and-containers-92433c484b2f467a8d07d5aed92edc7e",
+        "title": "City Pack: Trees, Props and Containers"
+      },
+      "sha256": "030cffa193b7bd1f64f6314cd3d781572b0eaa372e6707e522f36973d1ee84a6",
+      "bytes": 540048,
+      "published_file": "city.glb.gz"
+    },
+    {
+      "id": "props",
+      "file": "props.glb",
+      "scenes": [
+        "bench",
+        "trash_bin",
+        "bin",
+        "barrier_1",
+        "cone"
+      ],
+      "credit": {
+        "author": "syedraza (https://sketchfab.com/syedraza)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/street-props-741e544242a9481fa54c1f7bca6e92b2",
+        "title": "Street Props"
+      },
+      "sha256": "51de4b884639d0193c60e8428a587e233ae5763036921b5fca2502efa093d227",
+      "bytes": 476200,
+      "published_file": "props.glb.gz"
+    },
+    {
+      "id": "signs",
+      "file": "signs.glb",
+      "scenes": [
+        "Stop Sign Parent",
+        "Yield Sign Parent",
+        "Parking lot Sign Parent",
+        "One way Sign Parent",
+        "Pedestrian crossing 1 ahead Sign Parent"
+      ],
+      "credit": {
+        "author": "Paul Cheeseburger (https://sketchfab.com/vasyapupkincr)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/road-signs-pack-revamped-8cf2ce06fc484b0bb73d5549330fd4a1",
+        "title": "Road Signs Pack [Revamped]"
+      },
+      "sha256": "9ef890f99c245d2daee392a0c58c7a5f19bfecf2eeba0333fd7ec30c77238027",
+      "bytes": 174028,
+      "published_file": "signs.glb.gz"
+    },
+    {
+      "id": "lights",
+      "file": "lights.glb",
+      "scenes": [
+        "polySurface109",
+        "polySurface102",
+        "polySurface59",
+        "polySurface88",
+        "polySurface77",
+        "polySurface69",
+        "polySurface68",
+        "polySurface60"
+      ],
+      "credit": {
+        "author": "KMB3D (https://sketchfab.com/kmb_jr)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/various-low-poly-street-lights-1173b0c4d9b0400bbeaafbee0e94ca59",
+        "title": "Various Low-Poly Street Lights"
+      },
+      "sha256": "0ee10a2728ea26dcd196792d5a6eadf33aed253bbdc42ed2b01c088aafe69771",
+      "bytes": 591916,
+      "published_file": "lights.glb.gz"
+    },
+    {
+      "id": "billboard",
+      "file": "billboard.glb",
+      "scenes": [
+        "billboard"
+      ],
+      "credit": {
+        "author": "experiment_studio (https://sketchfab.com/experiment_studio)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/billboard00-street-kitbash-collection-b66e0cf58c8d4f86bc2acd24c61c2d0b",
+        "title": "Billboard00 - Street Kitbash Collection"
+      },
+      "sha256": "cc4c84fb84648e5c67a85a0c8154bd30be77a5e601873792dc36708c6e0ba90f",
+      "bytes": 3169344,
+      "published_file": "billboard.glb.gz"
+    },
+    {
+      "id": "vehicles",
+      "file": "vehicles.glb",
+      "scenes": [
+        "vehicle_1",
+        "vehicle_3",
+        "vehicle_6",
+        "vehicle_8",
+        "vehicle_10",
+        "vehicle_15",
+        "vehicle_22",
+        "vehicle_29",
+        "vehicle_36",
+        "vehicle_44",
+        "vehicle_51"
+      ],
+      "credit": {
+        "author": "PorscheAaron (https://sketchfab.com/HotWheelsA)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/54-vehicle-pack-10575d5318f244e5987d45239dbc6247",
+        "title": "54 Vehicle Pack"
+      },
+      "sha256": "78dc0ee9c373984228d488c9f9f6440d009aa19df9e46894b2e5d5f687e0a306",
+      "bytes": 830520,
+      "published_file": "vehicles.glb.gz"
+    },
+    {
+      "id": "pavers",
+      "file": "pavers.png",
+      "scenes": [
+        "paving-stone material"
+      ],
+      "credit": {
+        "author": "-Arthur- (https://sketchfab.com/.arthur)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/paving-stones-liquid-leaves-pbr-seamless-87ae9aea9b55407089bb05668c94ba95",
+        "title": "Paving Stones (Liquid & Leaves) - PBR Seamless"
+      },
+      "sha256": "392ae81e94f2712d44055922a0ab6218c84c7cc9ce8ff858accab2a592b8d3f4",
+      "bytes": 521942,
+      "published_file": "pavers.png"
+    },
+    {
+      "id": "benchback",
+      "file": "benchback.glb",
+      "scenes": [
+        "Park Bench With Backrest"
+      ],
+      "credit": {
+        "author": "KenVeel (https://sketchfab.com/KenVeel)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/park-bench-with-backrest-1f02e41c69c34aba91442d6a3316dc99",
+        "title": "Park Bench With Backrest"
+      },
+      "sha256": "46414adbe93c882d198b2662041ff8558f4ba65ba2e6a36c06824e1e1623dbb6",
+      "bytes": 649696,
+      "published_file": "benchback.glb.gz"
+    },
+    {
+      "id": "hydrant",
+      "file": "hydrant.glb",
+      "scenes": [
+        "Rusty Fire Hydrant"
+      ],
+      "credit": {
+        "author": "tedpermana (https://sketchfab.com/tedpermana)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/rusty-fire-hydrant-4e0b0f865e7b4e6ebff58588dc8e769c",
+        "title": "Rusty Fire Hydrant"
+      },
+      "sha256": "1de67ca65e3f7e4b4597c616739a51afbc3eb7232acf002e958767d20f77d957",
+      "bytes": 2191640,
+      "published_file": "hydrant.glb.gz"
+    },
+    {
+      "id": "mailbox",
+      "file": "mailbox.glb",
+      "scenes": [
+        "Mailbox"
+      ],
+      "credit": {
+        "author": "milkfromsaturn (https://sketchfab.com/milkfromsaturn)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/mailbox-dfdff5061b974695be24cbfaa429f46a",
+        "title": "Mailbox"
+      },
+      "sha256": "da2129a814966c9d8e33b6214a3b388a013009f466e34df9b8d0547169d2c67e",
+      "bytes": 180000,
+      "published_file": "mailbox.glb.gz"
+    },
+    {
+      "id": "mailboxlow",
+      "file": "mailboxlow.glb",
+      "scenes": [
+        "Low Poly Mailbox"
+      ],
+      "credit": {
+        "author": "Jessica Cooper (https://sketchfab.com/suicidal.wolf)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/low-poly-mailbox-37f7c6b207da4b669ef7a5d6e7dfd2c0",
+        "title": "Low Poly Mailbox"
+      },
+      "sha256": "56478f8447664a5ac915ba12210eca1e854451abbdf52117d389b72341f926aa",
+      "bytes": 129320,
+      "published_file": "mailboxlow.glb.gz"
+    },
+    {
+      "id": "busshelter",
+      "file": "busshelter.glb",
+      "scenes": [
+        "Standard Bus Stop"
+      ],
+      "credit": {
+        "author": "Pukka Films (https://sketchfab.com/pukkafilms)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/standard-bus-stop-32cc4c5f6aa147acabdb173e2d2373fa",
+        "title": "Standard Bus Stop"
+      },
+      "sha256": "0b0fbe851d5295fe84eca73841f9eafe194dcca93668b78c739a8d515d64e75e",
+      "bytes": 2693800,
+      "published_file": "busshelter.glb.gz"
+    },
+    {
+      "id": "sketchfab-realistic-grass",
+      "file": "sketchfab/grass-patch.glb.gz",
+      "scenes": [
+        "Realistic grass dense patch"
+      ],
+      "credit": {
+        "author": "Pasha",
+        "license": "Sketchfab Standard",
+        "source": "https://sketchfab.com/3d-models/realistic-grass-ba0971efc9ac4176b8f7d2379cd7250b",
+        "title": "Realistic grass"
+      },
+      "published_file": "sketchfab/grass-patch.glb.gz",
+      "bytes": 1314358,
+      "sha256": "4c24eb9e1ed747d0bbce03d7f1c5f08b3889767264dd024b73ef7742dba8a73d"
+    },
+    {
+      "id": "sketchfab-grass-tuft",
+      "file": "sketchfab/grass-tuft.glb.gz",
+      "scenes": [
+        "Grass tuft clump"
+      ],
+      "credit": {
+        "author": "Georgeous",
+        "license": "Sketchfab Standard",
+        "source": "https://sketchfab.com/3d-models/grass-674d42354f6348a7a85fc06a7f004db5",
+        "title": "grass"
+      },
+      "published_file": "sketchfab/grass-tuft.glb.gz",
+      "bytes": 1819083,
+      "sha256": "98e028002da4294bc25676e8bffccd552af7709311da9b2dc28174c381e601e0"
+    },
+    {
+      "id": "sketchfab-grass-ground-texture",
+      "file": "sketchfab/realistic-grass-tile.jpg",
+      "scenes": [
+        "Realistic grass model texture"
+      ],
+      "credit": {
+        "author": "Pasha",
+        "license": "Sketchfab Standard",
+        "source": "https://sketchfab.com/3d-models/realistic-grass-ba0971efc9ac4176b8f7d2379cd7250b",
+        "title": "Realistic grass"
+      },
+      "published_file": "sketchfab/realistic-grass-tile.jpg",
+      "bytes": 300258,
+      "sha256": "c80e1ceba3b8a7093e39745cd5f3fb560b492e9bdbf7e6cd65d356678b4fe847"
+    },
+    {
+      "id": "sketchfab-service-bus",
+      "file": "sketchfab/servicebus.glb.gz",
+      "scenes": [
+        "Service bus"
+      ],
+      "credit": {
+        "author": "MaG80",
+        "license": "CC BY 4.0",
+        "source": "https://sketchfab.com/3d-models/service-bus-pack-06160118194743e585ee6a83a1d5b63e",
+        "title": "Service Bus Pack"
+      },
+      "published_file": "sketchfab/servicebus.glb.gz",
+      "bytes": 486118,
+      "sha256": "1620fa1179e96620bd94ebd5e65a565d7d6cb51a75cd6ec23bc057f8479906e6"
+    },
+    {
+      "id": "sketchfab-aircraft-737",
+      "file": "sketchfab/aircraft737.glb.gz",
+      "scenes": [
+        "Boeing 737"
+      ],
+      "credit": {
+        "author": "businessyuen",
+        "license": "CC BY 4.0",
+        "source": "https://sketchfab.com/3d-models/1400-boeing-737-airplane-for-free-f39ca33a81f14613a3d562d6b74c466a",
+        "title": "1/400 Boeing 737 Airplane For Free"
+      },
+      "published_file": "sketchfab/aircraft737.glb.gz",
+      "bytes": 218506,
+      "sha256": "dd26c0cd1c6194c18e1b745d686a497d1a191cb748955b1847ac0dc47562472a"
+    }
+  ]
+}
