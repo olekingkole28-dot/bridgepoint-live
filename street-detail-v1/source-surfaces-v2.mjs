@@ -32,14 +32,40 @@ export async function attachSourceSurfaces(map){
  let dead=false,timer=0,dirty=true,signature='',loaded=false,running=false,worker=null,seq=0;
  const images={'bp-scan-asphalt-v2':'asphalt.png','bp-street-concrete-v2':'concrete.png','bp-old-curb-v2':'curb.png','bp-street-asphalt-v2':'old-asphalt.png'};
  const imageData={};
+ const DIRECT='bp-source-road-vector-asphalt-v4';
+ const SOLID='bp-source-road-vector-base-v4';
+ const cls=['motorway','trunk','primary','secondary','tertiary','minor','residential','unclassified','living_street','service','road','motorway_link','trunk_link','primary_link','secondary_link','tertiary_link'];
+ const prop=k=>['downcase',['to-string',['coalesce',['get',k],'']]];
+ const roadFilter=['all',['in',prop('class'),['literal',cls]],['!', ['in',prop('brunnel'),['literal',['bridge','tunnel']]]],['!=',prop('bridge'),'yes'],['!=',prop('tunnel'),'yes'],['!', ['in',prop('surface'),['literal',['unpaved','gravel','dirt','ground','grass','sand','compacted']]]],['!', ['in',prop('subclass'),['literal',['footway','sidewalk','cycleway','steps','path','parking_aisle','track']]]]];
+ const roadMeters=['let','w',['to-number',['get','width'],['get','width_m'],0],'n',['to-number',['get','lanes'],0],['case',['all',['>=',['var','w'],2.5],['<=',['var','w'],45]],['var','w'],['all',['>', ['var','n'],0],['<=',['var','n'],12]],['*',['var','n'],3.25],['match',prop('class'),'motorway',22,'trunk',17,'primary',14,'secondary',11,'tertiary',9,'service',5,'living_street',6,7]]];
+ let scaleLat=null;
+ function directWidths(){
+  const lat=map.getCenter().lat,cos=Math.max(.1,Math.cos(lat*D));
+  if(scaleLat!==null&&Math.abs(scaleLat-lat)<.2)return;scaleLat=lat;
+  const e=['interpolate',['exponential',2],['zoom']];
+  for(const z of [14,17,20,22])e.push(z,['*',roadMeters,512*2**z/(2*Math.PI*R*cos)]);
+  for(const id of [SOLID,DIRECT])if(map.getLayer(id))map.setPaintProperty(id,'line-width',e);
+ }
+ function installDirect(){
+  if(!map.getSource('ofm'))return;
+  // A native vector line is tiled and terrain-draped by MapLibre itself, so
+  // the satellite is obscured even when the independently built road mask is late.
+  const before=['gta-road-major-marking','gta-road-local-marking','gta-context-building-footprints','gta-water-label'].find(id=>map.getLayer(id));
+  for(const [id,pattern] of [[SOLID,false],[DIRECT,true]])if(!map.getLayer(id)){
+   map.addLayer({id,type:'line',source:'ofm','source-layer':'transportation',minzoom:14.6,filter:roadFilter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#414347','line-opacity':1,'line-width':5,...(pattern?{'line-pattern':'bp-scan-asphalt-v2'}:{})}},before);
+   scaleLat=null;
+  }
+  directWidths();d.directLayer=DIRECT;d.directOpaque=true;
+ }
  await Promise.all(Object.entries(images).map(async([id,file])=>{const r=await fetch(base+file,{cache:'force-cache'});if(!r.ok)throw Error(file);const b=await createImageBitmap(await r.blob());const c=document.createElement('canvas');c.width=b.width;c.height=b.height;c.getContext('2d').drawImage(b,0,0);imageData[id]=c.getContext('2d').getImageData(0,0,c.width,c.height);b.close();}));
  if(dead)return;
  function install(){if(!map.getStyle()?.layers?.length)return false;
  for(const [id,img] of Object.entries(imageData))if(!map.hasImage(id))map.addImage(id,img,{pixelRatio:4});
+ installDirect();
  if(!map.getSource(SRC))map.addSource(SRC,{type:'geojson',data:empty(),maxzoom:20});
  if(!map.getLayer(LAYER)){
   const before=['gta-road-major-marking','gta-road-local-marking','gta-context-building-footprints','gta-water-label'].find(x=>map.getLayer(x));
-  map.addLayer({id:LAYER,type:'fill-extrusion',source:SRC,minzoom:15,paint:{'fill-extrusion-pattern':'bp-scan-asphalt-v2','fill-extrusion-base':0,'fill-extrusion-height':.035,'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},before);
+  map.addLayer({id:LAYER,type:'fill-extrusion',source:SRC,minzoom:15,layout:{visibility:map.getSource('ofm')?'none':'visible'},paint:{'fill-extrusion-pattern':'bp-scan-asphalt-v2','fill-extrusion-base':0,'fill-extrusion-height':.035,'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},before);
  }
  // Preserve existing authoritative sidewalk polygons and heights; replace only surface materials.
  for(const [id,prop,value] of [['gta-bp-sidewalk-slabs-v1','fill-extrusion-pattern',['match',['get','surface_material'],'asphalt','bp-street-asphalt-v2','brick','bp-sidewalk-brick-v1','paving_stones','bp-sidewalk-pavers-v1','bp-street-concrete-v2']],['gta-bp-sidewalk-curbs-v1','fill-extrusion-pattern','bp-old-curb-v2'],['gta-road3d-deck','fill-extrusion-pattern','bp-scan-asphalt-v2']]){
@@ -62,6 +88,6 @@ export async function attachSourceSurfaces(map){
  function schedule(){if(dead||timer||map.isMoving?.())return;timer=setTimeout(()=>{timer=0;update()},300);}
  function changed(e){if(['ofm','bpLivingWorld','bpSidewalk3D'].includes(e.sourceId)&&(e.isSourceLoaded||e.sourceDataType==='content')){dirty=true;schedule();}}
  function moved(){dirty=true;schedule();}
- function style(){signature='';dirty=true;loaded=false;schedule();}
+ function style(){signature='';dirty=true;loaded=false;scaleLat=null;schedule();}
  map.on('moveend',moved);map.on('zoomend',moved);map.on('sourcedata',changed);map.on('style.load',style);map.once('remove',()=>{dead=true;clearTimeout(timer);worker?.terminate();map.off('moveend',moved);map.off('zoomend',moved);map.off('sourcedata',changed);map.off('style.load',style);});schedule();return d;
 }
