@@ -33,9 +33,9 @@
   const DOT_UPDATE_MS = 380;
   const REBUILD_DEBOUNCE_MS = 280;
   const EMPTY = { type: 'FeatureCollection', features: [] };
-  const MAX_DOT_VEHICLES = MOBILE ? 64 : 120;
-  const MAX_LOW_DETAIL_MODELS = MOBILE ? 16 : 32;
-  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 10 : 20;
+  const MAX_DOT_VEHICLES = MOBILE ? 180 : 360;
+  const MAX_LOW_DETAIL_MODELS = MOBILE ? 24 : 48;
+  const MAX_HIGH_DETAIL_MODELS = MOBILE ? 24 : 48;
 
   const state = {
     map: null, enabled: false, categories: { civilian: true, police: false, ambulance: false, fire: false },
@@ -404,7 +404,7 @@
           const key = [feature.id ?? feature.properties?.id ?? '', ...endpoints, clean.length].join(':');
           if (seen.has(key)) continue;
           seen.add(key);
-          found.push({ coordinates: clean, roadClass: roadClassForFeature(feature), key: sourceId + ':' + key });
+          const props=feature.properties||{},oneway=props.oneway===true||props.oneway===1||String(props.oneway||'').toLowerCase()==='yes'||props.is_oneway===true;\n          found.push({ coordinates: clean, roadClass: roadClassForFeature(feature), oneway, key: sourceId + ':' + key });
           if (found.length >= MAX_ROAD_FEATURES) return;
         }
       }
@@ -507,7 +507,7 @@
         points.push({ coordinate, local: localPoint(coordinate, anchor, 0, 0), distance });
       }
       if (points.length < 2 || distance < 65) continue;
-      paths.push({ points, length: distance, roadClass: road.roadClass, key: road.key + ':chunk:0' });
+      paths.push({ points, length: distance, roadClass: road.roadClass, oneway:!!road.oneway, laneWidth:3.25, key: road.key + ':chunk:0' });
       totalLength += distance;
     }
     return { paths, totalLength, sourceFeatures: rows.length, skippedTerrain: 0 };
@@ -562,7 +562,7 @@
         points.push({coordinate,local,distance});
       }
       if(points.length<2||distance<75)continue;
-      paths.push({points,length:distance,roadClass:road.roadClass,key:road.key+':terrain'});
+      paths.push({points,length:distance,roadClass:road.roadClass,oneway:!!road.oneway,laneWidth:3.25,key:road.key+':terrain'});
       totalLength+=distance;
     }
     return {paths,totalLength,sourceFeatures:source.length,skippedTerrain:missingElevation};
@@ -850,20 +850,19 @@
     const chosen=[];
     if(!paths.length)return chosen;
     const max=Math.max(0,Number(maxVehicles)||0);
-    const spacing=zoom>=15?90:zoom>=13?180:zoom>=10?340:1800;
     const sorted=paths.slice().sort((a,b)=>String(a.key).localeCompare(String(b.key)));
-    const ranked=[];
+    const spacing=zoom>=15?45:zoom>=13?120:zoom>=10?280:1200,ranked=[];
     if(state.categories.civilian){
       for(const path of sorted){
         if(!path||!(path.length>0))continue;
         const count=Math.max(1,Math.min(24,Math.floor(path.length/spacing)));
         for(let slot=0;slot<count;slot++){
           const seed=stableHash(String(path.key)+':'+slot),random=seedRandom(seed);
-          const fraction=clamp((slot+.22+random()*.56)/count,0,1);
+          const fraction=clamp((slot+.22+random()*.56)/count,0,1),speed=roadSpeed(path.roadClass,random)*(.78+random()*.42);
           ranked.push({
             rank:seed,kind:vehicleKindForRoad(path.roadClass,random()*100),category:'civilian',path,
-            distance:fraction*path.length,direction:random()>.5?1:-1,
-            speed:roadSpeed(path.roadClass,random)*(.78+random()*.42),
+            distance:fraction*path.length,direction:path.oneway?1:(random()>.5?1:-1),
+            speed,cruiseSpeed:speed,laneOffset:Math.min(1.7,Math.max(1.15,(path.laneWidth||3.25)*.48)),
             id:'SIM-C-'+seed.toString(16).padStart(8,'0')
           });
         }
@@ -874,11 +873,11 @@
     const addEmergency=(enabled,kind,category)=>{
       if(!enabled||!sorted.length)return;
       for(let i=0;i<(MOBILE?1:3);i++){
-        const path=sorted[stableHash(category+':'+i)%sorted.length];
-        const seed=stableHash(category+':'+path.key+':'+i),random=seedRandom(seed);
+        const path=sorted[stableHash(category+':'+i)%sorted.length],seed=stableHash(category+':'+path.key+':'+i),random=seedRandom(seed);
+        const speed=Math.min(roadSpeed(path.roadClass,random)*1.18,30);
         chosen.push({
-          kind,category,path,distance:random()*path.length,direction:random()>.5?1:-1,
-          speed:Math.min(roadSpeed(path.roadClass,random)*1.18,30),
+          kind,category,path,distance:random()*path.length,direction:path.oneway?1:(random()>.5?1:-1),
+          speed,cruiseSpeed:speed,laneOffset:Math.min(1.7,Math.max(1.15,(path.laneWidth||3.25)*.48)),
           id:'SIM-'+category.toUpperCase()+'-'+seed.toString(16).padStart(8,'0')
         });
       }
@@ -909,11 +908,10 @@
     if(!previous.length)return nextFleet;
     const byId=new Map(previous.map(v=>[v.id,v])),used=new Set();
     for(const vehicle of nextFleet){
-      const old=byId.get(vehicle.id);
-      if(!old||!old.path?.length||!vehicle.path?.length)continue;
+      const old=byId.get(vehicle.id);if(!old||!old.path?.length||!vehicle.path?.length)continue;
       vehicle.distance=clamp(old.distance/old.path.length*vehicle.path.length,0,vehicle.path.length);
-      vehicle.kind=old.kind;vehicle.category=old.category;vehicle.speed=old.speed;vehicle.direction=old.direction;
-      vehicle.spin=old.spin||0;
+      vehicle.kind=old.kind;vehicle.category=old.category;vehicle.speed=old.speed;vehicle.cruiseSpeed=old.cruiseSpeed||old.speed;
+      vehicle.direction=vehicle.path.oneway?1:old.direction;vehicle.spin=old.spin||0;vehicle.recentPathKeys=old.recentPathKeys||[];
       if(old.visual){vehicle.visual=old.visual;vehicle.visualLod=old.visualLod;}
       used.add(old);
     }
@@ -922,19 +920,18 @@
       if(byId.has(vehicle.id)||!unmatched.length)continue;
       const nearby=unmatched.map(old=>({old,pose:interpolatePath(old.path,old.distance)})).filter(x=>x.pose)
         .map(x=>({...x,projection:projectCoordinateOntoPath(x.pose.coordinate,vehicle.path)}))
-        .filter(x=>x.projection&&x.projection.distanceM<=28)
-        .sort((a,b)=>a.projection.distanceM-b.projection.distanceM)[0];
+        .filter(x=>x.projection&&x.projection.distanceM<=28).sort((a,b)=>a.projection.distanceM-b.projection.distanceM)[0];
       if(!nearby)continue;
-      const old=nearby.old;
-      vehicle.id=old.id;vehicle.distance=nearby.projection.distance;vehicle.kind=old.kind;vehicle.category=old.category;
-      vehicle.speed=old.speed;vehicle.direction=old.direction;vehicle.spin=old.spin||0;
+      const old=nearby.old;vehicle.id=old.id;vehicle.distance=nearby.projection.distance;vehicle.kind=old.kind;vehicle.category=old.category;
+      vehicle.speed=old.speed;vehicle.cruiseSpeed=old.cruiseSpeed||old.speed;vehicle.direction=vehicle.path.oneway?1:old.direction;
+      vehicle.spin=old.spin||0;vehicle.recentPathKeys=old.recentPathKeys||[];
       if(old.visual){vehicle.visual=old.visual;vehicle.visualLod=old.visualLod;}
       unmatched.splice(unmatched.indexOf(old),1);
     }
     return nextFleet;
   }
 
-    function disposeVehicleVisual(vehicle) {
+  function disposeVehicleVisual(vehicle) {
     const visual = vehicle?.visual;
     if (!visual) return;
     try { state.scene?.remove(visual.group); } catch (_) {}
@@ -1112,44 +1109,107 @@
     startAnimation();
   }
 
-    function updateVehiclePose(vehicle, deltaSeconds, now) {
-    const path = vehicle.path;
-    if (!path || path.length <= 1) return null;
-    const movement = vehicle.speed * deltaSeconds * vehicle.direction;
-    let next = vehicle.distance + movement;
-    if (next > path.length) { next = path.length - (next - path.length); vehicle.direction = -1; }
-    if (next < 0) { next = -next; vehicle.direction = 1; }
-    vehicle.distance = clamp(next, 0, path.length);
-    const point = interpolatePath(path, vehicle.distance);
-    if (!point) return null;
-    if (vehicle.visual) {
-      const direction = vehicle.direction;
-      const dx = point.dx * direction, dz = point.dz * direction;
-      const yaw = Math.atan2(dx, dz);
-      vehicle.visual.group.position.set(point.local.x, point.local.y + .035, point.local.z);
-      vehicle.visual.group.rotation.set(0, yaw, 0);
-      const spinDelta = (vehicle.speed * deltaSeconds / Math.max(.1, vehicle.visual.spec.radius));
-      vehicle.spin += spinDelta * direction;
-      for (const wheel of vehicle.visual.wheelPivots) wheel.rotation.x = vehicle.spin;
-      for (const flash of vehicle.visual.flashMeshes) {
-        const active = (Math.floor(now / 170) + flash.phase) % 2 === 0;
-        flash.material.emissiveIntensity = active ? 2.8 : .12;
-        flash.mesh.visible = true;
+    function vehicleLanePoint(vehicle,path=vehicle.path,distance=vehicle.distance,direction=vehicle.direction){
+    const point=interpolatePath(path,distance);if(!point)return null;
+    const magnitude=Math.hypot(point.dx,point.dz)||1,lane=Math.min(1.7,Math.max(0,vehicle.laneOffset||1.5))*direction;
+    const east=(-point.dz/magnitude)*lane,south=(point.dx/magnitude)*lane,lat=point.coordinate[1],cos=Math.max(.05,Math.cos(lat*Math.PI/180));
+    return {...point,coordinate:[point.coordinate[0]+east/(111320*cos),point.coordinate[1]-south/111132],
+      local:{x:point.local.x+east,y:point.local.y,z:point.local.z+south}};
+  }
+
+  function roadContinuation(vehicle,path,atEnd,incoming){
+    const endpoint=interpolatePath(path,atEnd?path.length:0);if(!endpoint)return null;
+    const recent=new Set(vehicle.recentPathKeys||[]);let best=null;
+    const angle=(a,b)=>Math.acos(clamp((a.dx*b.dx+a.dz*b.dz)/(Math.hypot(a.dx,a.dz)*Math.hypot(b.dx,b.dz)||1),-1,1));
+    for(const candidate of state.paths||[]){
+      if(!candidate||candidate===path||candidate.key===path.key||!(candidate.length>8))continue;
+      for(const entry of [{distance:0,direction:1},{distance:candidate.length,direction:-1}]){
+        const p=interpolatePath(candidate,entry.distance);if(!p)continue;
+        const gap=Math.hypot(endpoint.local.x-p.local.x,endpoint.local.z-p.local.z);if(gap>8)continue;
+        const heading={dx:p.dx*entry.direction,dz:p.dz*entry.direction},turn=angle(incoming,heading);if(turn>2.72)continue;
+        const score=gap+turn*12+(recent.has(candidate.key)?30:0);
+        if(!best||score<best.score)best={path:candidate,distance:entry.distance,direction:entry.direction,gap,heading,score};
       }
     }
-    return {
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: point.coordinate },
-      properties: {
-        id: vehicle.id, kind: vehicle.kind, category: vehicle.category,
-        categoryLabel: vehicle.category === 'civilian' ? 'Civilian traffic' :
-          vehicle.category === 'police' ? 'Simulated police' :
-          vehicle.category === 'ambulance' ? 'Simulated ambulance' : 'Simulated fire truck',
-        model: vehicle.kind.replace(/-/g, ' '),
-        roadClass: path.roadClass, speedMph: vehicle.speed * 2.236936,
-        emergency: ['police', 'ambulance', 'fire'].includes(vehicle.category) ? 'true' : 'false'
+    return best;
+  }
+
+  function signalApproach(vehicle,point,now){
+    const stateTraffic=state.map?.__BP_TRAFFIC_FURNITURE_V1__,signals=stateTraffic?.signalNodes;
+    if(!Array.isArray(signals)||!signals.length)return null;
+    const heading=((Math.atan2(point.dx*vehicle.direction,-point.dz*vehicle.direction)*180/Math.PI)%360+360)%360;
+    let best=null;
+    for(const signal of signals){
+      const face=Number(signal.face);if(!Number.isFinite(face))continue;
+      const diff=Math.abs(((heading-(face+180)+540)%360)-180);if(diff>55)continue;
+      const projection=projectCoordinateOntoPath(signal.q||signal.source,vehicle.path);if(!projection||projection.distanceM>20)continue;
+      const ahead=(projection.distance-vehicle.distance)*vehicle.direction;if(ahead< -4||ahead>115)continue;
+      const axis=Number(signal.axis)||0,phase=typeof stateTraffic.phaseAt==='function'?stateTraffic.phaseAt(axis,now):(()=>{const t=(Math.floor(now/1000)%48+(axis?24:0))%48;return t<19?'green':t<23?'yellow':'red';})();
+      if(phase!=='red'&&!(phase==='yellow'&&ahead>22))continue;
+      const stopDistance=Math.max(0,ahead-8);
+      if(!best||stopDistance<best.stopDistance)best={phase,stopDistance,ahead};
+    }
+    return best;
+  }
+
+  function updateVehiclePose(vehicle,deltaSeconds,now){
+    if(!vehicle.path||vehicle.path.length<=1)return null;
+    const dt=Math.max(0,Math.min(.08,Number(deltaSeconds)||0)),current=interpolatePath(vehicle.path,vehicle.distance);
+    if(!current)return null;
+    const cruise=Number(vehicle.cruiseSpeed)||Number(vehicle.speed)||8;let target=cruise;
+    let leaderGap=Infinity;
+    for(const other of state.vehicles||[]){
+      if(other===vehicle||other.path!==vehicle.path||other.direction!==vehicle.direction)continue;
+      let gap=(other.distance-vehicle.distance)*vehicle.direction;if(gap<0)gap+=vehicle.path.length;
+      if(gap>.1)leaderGap=Math.min(leaderGap,gap);
+    }
+    const followGap=vehicle.kind==='semi-trailer'||vehicle.kind==='tractor-truck'||vehicle.kind==='box-truck'?22:vehicle.kind==='city-bus'?18:10;
+    if(leaderGap<followGap+cruise*2.1)target=Math.min(target,cruise*clamp((leaderGap-followGap)/Math.max(1,cruise*2.1),0,1));
+    const stop=signalApproach(vehicle,current,now);
+    if(stop){
+      target=Math.min(target,Math.sqrt(2*3.7*stop.stopDistance));
+      if(stop.stopDistance<=.65)target=0;
+    }
+    const accel=target<vehicle.speed?4.2:1.55;
+    vehicle.speed=Math.max(0,(Number(vehicle.speed)||0)+clamp(target-(Number(vehicle.speed)||0),-accel*dt,accel*dt));
+    let travel=vehicle.speed*dt;if(stop&&stop.stopDistance<=travel+.65)travel=Math.max(0,stop.stopDistance-.65);
+    let remaining=travel,hops=0;
+    while(remaining>.001&&hops++<4){
+      const path=vehicle.path,dir=vehicle.direction,available=dir>0?path.length-vehicle.distance:vehicle.distance;
+      if(remaining<=available){vehicle.distance=clamp(vehicle.distance+dir*remaining,0,path.length);remaining=0;break;}
+      vehicle.distance=dir>0?path.length:0;remaining-=Math.max(0,available);
+      const endPoint=interpolatePath(path,vehicle.distance),incoming=endPoint?{dx:endPoint.dx*dir,dz:endPoint.dz*dir}:{dx:0,dz:1};
+      const fromYaw=Math.atan2(incoming.dx,incoming.dz),next=roadContinuation(vehicle,path,dir>0,incoming);
+      if(next){
+        vehicle.path=next.path;vehicle.distance=next.distance;vehicle.direction=next.direction;
+        vehicle.recentPathKeys=[...(vehicle.recentPathKeys||[]),path.key,next.path.key].slice(-4);
+        vehicle.turn={fromYaw,startDistance:vehicle.distance,direction:vehicle.direction,span:12};
+        remaining=Math.max(0,remaining-next.gap);
+      }else{
+        vehicle.direction=-dir;vehicle.turn={fromYaw,startDistance:vehicle.distance,direction:vehicle.direction,span:8};
       }
-    };
+    }
+    const point=interpolatePath(vehicle.path,vehicle.distance);if(!point)return null;
+    const lanePoint=vehicleLanePoint(vehicle,vehicle.path,vehicle.distance,vehicle.direction);if(!lanePoint)return null;
+    if(vehicle.visual){
+      const direction=vehicle.direction,dx=point.dx*direction,dz=point.dz*direction;
+      let yaw=Math.atan2(dx,dz);
+      if(vehicle.turn){
+        const progressed=(vehicle.distance-vehicle.turn.startDistance)*vehicle.turn.direction,t=clamp(progressed/vehicle.turn.span,0,1),delta=Math.atan2(Math.sin(yaw-vehicle.turn.fromYaw),Math.cos(yaw-vehicle.turn.fromYaw));
+        yaw=vehicle.turn.fromYaw+delta*(t*t*(3-2*t));if(t>=1)vehicle.turn=null;
+      }
+      vehicle.visual.group.position.set(lanePoint.local.x,lanePoint.local.y+.035,lanePoint.local.z);
+      vehicle.visual.group.rotation.set(0,yaw,0);
+      vehicle.spin+=(vehicle.speed*dt/Math.max(.1,vehicle.visual.spec.radius))*direction;
+      for(const wheel of vehicle.visual.wheelPivots)wheel.rotation.x=vehicle.spin;
+      for(const flash of vehicle.visual.flashMeshes){const active=(Math.floor(now/170)+flash.phase)%2===0;flash.material.emissiveIntensity=active?2.8:.12;flash.mesh.visible=true;}
+    }
+    return {type:'Feature',geometry:{type:'Point',coordinates:lanePoint.coordinate},properties:{
+      id:vehicle.id,kind:vehicle.kind,category:vehicle.category,
+      categoryLabel:vehicle.category==='civilian'?'Civilian traffic':vehicle.category==='police'?'Simulated police':vehicle.category==='ambulance'?'Simulated ambulance':'Simulated fire truck',
+      model:vehicle.kind.replace(/-/g,' '),roadClass:vehicle.path.roadClass,speedMph:vehicle.speed*2.236936,
+      emergency:['police','ambulance','fire'].includes(vehicle.category)?'true':'false'
+    }};
   }
 
   function updateDots(now, force = false) {
@@ -1157,7 +1217,7 @@
     state.lastDotAt = now;
     const features = [];
     for (const vehicle of state.vehicles) {
-      const pose = interpolatePath(vehicle.path, vehicle.distance);
+      const pose = vehicleLanePoint(vehicle);
       if (!pose) continue;
       const category = vehicle.category;
       features.push({
