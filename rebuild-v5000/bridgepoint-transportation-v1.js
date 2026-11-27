@@ -437,7 +437,8 @@
         for (const line of featureLines(feature)) {
           const clean = cleanLine(line);
           if (clean.length < 2) continue;
-          if (overlapsMappedClosure(clean, map.__BP_ROADWORK_CLOSED_PATHS__ || [])) continue;\n          const first = clean[0], last = clean[clean.length - 1];
+          if (overlapsMappedClosure(clean, map.__BP_ROADWORK_CLOSED_PATHS__ || [])) continue;
+          const first = clean[0], last = clean[clean.length - 1];
           const fwd = [Math.round(first[0]*100000),Math.round(first[1]*100000),Math.round(last[0]*100000),Math.round(last[1]*100000)];
           const rev = [Math.round(last[0]*100000),Math.round(last[1]*100000),Math.round(first[0]*100000),Math.round(first[1]*100000)];
           const endpoints = fwd.join(':') < rev.join(':') ? fwd : rev;
