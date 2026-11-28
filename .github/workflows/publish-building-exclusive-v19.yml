@@ -1,0 +1,153 @@
+name: BridgePoint exclusive Sketchfab buildings V19
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-building-exclusive-v19.yml','rebuild-v5000/bridgepoint-sketchfab-buildings-v19.mjs']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  building-exclusive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            # A Pages deployment can succeed even if later live verification fails.
+            # Accept that candidate only if its deploy step succeeded; all live byte comparisons below still must pass.
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq 'any(.jobs[].steps[]?; .name == "Publish the preserved production snapshot" and .conclusion == "success")')" || continue
+              if [ "$deployed" != true ]; then continue; fi
+            fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs assets/street-detail-v1/pavers.png bridgepoint-app-space-explorer-v1.js vendor/bp-sketchfab-road-models-v1.mjs vendor/bp-street-placement-v14.mjs vendor/bp-sketchfab-buildings-v1.mjs assets/street-points-v17/manifest.json; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <( { grep -E '^46108774780[[:space:]]' "$RUNNER_TEMP/candidates" || true; head -15 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install only mapped source building renderer
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib,shutil
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          allowed={'vendor/bp-sketchfab-buildings-v1.mjs','world-v2300-map.js','app/world-v2300-map.js','index.html','app/index.html','landing.js','app.js','app/landing.js','app/app.js'}
+          def snapshot():
+              out={}
+              for p in site.rglob('*'):
+                  if p.is_file() and p.relative_to(site).as_posix() not in allowed:
+                      with p.open('rb') as f:out[p.relative_to(site).as_posix()]=hashlib.file_digest(f,'sha256').hexdigest()
+              return out
+          before=snapshot()
+          shutil.copyfile('rebuild-v5000/bridgepoint-sketchfab-buildings-v19.mjs',site/'vendor/bp-sketchfab-buildings-v1.mjs')
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text()
+              s,n=re.subn(r'(/vendor/bp-sketchfab-buildings-v1\.mjs)(?:\?v=[^\'"\s]+)?',r'\g<1>?v=20261128-building-exclusive-v19',s);assert n==1
+              s,n=re.subn(r'bpSketchfabBuildingsAttached\|\|map\.getZoom\(\)<[0-9.]+','bpSketchfabBuildingsAttached||map.getZoom()<12.8',s);assert n==1
+              anchor="map.on('moveend',bpAttachSketchfabBuildings);"
+              assert s.count(anchor)==1
+              if "map.on('move',bpAttachSketchfabBuildings);" not in s:s=s.replace(anchor,"map.on('move',bpAttachSketchfabBuildings);"+anchor)
+              p.write_text(s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261128-building-exclusive-v19',s)
+                      if n!=s:p.write_text(n)
+          assert before==snapshot(),'Unrelated production file changed'
+          print('BUILDING_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          for f in vendor/bp-sketchfab-buildings-v1.mjs world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify source building selection and duplicate suppression
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {selectBuildingCandidates,buildingViewportBudget} from './rebuild-v5000/bridgepoint-sketchfab-buildings-v19.mjs';
+          const center=[-74,40.7],make=(id,x,y,w,d,h,src='exact')=>{const a=x/84400,b=y/111132,u=w/84400,v=d/111132;return{type:'Feature',id,geometry:{type:'Polygon',coordinates:[[[center[0]+a,center[1]+b],[center[0]+a+u,center[1]+b],[center[0]+a+u,center[1]+b+v],[center[0]+a,center[1]+b+v],[center[0]+a,center[1]+b]]]},properties:{render_height_m:h,__bpSource:src,__bpSourceLayer:src==='exact'?'':'building'}}};
+          const f=[make(1,0,0,12,8,16),make(2,0,0,12,8,16,'ofm'),make(3,25,0,50,35,108)];
+          for(let i=0;i<80;i++)f.push(make(i+10,(i%10)*26,35+Math.floor(i/10)*20,12,8,18));
+          const rows=selectBuildingCandidates(f,center,160);assert(rows.length>75);assert(rows.some(x=>x.aliases.length===2));assert(rows.some(x=>x.model==='BP_GlassTower'));assert(rows.every(x=>x.height>0));assert(buildingViewportBudget(18,true).cap>36);console.log('BUILDING_MATCH_AND_DEDUP_PASS',rows.length);
+          JS
+      - name: Verify actual source building meshes in mobile browser
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/building-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace("import * as T from","import {attachSketchfabBuildings} from '/vendor/bp-sketchfab-buildings-v1.mjs';\nimport * as T from",1)
+          a=s.index('const center=');b=s.index('</script>',a)
+          s=s[:a]+"""const center=[-74.014,40.71],features=[];function make(id,x,y,w,d,h){const a=center[0]+x/84400,b=center[1]+y/111132,u=w/84400,v=d/111132;return{type:'Feature',id,properties:{render_height_m:h},geometry:{type:'Polygon',coordinates:[[[a,b],[a+u,b],[a+u,b+v],[a,b+v],[a,b]]]}}}for(let i=0;i<30;i++)features.push(make(i+1,(i%6-3)*25,(Math.floor(i/6)-2)*25,12,8,18));features.push(make(100,55,-65,45,30,100));const style={version:8,sources:{exact:{type:'geojson',data:{type:'FeatureCollection',features}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#66715b'}},{id:'gta-exact-building',type:'fill-extrusion',source:'exact',paint:{'fill-extrusion-color':'#999999','fill-extrusion-height':['get','render_height_m']}},{id:'gta-exact-facade-detail',type:'fill-extrusion',source:'exact',paint:{'fill-extrusion-color':'#999999','fill-extrusion-height':['get','render_height_m']}}]};const map=new maplibregl.Map({container:'map',style,center,zoom:16.8,pitch:45,bearing:12,projection:'globe'});window.testMap=map;map.once('load',()=>attachSketchfabBuildings(map));
+          """+s[b:]
+          a=s.index('try{const p=await browser.newPage');b=s.index('}finally{await browser.close()',a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('BUILDING_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture');try{await p.waitForFunction(()=>{const r=window.__BP_SKETCHFAB_BUILDINGS_V1__;return r?.status==='ready'&&r.modelsPlaced>16&&r.legacyBuildingFeaturesHidden>0&&r.drawCalls>0&&r.templateModels.length===5&&r.exactSourceGeometry},null,{timeout:120000});}catch(e){console.log('BUILDING_RENDER_DIAGNOSTIC',await p.evaluate(()=>window.__BP_SKETCHFAB_BUILDINGS_V1__));throw e;}const result=await p.evaluate(()=>{const map=window.testMap;map.setLayoutProperty('gta-exact-building','visibility','visible');map.setLayoutProperty('gta-exact-facade-detail','visibility','visible');return {state:window.__BP_SKETCHFAB_BUILDINGS_V1__,body:map.getLayoutProperty('gta-exact-building','visibility'),facade:map.getLayoutProperty('gta-exact-facade-detail','visibility'),keepers:map.getStyle().layers.filter(l=>l.id.startsWith('bp-sketchfab-source-keeper-')).length}});assert.equal(result.body,'none');assert.equal(result.facade,'none');assert(result.keepers>0);assert(result.state.exclusiveSourceMeshes);assert(result.state.instanced);console.log('SOURCE_MESH_VIEWPORT_AND_LEGACY_FILTER_PASS',result.state.modelsPlaced,result.state.templateModels,result.state.drawCalls);await p.evaluate(()=>window.testMap.jumpTo({zoom:19,pitch:70,bearing:110}));await p.waitForFunction(()=>{const r=window.__BP_SKETCHFAB_BUILDINGS_V1__;return r?.status==='ready'&&r.zoom>=19&&r.modelsPlaced>0&&r.drawCalls>0&&r.legacyBuildingFeaturesHidden>0&&window.testMap.getLayoutProperty('gta-exact-building','visibility')==='none'},null,{timeout:60000});console.log('CLOSE_BUILDING_PERSISTENCE_PASS');await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-buildings-v18-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-buildings-v18-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated building renderer only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live building renderer and preserved production assets
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-sketchfab-buildings-v1.mjs assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz assets/street-points-v17/manifest.json vendor/bp-street-placement-v14.mjs vendor/bp-street-detail-v1.mjs world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js world-v2300-water.js app/world-v2300-water.js assets/street-detail-v1/hydrant.glb.gz; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?preload=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo BUILDING_VIEWPORT_LIVE_BYTES_PASS
