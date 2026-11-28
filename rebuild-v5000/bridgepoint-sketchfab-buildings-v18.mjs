@@ -79,7 +79,7 @@ export function selectBuildingCandidates(features,center,cap=160,options={}){
  const ordered=[...(features||[])].sort((a,b)=>rank(a.properties?.__bpSource)-rank(b.properties?.__bpSource));
  const grid=new Map(),cell=10;
  for(const f of ordered){
-  const p=f.properties||{},geo=footprint(f);if(!geo)continue;
+  const p=f.properties||{},first=f.geometry?.type==='Polygon'?f.geometry.coordinates?.[0]?.[0]:f.geometry?.type==='MultiPolygon'?f.geometry.coordinates?.[0]?.[0]?.[0]:null;if(!first||Math.hypot((Number(first[0])-center[0])*111320*cos,(Number(first[1])-center[1])*111132)>radius+350)continue;const geo=footprint(f);if(!geo)continue;
   if(Number(p.base_height_m||p.render_min_height||p.min_height||0)>1)continue;
   const width=Math.max(geo.width,geo.depth),depth=Math.min(geo.width,geo.depth),aspect=width/depth,recorded=heightOf(p),height=recorded||Math.max(5,Math.min(12,depth*.85));
   if(geo.area<30||depth<3.8||width>160||depth>100||height<4||height>450||aspect>4.2)continue;
@@ -201,7 +201,7 @@ export function attachSketchfabBuildings(map, options = {}) {
       const c=map.getCenter(),center=[c.lng,c.lat],budget=buildingViewportBudget(zoom,mobile),all=collect();
       const chosen=selectBuildingCandidates(all,center,options.maxModels||budget.cap,{catalog,radius:budget.radius,map});
       status.candidates=all.length;status.viewportBudget=budget;
-      const key=terrainRevision+':'+chosen.map(i=>i.id+':'+i.model+':'+i.q.map(v=>v.toFixed(5)).join(',')).join('|');
+      const key=terrainRevision+':'+budget.cap+':'+chosen.map(i=>i.id+':'+i.model+':'+i.q.map(v=>v.toFixed(6)).join(',')+':'+[i.width,i.depth,i.height,i.yaw].map(v=>v.toFixed(3)).join(',')+':'+i.aliases.map(a=>a.source+':'+a.legacyFeatureId).join(',')).join('|');
       if(key===lastKey&&group){suppressLegacyBuildingFeatures(activeItems);return;}
       if(!chosen.length){if(anchor&&Math.hypot((anchor[0]-center[0])*111320*Math.cos(center[1]*D),(anchor[1]-center[1])*111132)>budget.radius){emptyGroup();lastKey='';}status.status='waiting-for-matching-mapped-footprints';return;}
       const terrain=q=>{if(!map.getTerrain?.())return 0;const z=map.queryTerrainElevation?.({lng:q[0],lat:q[1]},{exaggerated:true});return Number.isFinite(z)?z:null;};
@@ -273,8 +273,8 @@ export function attachSketchfabBuildings(map, options = {}) {
     prepare('BP_GlassTower',root,helper);
     status.templateModels=[...templates.keys()];status.templateTriangles=Object.fromEntries([...templates].map(([name,t])=>[name,t.triangles]));installLayer();
   }
-  map.on('move',()=>{const now=Date.now();if(now-lastMotion>350){lastMotion=now;schedule();}});map.on('moveend',schedule);map.on('zoomend',schedule);map.on('sourcedata',e=>{const id=String(e.sourceId||'');if(['ofm','exact','bpBuildings','bpCityStructures','bpCityRoofs','exactRoof'].includes(id))schedule();else if(e.isSourceLoaded&&/terrain|dem/i.test(id)){terrainRevision++;schedule();}});
-  map.on('styledata',()=>{if(group&&activeItems.length)schedule();});
+  map.on('move',()=>{const now=Date.now();if(now-lastMotion>350){lastMotion=now;schedule();}});map.on('moveend',schedule);map.on('zoomend',schedule);map.on('sourcedata',e=>{const id=String(e.sourceId||'');if(['ofm','exact','bpBuildings','bpCityStructures','bpCityRoofs','exactRoof'].includes(id)&&(e.isSourceLoaded||e.sourceDataType==='content'))schedule();else if(e.isSourceLoaded&&/terrain|dem/i.test(id)){terrainRevision++;schedule();}});
+  map.on('styledata',()=>{if(group&&activeItems.length&&[...previousBuildingFilters].some(([id,entry])=>map.getLayer(id)&&JSON.stringify(map.getFilter(id))!==JSON.stringify(entry.applied)))schedule();});
   map.on('style.load',()=>{layersInstalled=false;previousBuildingFilters.clear();filterStamp='';installLayer();lastKey='';schedule();});
   map.once('remove', () => { dead = true; clearTimeout(timer); emptyGroup(); renderer?.dispose(); });
   init().then(schedule).catch(e => { status.status = 'asset-error'; status.error = String(e?.message || e).slice(0, 180); });
