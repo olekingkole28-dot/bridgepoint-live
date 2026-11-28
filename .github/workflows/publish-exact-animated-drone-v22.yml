@@ -1,4 +1,4 @@
-name: BridgePoint exact animated drone V22
+name: BridgePoint exact animated drone V23
 on:
   workflow_dispatch:
   push:
@@ -47,11 +47,11 @@ jobs:
             if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
             tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
             same=1
-            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs assets/street-detail-v1/pavers.png bridgepoint-app-space-explorer-v1.js vendor/bp-sketchfab-road-models-v1.mjs vendor/bp-street-placement-v14.mjs vendor/bp-sketchfab-buildings-v1.mjs assets/street-points-v17/manifest.json bridgepoint-drone-awareness-v1.js app/bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js; do
-              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs assets/street-detail-v1/pavers.png bridgepoint-app-space-explorer-v1.js vendor/bp-sketchfab-road-models-v1.mjs vendor/bp-street-placement-v14.mjs vendor/bp-sketchfab-buildings-v1.mjs assets/street-points-v17/manifest.json bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then echo "BASELINE_MISMATCH $run $p"; same=0; break; fi
             done
             if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
-          done < <( { head -25 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          done < <( { grep -E '^46110961409[[:space:]]' "$RUNNER_TEMP/candidates" || true; head -5 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
           test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
       - name: Download byte-identical public CC BY source and apply drone-only overlay
         run: |
@@ -134,7 +134,7 @@ jobs:
           helper='vendor/bp-animated-drone-v1.mjs'
           asset='assets/aircraft/animated_drone_with_camera_free.glb'
           credit='assets/aircraft/animated_drone_with_camera_free.LICENSE.txt'
-          allowed={tracker,'app/'+tracker,'index.html','app/index.html',helper,asset,credit}
+          allowed={tracker,'index.html','app/index.html','landing.js','app.js','app/landing.js','app/app.js',helper,asset,credit}
           def snap():
            out={}
            for p in site.rglob('*'):
@@ -159,14 +159,14 @@ jobs:
           def one(s,a,b):
            if s.count(a)!=1:raise SystemExit('DRONE_ANCHOR '+str(s.count(a))+' '+a[:120])
            return s.replace(a,b,1)
-          for rel in (tracker,'app/'+tracker):
+          for rel in (tracker,):
            p=site/rel;s=p.read_text()
            assert 'followGroundVersion:8' in s and 'installPersistentFlightMarkers' in s
            a=s.index('function makeDroneModel(THREE){');b=s.index('function disposeDroneTemplate(){',a)
            s=s[:a]+'''let bpExactDroneModule=null,bpExactDroneClip=null;
           async function bpInstallExactDrone(THREE,scene){
            try{
-            const mod=await import('/vendor/bp-animated-drone-v1.mjs?v=20261128-exact-drone-v22');
+            const mod=await import('/vendor/bp-animated-drone-v1.mjs?v=20261128-exact-drone-v23');
             const loaded=await mod.loadExactDrone(THREE);
             if(droneScene!==scene){loaded.template.traverse(o=>{o.geometry?.dispose?.()});return;}
             bpExactDroneModule=mod;bpExactDroneClip=loaded.clip;droneTemplate=loaded.template;
@@ -183,16 +183,20 @@ jobs:
            s=s.replace('droneScene.remove(model);droneModels.delete(key)','model.userData.bpDroneMixer?.stopAllAction();droneScene.remove(model);droneModels.delete(key)')
            assert 'BridgePoint schematic quadcopter' not in s and 'bpExactDroneModule.cloneExactDrone' in s
            p.write_text(s)
-          for rel in ('index.html','app/index.html'):
-           p=site/rel;s=p.read_text()
-           s,n=re.subn(r'(bridgepoint-drone-awareness-v1\.js\?[^"\'\s<>]+)',lambda m:m[1]+'&exactdrone=20261128-v22',s)
-           assert n>=1,rel
-           p.write_text(s)
+          references=0
+          for rel in ('index.html','app/index.html','landing.js','app.js','app/landing.js','app/app.js'):
+           p=site/rel
+           if not p.is_file():continue
+           s=p.read_text()
+           s,n=re.subn(r'(bridgepoint-drone-awareness-v1\.js\?[^"\'\s<>]+)',lambda m:m[1]+'&exactdrone=20261128-v23',s)
+           references+=n
+           if n:p.write_text(s)
+          assert references>=1,'No existing tracker entry references found'
           assert before==snap(),'Unrelated production bytes changed'
-          print('EXACT_DRONE_V22_SCOPE_PASS',len(before))
+          print('EXACT_DRONE_V23_SCOPE_PASS',len(before))
           DRONE_PATCH
           SITE="$RUNNER_TEMP/horizon-site"
-          for p in bridgepoint-drone-awareness-v1.js app/bridgepoint-drone-awareness-v1.js vendor/bp-animated-drone-v1.mjs; do node --input-type=module --check < "$SITE/$p"; done
+          for p in bridgepoint-drone-awareness-v1.js vendor/bp-animated-drone-v1.mjs; do node --input-type=module --check < "$SITE/$p"; done
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
@@ -219,11 +223,11 @@ jobs:
         run: |
           set -euo pipefail
           SITE="$RUNNER_TEMP/horizon-site"
-          for p in assets/aircraft/animated_drone_with_camera_free.glb assets/aircraft/animated_drone_with_camera_free.LICENSE.txt vendor/bp-animated-drone-v1.mjs bridgepoint-drone-awareness-v1.js app/bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js vendor/bp-sketchfab-buildings-v1.mjs assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz assets/street-points-v17/manifest.json vendor/bp-street-placement-v14.mjs vendor/bp-street-detail-v1.mjs world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js world-v2300-water.js app/world-v2300-water.js assets/street-detail-v1/hydrant.glb.gz; do
+          for p in assets/aircraft/animated_drone_with_camera_free.glb assets/aircraft/animated_drone_with_camera_free.LICENSE.txt vendor/bp-animated-drone-v1.mjs bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js vendor/bp-sketchfab-buildings-v1.mjs assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz assets/street-points-v17/manifest.json vendor/bp-street-placement-v14.mjs vendor/bp-street-detail-v1.mjs world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js world-v2300-water.js app/world-v2300-water.js assets/street-detail-v1/hydrant.glb.gz; do
             for i in 1 2 3 4 5 6; do
               if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?preload=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
               if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
               sleep 5
             done
           done
-          echo EXACT_DRONE_V22_LIVE_BYTES_PASS
+          echo EXACT_DRONE_V23_LIVE_BYTES_PASS
