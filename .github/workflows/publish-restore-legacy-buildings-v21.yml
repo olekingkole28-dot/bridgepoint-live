@@ -1,0 +1,151 @@
+name: BridgePoint restore normal global buildings V21
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-restore-legacy-buildings-v21.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  restore-legacy-buildings:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            # A Pages deployment can succeed even if later live verification fails.
+            # Accept that candidate only if its deploy step succeeded; all live byte comparisons below still must pass.
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq 'any(.jobs[].steps[]?; .name == "Publish the preserved production snapshot" and .conclusion == "success")')" || continue
+              if [ "$deployed" != true ]; then continue; fi
+            fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs assets/street-detail-v1/pavers.png bridgepoint-app-space-explorer-v1.js vendor/bp-sketchfab-road-models-v1.mjs vendor/bp-street-placement-v14.mjs vendor/bp-sketchfab-buildings-v1.mjs assets/street-points-v17/manifest.json; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <( { grep -E '^46110170582[[:space:]]' "$RUNNER_TEMP/candidates" || true; head -15 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Restore native global buildings without reverting streets
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          allowed={'vendor/bp-sketchfab-buildings-v1.mjs','world-v2300-map.js','app/world-v2300-map.js','index.html','app/index.html','landing.js','app.js','app/landing.js','app/app.js'}
+          def snapshot():
+              out={}
+              for p in site.rglob('*'):
+                  if p.is_file() and p.relative_to(site).as_posix() not in allowed:
+                      with p.open('rb') as f:out[p.relative_to(site).as_posix()]=hashlib.file_digest(f,'sha256').hexdigest()
+              return out
+          before=snapshot()
+          # Cached callers are harmless: the replacement renderer cannot install
+          # a custom layer or suppress any of the native building layers.
+          (site/'vendor/bp-sketchfab-buildings-v1.mjs').write_text(
+              "// V21: original global building renderer owns all building visuals.\n"
+              "export function attachSketchfabBuildings(map){return {status:'disabled',reason:'native-global-buildings-restored'};}\n"
+          )
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text()
+              a=s.index('let bpSketchfabBuildingsAttached=false;')
+              b=s.index("map.on('idle',bpAttachSketchfabBuildings);",a)+len("map.on('idle',bpAttachSketchfabBuildings);")
+              hook=s[a:b]
+              assert 'attachSketchfabBuildings(map)' in hook and 'bp-sketchfab-buildings-v1.mjs' in hook
+              assert 'bpAttachSketchfabRoadModels' not in hook and 'bpAttachPlacement' not in hook
+              s=s[:a]+s[b:]
+              assert 'bpAttachSketchfabBuildings' not in s and 'bpSketchfabBuildingsAttached' not in s
+              assert 'function syncBuildingShells(' in s
+              assert 'gta-context-buildings' in s and 'gta-bp-buildings' in s
+              assert 'bpAttachSketchfabRoadModels' in s and 'bpAttachPlacement' in s
+              p.write_text(s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261128-native-buildings-v21',s)
+                      if n!=s:p.write_text(n)
+          assert before==snapshot(),'Unrelated production file changed'
+          print('LEGACY_BUILDINGS_RESTORED_STREETS_PRESERVED',len(before))
+          PY
+          for f in vendor/bp-sketchfab-buildings-v1.mjs world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+      - name: Verify replacement cannot hide native buildings
+        run: |
+          SITE="$RUNNER_TEMP/horizon-site" node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {pathToFileURL} from 'node:url';
+          import {readFileSync} from 'node:fs';
+          const base=process.env.SITE;
+          const m=await import(pathToFileURL(base+'/vendor/bp-sketchfab-buildings-v1.mjs'));
+          const map=new Proxy({}, {get(){throw Error('Replacement renderer attempted to modify native map')}});
+          assert.equal(m.attachSketchfabBuildings(map).status,'disabled');
+          for(const file of ['world-v2300-map.js','app/world-v2300-map.js']){
+            const s=readFileSync(base+'/'+file,'utf8');
+            assert(!s.includes('bpAttachSketchfabBuildings'));
+            assert(s.includes('function syncBuildingShells('));
+            assert(s.includes('bpAttachSketchfabRoadModels')&&s.includes('bpAttachPlacement'));
+          }
+          console.log('NATIVE_BUILDING_OWNERSHIP_PASS');
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish restored native buildings only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live native buildings and preserved production assets
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-sketchfab-buildings-v1.mjs assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz assets/street-points-v17/manifest.json vendor/bp-street-placement-v14.mjs vendor/bp-street-detail-v1.mjs world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js world-v2300-water.js app/world-v2300-water.js assets/street-detail-v1/hydrant.glb.gz; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?preload=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo NATIVE_BUILDINGS_LIVE_BYTES_PASS
