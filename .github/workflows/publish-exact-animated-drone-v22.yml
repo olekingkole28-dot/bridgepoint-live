@@ -1,0 +1,229 @@
+name: BridgePoint exact animated drone V22
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-exact-animated-drone-v22.yml']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  exact-animated-drone:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            # A Pages deployment can succeed even if later live verification fails.
+            # Accept that candidate only if its deploy step succeeded; all live byte comparisons below still must pass.
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq 'any(.jobs[].steps[]?; (.name|startswith("Publish ")) and .conclusion == "success")')" || continue
+              if [ "$deployed" != true ]; then continue; fi
+            fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs assets/street-detail-v1/pavers.png bridgepoint-app-space-explorer-v1.js vendor/bp-sketchfab-road-models-v1.mjs vendor/bp-street-placement-v14.mjs vendor/bp-sketchfab-buildings-v1.mjs assets/street-points-v17/manifest.json bridgepoint-drone-awareness-v1.js app/bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <( { head -25 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Download byte-identical public CC BY source and apply drone-only overlay
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-all-errors --max-time 120 -fsSL 'https://raw.githubusercontent.com/Meet141106/Horizon/4c02b61860b9c88b22b7230bcab47b966e6d364a/public/animated_drone_with_camera_free.glb' -o "$RUNNER_TEMP/drone.glb"
+          cat > "$RUNNER_TEMP/drone-helper.mjs" <<'DRONE_HELPER'
+          const ASSET='/assets/aircraft/animated_drone_with_camera_free.glb';
+          const CREDIT='animated drone with camera (FREE) by ulunkwulunk — CC BY 4.0';
+          export async function loadExactDrone(T){
+           const [mod,response]=await Promise.all([import('/vendor/GLTFLoader.bundle.js?v=169-local'),fetch(ASSET)]);
+           if(!response.ok)throw Error('Drone GLB HTTP '+response.status);
+           const original=await response.arrayBuffer(),view=new DataView(original),jsonLength=view.getUint32(12,true);
+           if(view.getUint32(0,true)!==0x46546c67)throw Error('Drone GLB invalid');
+           const doc=JSON.parse(new TextDecoder().decode(new Uint8Array(original,20,jsonLength)));
+           // Three r169 uses physical materials rather than the deprecated spec/gloss extension.
+           // Keep original diffuse, normal, AO and specular RGB textures; adapt only material schema.
+           const old='KHR_materials_pbrSpecularGlossiness',modern='KHR_materials_specular';
+           for(const m of doc.materials||[]){
+            const p=m.extensions?.[old];if(!p)continue;
+            m.pbrMetallicRoughness={baseColorFactor:p.diffuseFactor||[1,1,1,1],baseColorTexture:p.diffuseTexture,metallicFactor:0,roughnessFactor:1};
+            m.extensions[modern]={specularColorFactor:p.specularFactor||[1,1,1],specularColorTexture:p.specularGlossinessTexture,specularFactor:1};
+            delete m.extensions[old];
+           }
+           doc.extensionsUsed=[...new Set((doc.extensionsUsed||[]).filter(x=>x!==old).concat(modern))];
+           if(doc.extensionsRequired)doc.extensionsRequired=doc.extensionsRequired.filter(x=>x!==old);
+           const raw=new TextEncoder().encode(JSON.stringify(doc)),n=(raw.length+3)&~3,tail=new Uint8Array(original,20+jsonLength);
+           const result=new Uint8Array(20+n+tail.length),out=new DataView(result.buffer);
+           out.setUint32(0,0x46546c67,true);out.setUint32(4,2,true);out.setUint32(8,result.length,true);out.setUint32(12,n,true);out.setUint32(16,0x4e4f534a,true);
+           result.fill(32,20,20+n);result.set(raw,20);result.set(tail,20+n);
+           const gltf=await new Promise((ok,no)=>new mod.GLTFLoader().parse(result.buffer,location.origin+'/',ok,no));
+           const clip=gltf.animations.find(x=>x.name.toLowerCase()==='hover');if(!clip)throw Error('Original hover clip missing');
+           // Recover roughness from the original spec/gloss alpha, using one shared texture.
+           const roughCache=new Map(),mats=new Set();
+           gltf.scene.traverse(o=>{if(o.isMesh){o.frustumCulled=false;for(const m of Array.isArray(o.material)?o.material:[o.material])if(m)mats.add(m)}});
+           for(const m of mats){
+            const spec=m.specularColorMap,im=spec?.image;if(!im)continue;
+            if(!roughCache.has(im)){
+             const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const ctx=c.getContext('2d',{willReadFrequently:true});
+             ctx.drawImage(im,0,0);const pixels=ctx.getImageData(0,0,c.width,c.height);
+             for(let i=0;i<pixels.data.length;i+=4){const v=255-pixels.data[i+3];pixels.data[i]=v;pixels.data[i+1]=v;pixels.data[i+2]=v;pixels.data[i+3]=255;}
+             ctx.putImageData(pixels,0,0);const t=new T.CanvasTexture(c);t.flipY=spec.flipY;t.wrapS=spec.wrapS;t.wrapT=spec.wrapT;t.minFilter=spec.minFilter;t.magFilter=spec.magFilter;t.colorSpace=T.NoColorSpace;roughCache.set(im,t);
+            }
+            m.roughnessMap=roughCache.get(im);m.roughness=1;m.needsUpdate=true;
+           }
+           const rig=gltf.scene,outer=new T.Group(),oriented=new T.Group();outer.name=CREDIT;outer.add(oriented);oriented.add(rig);
+           oriented.rotation.set(Math.PI/2,0,Math.PI/2,'ZYX');
+           const initial=new T.AnimationMixer(rig);initial.clipAction(clip).play();initial.setTime(0);outer.updateMatrixWorld(true);
+           const box=new T.Box3().setFromObject(oriented,true),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3()),span=Math.max(size.x,size.y);
+           if(!Number.isFinite(span)||span<=0)throw Error('Invalid source drone bounds');
+           const scale=1.76/span;oriented.scale.setScalar(scale);oriented.position.set(-center.x*scale,-center.y*scale,-box.min.z*scale-.15);
+           // Preserve the existing flashing motor lights, now attached to the real rig.
+           const lampMat=new T.MeshBasicMaterial({color:0xff4fcf});
+           const lampGeo=new T.SphereGeometry(.066/scale,10,8);
+           rig.traverse(o=>{if(/^prop_motor_base_[1-4]_jnt/.test(o.name)){const lamp=new T.Mesh(lampGeo,lampMat);lamp.name='bp-drone-night-led';lamp.position.y=.125/scale;lamp.frustumCulled=false;o.add(lamp)}});
+           outer.traverse(o=>{o.frustumCulled=false});outer.updateMatrixWorld(true);
+           return {template:outer,clip};
+          }
+          export function cloneExactDrone(T,source,clip){
+           const model=source.clone(true),src=[],dst=[];source.traverse(o=>src.push(o));model.traverse(o=>dst.push(o));
+           const map=new Map(src.map((o,i)=>[o,dst[i]])),skeletons=new Map();model.updateMatrixWorld(true);
+           for(let i=0;i<src.length;i++)if(src[i].isSkinnedMesh){
+            const old=src[i],mesh=dst[i],s=old.skeleton;
+            if(!skeletons.has(s))skeletons.set(s,new T.Skeleton(s.bones.map(b=>{const clone=map.get(b);if(!clone)throw Error('Drone bone missing');return clone}),s.boneInverses.map(x=>x.clone())));
+            mesh.bind(skeletons.get(s),old.bindMatrix.clone());mesh.frustumCulled=false;
+           }
+           const mixer=new T.AnimationMixer(model);mixer.clipAction(clip).play();mixer.setTime(0);
+           model.userData.bpDroneMixer=mixer;model.userData.bpDroneLastTick=0;return model;
+          }
+          export function animateExactDrone(model,now){
+           const m=model.userData.bpDroneMixer;if(!m)return;
+           const last=model.userData.bpDroneLastTick;model.userData.bpDroneLastTick=now;
+           m.update(last?Math.min(.15,Math.max(0,(now-last)/1000)):0);
+          }
+          DRONE_HELPER
+          python3 - "$RUNNER_TEMP/horizon-site" "$RUNNER_TEMP/drone.glb" "$RUNNER_TEMP/drone-helper.mjs" <<'DRONE_PATCH'
+          import sys,re,hashlib,json,struct
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          tracker='bridgepoint-drone-awareness-v1.js'
+          helper='vendor/bp-animated-drone-v1.mjs'
+          asset='assets/aircraft/animated_drone_with_camera_free.glb'
+          credit='assets/aircraft/animated_drone_with_camera_free.LICENSE.txt'
+          allowed={tracker,'app/'+tracker,'index.html','app/index.html',helper,asset,credit}
+          def snap():
+           out={}
+           for p in site.rglob('*'):
+            if p.is_file() and p.relative_to(site).as_posix() not in allowed:
+             with p.open('rb') as f:out[p.relative_to(site).as_posix()]=hashlib.file_digest(f,'sha256').hexdigest()
+           return out
+          before=snap()
+          # The V21 restored native-building hook must remain disabled.
+          for p in ('world-v2300-map.js','app/world-v2300-map.js'):
+           s=(site/p).read_text()
+           assert 'bpAttachSketchfabBuildings' not in s and 'bpAttachSketchfabRoadModels' in s
+          assert (site/'vendor/bp-sketchfab-buildings-v1.mjs').read_text().find('native-global-buildings-restored')>=0
+          raw=Path(sys.argv[2]).read_bytes()
+          assert len(raw)==16633652 and hashlib.sha256(raw).hexdigest()=='10f2857e303c624cd11b6b9daa6236baf6660d9afafd99d7d57df6525c7bd73c'
+          assert hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()=='777c9bb02305e577f4666cf6691abb74eb76e16b'
+          d=json.loads(raw[20:20+struct.unpack_from('<I',raw,12)[0]])
+          assert d['skins'] and d['images'] and any(x['name']=='hover' for x in d['animations'])
+          (site/asset).parent.mkdir(parents=True,exist_ok=True)
+          (site/asset).write_bytes(raw)
+          (site/credit).write_text('animated drone with camera (FREE) by ulunkwulunk\nhttps://sketchfab.com/3d-models/animated-drone-with-camera-free-a8e2c50f69264e75bb6277779fb5028b\nLicensed under CC BY 4.0 https://creativecommons.org/licenses/by/4.0/\nOriginal model bytes unchanged. Runtime orientation, size, lights and material compatibility adapted for BridgePoint.\n')
+          (site/helper).write_text(Path(sys.argv[3]).read_text())
+          def one(s,a,b):
+           if s.count(a)!=1:raise SystemExit('DRONE_ANCHOR '+str(s.count(a))+' '+a[:120])
+           return s.replace(a,b,1)
+          for rel in (tracker,'app/'+tracker):
+           p=site/rel;s=p.read_text()
+           assert 'followGroundVersion:8' in s and 'installPersistentFlightMarkers' in s
+           a=s.index('function makeDroneModel(THREE){');b=s.index('function disposeDroneTemplate(){',a)
+           s=s[:a]+'''let bpExactDroneModule=null,bpExactDroneClip=null;
+          async function bpInstallExactDrone(THREE,scene){
+           try{
+            const mod=await import('/vendor/bp-animated-drone-v1.mjs?v=20261128-exact-drone-v22');
+            const loaded=await mod.loadExactDrone(THREE);
+            if(droneScene!==scene){loaded.template.traverse(o=>{o.geometry?.dispose?.()});return;}
+            bpExactDroneModule=mod;bpExactDroneClip=loaded.clip;droneTemplate=loaded.template;
+            if(enabled){setDroneModels(lastCurrentRecords);map?.triggerRepaint?.();}
+           }catch(e){console.warn('BridgePoint original drone model unavailable',e);if(droneScene===scene)setTimeout(()=>{if(droneScene===scene&&!droneTemplate)void bpInstallExactDrone(THREE,scene)},15000);}
+          }
+          '''+s[b:]
+           s=one(s,'droneTemplate=makeDroneModel(THREE);','droneTemplate=null;void bpInstallExactDrone(THREE,scene);')
+           s=one(s,'model=droneTemplate.clone(true);','model=bpExactDroneModule.cloneExactDrone(droneThree,droneTemplate,bpExactDroneClip);')
+           # Preserve every existing positioning, heading, zoom, visibility and aircraft branch.
+           anchor="if(model.userData.bpGrounded)continue;"
+           s=one(s,anchor,anchor+"\n   bpExactDroneModule?.animateExactDrone(model,now);")
+           # Stop and release per-instance rig resources when the existing renderer removes it.
+           s=s.replace('droneScene.remove(model);droneModels.delete(key)','model.userData.bpDroneMixer?.stopAllAction();droneScene.remove(model);droneModels.delete(key)')
+           assert 'BridgePoint schematic quadcopter' not in s and 'bpExactDroneModule.cloneExactDrone' in s
+           p.write_text(s)
+          for rel in ('index.html','app/index.html'):
+           p=site/rel;s=p.read_text()
+           s,n=re.subn(r'(bridgepoint-drone-awareness-v1\.js\?[^"\'\s<>]+)',lambda m:m[1]+'&exactdrone=20261128-v22',s)
+           assert n>=1,rel
+           p.write_text(s)
+          assert before==snap(),'Unrelated production bytes changed'
+          print('EXACT_DRONE_V22_SCOPE_PASS',len(before))
+          DRONE_PATCH
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in bridgepoint-drone-awareness-v1.js app/bridgepoint-drone-awareness-v1.js vendor/bp-animated-drone-v1.mjs; do node --input-type=module --check < "$SITE/$p"; done
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish exact animated drone only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify exact drone and preserved production assets
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in assets/aircraft/animated_drone_with_camera_free.glb assets/aircraft/animated_drone_with_camera_free.LICENSE.txt vendor/bp-animated-drone-v1.mjs bridgepoint-drone-awareness-v1.js app/bridgepoint-drone-awareness-v1.js bridgepoint-aircraft-visuals-v2.js vendor/bp-sketchfab-buildings-v1.mjs assets/street-detail-v1/buildings/mapped-city-buildings.glb.gz assets/street-detail-v1/buildings/glass-building-low-poly.glb.gz assets/street-points-v17/manifest.json vendor/bp-street-placement-v14.mjs vendor/bp-street-detail-v1.mjs world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js world-v2300-water.js app/world-v2300-water.js assets/street-detail-v1/hydrant.glb.gz; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?preload=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo EXACT_DRONE_V22_LIVE_BYTES_PASS
