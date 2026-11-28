@@ -1,0 +1,162 @@
+name: BridgePoint cohesive street viewport V16
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-street-viewport-v16.yml','street-detail-v1/street-placement-viewport-v16.mjs','street-detail-v1/sketchfab-road-viewport-v16.mjs']
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+jobs:
+  street-viewport:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and verify exact currently published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name|startswith("bridgepoint-v5000-"))) | [.workflow_run.id,.name] | @tsv' > "$RUNNER_TEMP/candidates"
+          cat "$RUNNER_TEMP/candidates"
+          found=0
+          while IFS=$'\t' read -r run name; do
+            if [ "$run" = "$GITHUB_RUN_ID" ]; then continue; fi
+            # A Pages deployment can succeed even if later live verification fails.
+            # Accept that candidate only if its deploy step succeeded; all live byte comparisons below still must pass.
+            if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '.conclusion')" != success ]; then
+              deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq 'any(.jobs[].steps[]?; .name == "Publish the preserved production snapshot" and .conclusion == "success")')" || continue
+              if [ "$deployed" != true ]; then continue; fi
+            fi
+            rm -rf "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            mkdir -p "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/horizon-site"
+            if ! timeout 240s gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/baseline"; then continue; fi
+            if ! test -s "$RUNNER_TEMP/baseline/artifact.tar"; then continue; fi
+            tar -xf "$RUNNER_TEMP/baseline/artifact.tar" -C "$RUNNER_TEMP/horizon-site"
+            same=1
+            for p in index.html app/index.html landing.js app.js world-v2300-map.js app/world-v2300-map.js world-v2300-water.js app/world-v2300-water.js bridgepoint-bottom-card-mobile-v2.js bridgepoint-bottom-card-categories-v1.js vendor/bp-nyc-bus-v1.mjs vendor/bp-bus-models-v3.mjs vendor/bp-street-detail-v1.mjs assets/street-detail-v1/manifest.json assets/street-detail-v1/busshelter.glb.gz world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-tree-canopy-source-v3.mjs vendor/bp-tree-canopy-worker-v3.mjs assets/street-detail-v1/pavers.png bridgepoint-app-space-explorer-v1.js vendor/bp-sketchfab-road-models-v1.mjs vendor/bp-street-placement-v14.mjs; do
+              if ! curl --retry 2 --retry-all-errors --max-time 35 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?baseline=$GITHUB_RUN_ID" -o "$RUNNER_TEMP/current" || ! cmp -s "$RUNNER_TEMP/horizon-site/$p" "$RUNNER_TEMP/current"; then same=0; break; fi
+            done
+            if [ "$same" = 1 ]; then echo "Verified live baseline $run $name"; found=1; break; fi
+          done < <( { grep -E '^46104411980[[:space:]]' "$RUNNER_TEMP/candidates" || true; head -15 "$RUNNER_TEMP/candidates"; } | awk '!seen[$0]++' )
+          test "$found" = 1 || { echo 'No exact current release found; refusing rollback'; exit 1; }
+      - name: Install only street streaming changes
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          python3 - "$SITE" <<'PY'
+          import sys,re,hashlib,shutil
+          from pathlib import Path
+          site=Path(sys.argv[1])
+          allowed={'vendor/bp-street-placement-v14.mjs','vendor/bp-sketchfab-road-models-v1.mjs','world-v2300-map.js','app/world-v2300-map.js','index.html','app/index.html','landing.js','app.js','app/landing.js','app/app.js'}
+          def snapshot():
+              out={}
+              for p in site.rglob('*'):
+                  if p.is_file() and p.relative_to(site).as_posix() not in allowed:
+                      with p.open('rb') as f:out[p.relative_to(site).as_posix()]=hashlib.file_digest(f,'sha256').hexdigest()
+              return out
+          before=snapshot()
+          shutil.copyfile('street-detail-v1/street-placement-viewport-v16.mjs',site/'vendor/bp-street-placement-v14.mjs')
+          shutil.copyfile('street-detail-v1/sketchfab-road-viewport-v16.mjs',site/'vendor/bp-sketchfab-road-models-v1.mjs')
+          for base in (site,site/'app'):
+              p=base/'world-v2300-map.js';s=p.read_text()
+              s,n=re.subn(r'bpSketchfabRoadModelsAttached\|\|map\.getZoom\(\)<[0-9.]+','bpSketchfabRoadModelsAttached||map.getZoom()<10.0',s);assert n==1
+              s,n=re.subn(r'bpPlacementAttached\|\|map\.getZoom\(\)<[0-9.]+','bpPlacementAttached||map.getZoom()<11.5',s);assert n==1
+              for module in ('bp-sketchfab-road-models-v1.mjs','bp-street-placement-v14.mjs'):
+                  s,n=re.subn(r'(/vendor/'+re.escape(module)+r')(?:\?v=[^\'"\s]+)?',r'\g<1>?v=20261127-street-viewport-v16',s);assert n==1
+              p.write_text(s)
+              for name in ('index.html','landing.js','app.js'):
+                  p=base/name
+                  if p.exists():
+                      s=p.read_text();n=re.sub(r'world-v2300-map\.js\?v=[^\'"\s<>]+','world-v2300-map.js?v=20261127-street-viewport-v16',s)
+                      if n!=s:p.write_text(n)
+          assert before==snapshot(),'Unrelated production file changed'
+          print('STREET_VIEWPORT_ONLY_BYTE_PRESERVATION_PASS',len(before))
+          PY
+          for f in vendor/bp-street-placement-v14.mjs vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js; do node --input-type=module --check < "$SITE/$f"; done
+          test -s "$SITE/assets/street-detail-v1/hydrant.glb.gz"
+      - name: Verify mapped street geometry
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {placementIndex,crossingQuads,streetViewportBudget} from './street-detail-v1/street-placement-viewport-v16.mjs';
+          import {roadViewportBudget} from './street-detail-v1/sketchfab-road-viewport-v16.mjs';
+          assert(roadViewportBudget(18,true).limit<roadViewportBudget(11,true).limit);assert(streetViewportBudget(18,true).hydrants<streetViewportBudget(13,true).hydrants);
+          const f=(type,coordinates,properties)=>({geometry:{type,coordinates},properties});
+          const road=f('LineString',[[-.001,0],[.001,0]],{class:'residential',width:7});
+          const cross=f('LineString',[[0,-.00006],[0,.00006]],{subclass:'crossing'});
+          const building=f('Polygon',[[[.0002,.0001],[.0004,.0001],[.0004,.0003],[.0002,.0003],[.0002,.0001]]],{building:'yes'});
+          const map={getCenter:()=>({lng:0,lat:0}),getSource:id=>id==='ofm',querySourceFeatures:(id,o)=>o.sourceLayer==='transportation'?[road,cross]:o.sourceLayer==='building'?[building]:[]};
+          const i=placementIndex(map);
+          assert(!i.treeAllowed([0,0]));assert(!i.treeAllowed([.0003,.0002]));assert(i.treeAllowed([-.0003,.0003]));
+          assert(crossingQuads(i).length>0);
+          assert(i.hydrant([.0001,.00004]));assert(!i.hydrant([0,0]));
+          console.log('STREET_PLACEMENT_GEOMETRY_PASS');
+          JS
+      - name: Verify actual Sketchfab geometry at higher zoom and during descent
+        run: |
+          set -euo pipefail
+          export SITE="$RUNNER_TEMP/horizon-site" BP_TEST="$RUNNER_TEMP/street-browser-test"
+          mkdir -p "$BP_TEST"
+          npm install --prefix "$BP_TEST" playwright
+          "$BP_TEST/node_modules/.bin/playwright" install --with-deps chromium
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('street-detail-v1/verify.mjs').read_text()
+          s=s.replace("import * as T from","import {attachSketchfabRoadModels} from '/vendor/bp-sketchfab-road-models-v1.mjs';\nimport {attachStreetPlacement} from '/vendor/bp-street-placement-v14.mjs';\nimport * as T from",1)
+          a=s.index('const empty={');b=s.index('</script>',a)
+          s=s[:a]+"""const c=[-74.014,40.71],roads=[];for(let i=0;i<16;i++){const y=c[1]+(i-8)*.00045;roads.push({type:'Feature',geometry:{type:'LineString',coordinates:[[c[0]-.011,y],[c[0]+.011,y]]},properties:{class:'residential',width:'7',lanes:'2'}});}roads.push({type:'Feature',geometry:{type:'LineString',coordinates:[[c[0],c[1]-.005],[c[0],c[1]+.005]]},properties:{class:'residential',width:'7',lanes:'2'}});roads.push({type:'Feature',geometry:{type:'LineString',coordinates:[[c[0],c[1]],[c[0]+.003,c[1]+.003]]},properties:{class:'residential',width:'7',lanes:'2'}});roads.push({type:'Feature',geometry:{type:'LineString',coordinates:[[c[0]-.0003,c[1]-.00006],[c[0]-.0003,c[1]+.00006]]},properties:{subclass:'crossing'}});const hydrant={type:'Feature',geometry:{type:'Point',coordinates:[c[0]-.0003,c[1]+.00004]},properties:{emergency:'fire_hydrant'}};const style={version:8,sources:{ofm:{type:'geojson',data:{type:'FeatureCollection',features:[...roads,hydrant]}}},layers:[{id:'bg',type:'background',paint:{'background-color':'#596252'}},{id:'road-probe',type:'line',source:'ofm',paint:{'line-opacity':.001}},{id:'gta-road3d-curb',type:'line',source:'ofm',paint:{'line-color':'#ac8955','line-width':4}},{id:'gta-bp-sidewalk-curbs-v1',type:'line',source:'ofm',paint:{'line-color':'#ac8955','line-width':4}}]};const map=new maplibregl.Map({container:'map',style,center:c,zoom:11.0,pitch:25,bearing:12,projection:'globe',antialias:false});window.testMap=map;const native=map.querySourceFeatures.bind(map);map.querySourceFeatures=(source,options={})=>source==='ofm'?(options.sourceLayer==='transportation'?roads:options.sourceLayer==='poi'?[hydrant]:[]):native(source,options);map.once('load',()=>{attachSketchfabRoadModels(map,{terrainSampler:()=>0});attachStreetPlacement(map,{network:false})});
+          """+s[b:]
+          a=s.index('try{const p=await browser.newPage');b=s.index('}finally{await browser.close()',a)
+          s=s[:a]+"""try{const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});p.on('pageerror',e=>console.log('ROAD_PRELOAD_BROWSER_ERROR',e.message));await p.goto(origin+'/__street_fixture',{waitUntil:'domcontentloaded'});try{await p.waitForFunction(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return r?.progressiveRoads&&r?.firstBatchRoads>0&&r?.frames>0},null,{timeout:120000})}catch(e){console.log('FIRST_BATCH_TIMEOUT',await p.evaluate(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return {status:r?.status,error:r?.error,count:r?.roadInstances,sourceCandidates:r?.sourceCandidates,frames:r?.frames,transform:r?.transformProbe}}));throw e;}console.log('ROAD_PROGRESSIVE_FIRST_MESH_PASS');try{await p.waitForFunction(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return r?.status==='ready'&&r?.roadInstances>900&&r?.drawCalls>0&&r?.frames>0},null,{timeout:150000})}catch(e){console.log('ROAD_PRELOAD_TIMEOUT',await p.evaluate(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return {status:r?.status,count:r?.roadInstances,error:r?.error,drawCalls:r?.drawCalls,sourceCandidates:r?.sourceCandidates}}));throw e;}const before=await p.evaluate(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return {zoom:window.testMap.getZoom(),count:r.roadInstances,radius:r.collectionProbe.radiusMeters,sourceUV:r.sourceUVPreserved,terrain:r.terrainConforming,frames:r.frames,mesh:r.sourceStraightSectionIsolated}});assert(before.zoom<11.5&&before.count>900&&before.radius===6500&&before.sourceUV&&before.terrain&&before.mesh);const quality=await p.evaluate(()=>window.__BP_SKETCHFAB_ROAD_MODELS_V1__.textureQuality);assert(quality.textures.some(t=>t.slot==='map'&&t.width>0&&t.trilinear));assert(quality.textures.every(t=>t.anisotropy===Math.max(1,Math.min(16,quality.maxAnisotropy))));console.log('ROAD_ORIGINAL_TEXTURE_FILTERING_PASS',quality);console.log('REAL_SKETCHFAB_MESHES_PRELOADED_FROM_HIGHER_ZOOM',before);const topology=await p.evaluate(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;return {clipped:r.junctionClippedTriangles,joined:r.connectedRoadEnds,strategy:r.intersectionStrategy}});assert(topology.clipped>0&&topology.joined>0&&topology.strategy.includes('clipped sidewalk'));console.log('ROAD_JUNCTION_CLIPPING_AND_JOIN_PASS',topology);assert(await p.evaluate(()=>window.__BP_SKETCHFAB_ROAD_MODELS_V1__.viewportBudget.tier===0));assert.equal(await p.evaluate(()=>window.testMap.getLayoutProperty('gta-road3d-curb','visibility')),'none');assert.equal(await p.evaluate(()=>window.testMap.getLayoutProperty('gta-bp-sidewalk-curbs-v1','visibility')),'none');await p.evaluate(()=>window.testMap.easeTo({zoom:18.5,pitch:70,duration:1800}));for(let i=0;i<5;i++){await p.waitForTimeout(250);const count=await p.evaluate(()=>window.__BP_SKETCHFAB_ROAD_MODELS_V1__.roadInstances);assert(count>0,'Roads disappeared during zoom');}await p.waitForFunction(()=>{const r=window.__BP_SKETCHFAB_ROAD_MODELS_V1__;const a=window.__BP_STREET_PLACEMENT_V14__;return window.testMap.getZoom()>18&&r?.status==='ready'&&r?.viewportBudget?.tier===3&&r?.roadInstances>0&&r.roadInstances<=r.viewportBudget.limit&&r?.frames>0&&a?.hydrants>0&&a?.crosswalkStripes>0&&a?.drawCalls>0&&a?.viewportBudget?.radius===500},null,{timeout:60000});console.log('COHESIVE_CLOSE_VIEWPORT_PASS',await p.evaluate(()=>({roads:window.__BP_SKETCHFAB_ROAD_MODELS_V1__.roadInstances,hydrants:window.__BP_STREET_PLACEMENT_V14__.hydrants,stripes:window.__BP_STREET_PLACEMENT_V14__.crosswalkStripes})));await p.close();
+          """+s[b:]
+          Path('street-detail-v1/verify-road-preload-generated.mjs').write_text(s)
+          PY
+          node street-detail-v1/verify-road-preload-generated.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/horizon-site
+          include-hidden-files: true
+      - name: Wait for Pages artifact indexing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "bridgepoint-v5000-'"$GITHUB_RUN_ATTEMPT"'") | .id')
+            if [ -n "$ID" ]; then sleep 15; exit 0; fi
+            sleep 4
+          done
+          exit 1
+      - name: Publish validated street streaming only
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-pages-extended.mjs
+      - name: Verify live street streaming and preserved production assets
+        run: |
+          set -euo pipefail
+          SITE="$RUNNER_TEMP/horizon-site"
+          for p in vendor/bp-street-placement-v14.mjs vendor/bp-street-detail-v1.mjs world-v2300-tree-instanced.js app/world-v2300-tree-instanced.js vendor/bp-sketchfab-road-models-v1.mjs world-v2300-map.js app/world-v2300-map.js index.html app/index.html landing.js app.js world-v2300-water.js app/world-v2300-water.js assets/street-detail-v1/hydrant.glb.gz; do
+            for i in 1 2 3 4 5 6; do
+              if curl --max-time 45 -fsSL -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/$p?preload=$GITHUB_SHA-$i" -o "$RUNNER_TEMP/live" && cmp -s "$SITE/$p" "$RUNNER_TEMP/live"; then break; fi
+              if [ "$i" = 6 ]; then echo "LIVE_MISMATCH $p"; exit 1; fi
+              sleep 5
+            done
+          done
+          echo STREET_VIEWPORT_LIVE_BYTES_PASS
