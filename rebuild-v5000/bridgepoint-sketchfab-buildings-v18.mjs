@@ -25,7 +25,7 @@ function sourceSpecs(map) {
   const out = [], seen = new Set();
   for (const layer of map.getStyle()?.layers || []) {
     const src = layer.source, sl = layer['source-layer'];
-    if (!src || (!sl&&src!=='exact') || (src!=='exact'&&!/building/i.test(sl)) || seen.has(src + ':' + (sl||''))) continue;
+    if (!['exact','ofm','bpBuildings','bpCityStructures'].includes(src) || (!sl&&src!=='exact') || (src!=='exact'&&!/building/i.test(sl)) || seen.has(src + ':' + (sl||''))) continue;
     seen.add(src + ':' + (sl||'')); out.push([src, sl||'']);
   }
   for (const pair of [['exact', ''], ['bpBuildings', 'buildings'], ['bpCityStructures', 'buildings'], ['ofm', 'building']]) {
@@ -71,7 +71,7 @@ function heightOf(p) {
 function stableHash(value){let h=2166136261;for(const c of String(value))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
 function aliasOf(f,p,geo){
  const id=f.id??p.building_id??p.osm_id??p.id??null;
- return {legacyFeatureId:id,legacyIdField:f.id!=null?'feature':p.building_id!=null?'building_id':p.osm_id!=null?'osm_id':p.id!=null?'id':null,source:String(p.__bpSource||''),sourceLayer:String(p.__bpSourceLayer||''),ring:geo.ring};
+ return {legacyFeatureId:id,legacyIdField:f.id!=null?'feature':p.building_id!=null?'building_id':p.osm_id!=null?'osm_id':p.id!=null?'id':null,source:String(p.__bpSource||''),sourceLayer:String(p.__bpSourceLayer||''),ring:geo.ring,refs:Object.fromEntries(['building_id','osm_id','id'].filter(k=>p[k]!=null).map(k=>[k,p[k]]))};
 }
 export function selectBuildingCandidates(features,center,cap=160,options={}){
  const cos=Math.max(.12,Math.cos(Number(center?.[1]||0)*D)),found=[],seen=new Set(),catalog=options.catalog||CITY_MODELS,radius=options.radius||2400;
@@ -105,7 +105,7 @@ export function selectBuildingCandidates(features,center,cap=160,options={}){
   const item={...alias,id,aliases:[alias],q:geo.q,ring:geo.ring,width,depth,height,heightEstimated:!recorded,yaw,area:geo.area,model,distance,dx,dy,visible,choices:candidates.map(x=>x.model)};
   found.push(item);const key=gx+':'+gy;if(!grid.has(key))grid.set(key,[]);grid.get(key).push(item);
  }
- return found.sort((a,b)=>Number(b.visible)-Number(a.visible)||a.distance-b.distance).slice(0,cap);
+ return found.filter(x=>!options.map||options.map.getZoom()<18||x.visible).sort((a,b)=>Number(b.visible)-Number(a.visible)||a.distance-b.distance).slice(0,cap);
 }
 
 export function attachSketchfabBuildings(map, options = {}) {
@@ -136,15 +136,16 @@ export function attachSketchfabBuildings(map, options = {}) {
       if(!bySource.has(key))bySource.set(key,{fields:new Map(),rings:[]});
       const row=bySource.get(key);
       if(a.legacyFeatureId!=null&&a.legacyIdField){if(!row.fields.has(a.legacyIdField))row.fields.set(a.legacyIdField,[]);row.fields.get(a.legacyIdField).push(a.legacyFeatureId);}
-      else if(a.ring?.length>=4)row.rings.push([a.ring]);
+      else if(a.ring?.length>=4)row.rings.push([a.ring]);for(const [field,value] of Object.entries(a.refs||{})){if(!row.fields.has(field))row.fields.set(field,[]);row.fields.get(field).push(value);}
     }
     const stamp=items.map(i=>i.id+':'+i.aliases.map(a=>a.source+':'+a.legacyFeatureId).join(',')).join('|')+':'+layers.map(l=>l.id).join(',');
     if(stamp===filterStamp&&layers.every(l=>!previousBuildingFilters.has(l.id)||JSON.stringify(map.getFilter(l.id))===JSON.stringify(previousBuildingFilters.get(l.id).applied)))return;
     for(const [id,entry] of previousBuildingFilters)if(map.getLayer(id))try{if(JSON.stringify(map.getFilter(id))===JSON.stringify(entry.applied))map.setFilter(id,entry.original);}catch(_){}
     previousBuildingFilters.clear();let hidden=0;
-    for(const l of layers){const row=bySource.get(l.source+':'+(l['source-layer']||''));if(!row)continue;
+    const roofRings=items.slice(0,120).flatMap(item=>{const ring=item.ring;if(!ring?.length)return[];const xs=ring.map(q=>Number(q[0])),ys=ring.map(q=>Number(q[1])),cx=item.q[0],cy=item.q[1],padX=1.1/(111320*Math.max(.12,Math.cos(cy*D))),padY=1.1/111132;return [[[[Math.min(...xs)-padX,Math.min(...ys)-padY],[Math.max(...xs)+padX,Math.min(...ys)-padY],[Math.max(...xs)+padX,Math.max(...ys)+padY],[Math.min(...xs)-padX,Math.max(...ys)+padY],[Math.min(...xs)-padX,Math.min(...ys)-padY]]]];});
+    for(const l of layers){const roof=/roof|building-parts/.test(l.id),row=bySource.get(l.source+':'+(l['source-layer']||''))||(roof?{fields:new Map(),rings:[]}:null);if(!row)continue;
       const tests=[];for(const [field,ids] of row.fields){const distinct=[...new Set(ids)];tests.push(['in',field==='feature'?['id']:['get',field],['literal',distinct]]);hidden+=distinct.length;}
-      if(row.rings.length&&row.rings.length<=200)tests.push(['within',{type:'MultiPolygon',coordinates:row.rings}]);
+      if(row.rings.length&&row.rings.length<=200)tests.push(['within',{type:'MultiPolygon',coordinates:row.rings}]);if(roof&&roofRings.length)tests.push(['within',{type:'MultiPolygon',coordinates:roofRings}]);
       if(!tests.length)continue;const original=map.getFilter(l.id)??null,exclude=['!',tests.length===1?tests[0]:['any',...tests]],applied=original?['all',original,exclude]:exclude;
       try{map.setFilter(l.id,applied);previousBuildingFilters.set(l.id,{original,applied});}catch(e){status.filterError=String(e).slice(0,140);}
     }
@@ -202,7 +203,7 @@ export function attachSketchfabBuildings(map, options = {}) {
       status.candidates=all.length;status.viewportBudget=budget;
       const key=terrainRevision+':'+chosen.map(i=>i.id+':'+i.model+':'+i.q.map(v=>v.toFixed(5)).join(',')).join('|');
       if(key===lastKey&&group){suppressLegacyBuildingFeatures(activeItems);return;}
-      if(!chosen.length){status.status='waiting-for-matching-mapped-footprints';return;}
+      if(!chosen.length){if(anchor&&Math.hypot((anchor[0]-center[0])*111320*Math.cos(center[1]*D),(anchor[1]-center[1])*111132)>budget.radius){emptyGroup();lastKey='';}status.status='waiting-for-matching-mapped-footprints';return;}
       const terrain=q=>{if(!map.getTerrain?.())return 0;const z=map.queryTerrainElevation?.({lng:q[0],lat:q[1]},{exaggerated:true});return Number.isFinite(z)?z:null;};
       const z=terrain(center);if(z===null)return;const baseRaw=map.transform?.getMatrixForModel?.(center,z);if(!baseRaw)return;
       const inv=new T.Matrix4().fromArray(baseRaw).invert(),next=new T.Group(),batches=new Map(),accepted=[];
@@ -253,7 +254,7 @@ export function attachSketchfabBuildings(map, options = {}) {
       prepare(name,root,helper);
     }
     const root = (glass.scene || glass.scenes?.[0])?.clone(true); if (!root) throw Error('Sketchfab glass building model scene missing');
-    const discard = []; root.traverse(o => { if (/^(Camera|Light|Cube)$/i.test(o.name)) discard.push(o); });
+    const discard = []; root.traverse(o => { if(o.isCamera||o.isLight) discard.push(o); });
     for (const o of discard) o.parent?.remove(o);
     root.traverse(o => {
       if (!o.isMesh) return;
@@ -270,9 +271,10 @@ export function attachSketchfabBuildings(map, options = {}) {
       }
     });
     prepare('BP_GlassTower',root,helper);
-    status.templateModels = [...templates.keys()]; installLayer();
+    status.templateModels=[...templates.keys()];status.templateTriangles=Object.fromEntries([...templates].map(([name,t])=>[name,t.triangles]));installLayer();
   }
   map.on('move',()=>{const now=Date.now();if(now-lastMotion>350){lastMotion=now;schedule();}});map.on('moveend',schedule);map.on('zoomend',schedule);map.on('sourcedata',e=>{const id=String(e.sourceId||'');if(['ofm','exact','bpBuildings','bpCityStructures','bpCityRoofs','exactRoof'].includes(id))schedule();else if(e.isSourceLoaded&&/terrain|dem/i.test(id)){terrainRevision++;schedule();}});
+  map.on('styledata',()=>{if(group&&activeItems.length)schedule();});
   map.on('style.load',()=>{layersInstalled=false;previousBuildingFilters.clear();filterStamp='';installLayer();lastKey='';schedule();});
   map.once('remove', () => { dead = true; clearTimeout(timer); emptyGroup(); renderer?.dispose(); });
   init().then(schedule).catch(e => { status.status = 'asset-error'; status.error = String(e?.message || e).slice(0, 180); });
