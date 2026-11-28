@@ -258,7 +258,7 @@ export function attachSketchfabRoadModels(map,options={}){
    if(span<.05)continue;
    const sx=row.width/t.size.x,sz=span*cos/t.size.z,rx=-dy/span,ry=dx/span;
    const coord=(x,z)=>{const f=z/t.size.z+.5,offset=x*sx/cos;return fromMerc([A[0]+dx*f+rx*offset,A[1]+dy*f+ry*offset]);};
-   const pa=samplePoint(row.a,0),pb=samplePoint(row.b,0),qa=pa,qb=pb;
+   const pa=samplePoint(coord(0,-t.size.z*.5),0),pb=samplePoint(coord(0,t.size.z*.5),0),qa=samplePoint(row.a,0),qb=samplePoint(row.b,0);
    if(!pa||!pb||!qa||!qb){missing++;continue;}maxEndpointError=Math.max(maxEndpointError,pa.distanceTo(qa),pb.distanceTo(qb));
    const g=t.geometry,attr=g.attributes.position,uv=g.attributes.uv,index=g.index,triangles=[],r=topology.data[ri];
    const get=i=>[attr.getX(i),attr.getY(i),attr.getZ(i),uv?.getX(i)||0,uv?.getY(i)||0];
