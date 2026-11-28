@@ -126,13 +126,13 @@ export function attachSketchfabBuildings(map, options = {}) {
   const nativeSources=new Set(['ofm','bpBuildings','bpCityStructures','exact','exactRoof','bpCityRoofs']);
   function legacyLayer(l){
     if(!l||l.id.startsWith('bp-sketchfab-')||!nativeSources.has(l.source))return false;
-    return l.type==='fill-extrusion'&&(l['source-layer']==='building'||l['source-layer']==='buildings'||l.source==='exact'||l.source==='exactRoof'||l.source==='bpCityRoofs'||/building|roof|facade|floor-lines|night-windows/i.test(l.id));
+    return l.type==='fill-extrusion'&&((l['source-layer']||l.sourceLayer)==='building'||(l['source-layer']||l.sourceLayer)==='buildings'||l.source==='exact'||l.source==='exactRoof'||l.source==='bpCityRoofs'||/building|roof|facade|floor-lines|night-windows/i.test(l.id));
   }
   const setLayout=map.setLayoutProperty.bind(map);
   const setLayoutGuard=function(id,key,value,...args){
     if(exclusive&&!guarding&&key==='visibility'&&legacyLayer(map.getLayer(id))){
       nativeVisibility.set(id,value??'visible');
-      return setLayout(id,key,'none',...args);
+      if(map.getLayoutProperty(id,key)==='none')return map;return setLayout(id,key,'none',...args);
     }
     return setLayout(id,key,value,...args);
   };
